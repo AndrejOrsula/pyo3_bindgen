@@ -76,7 +76,7 @@ On its own, the generated Rust code does not provide any performance benefits ov
 
 The workspace contains these packages:
 
-- **[pyo3_bindgen](pyo3_bindgen):** Public API for generation of bindings (in `build.rs` scripts or via procedural macros if enabled)
+- **[pyo3_bindgen](pyo3_bindgen):** Public API for generation of bindings (in `build.rs` or via procedural macros)
 - **[pyo3_bindgen_cli](pyo3_bindgen_cli):** CLI tool for generation of bindings via `pyo3_bindgen` executable
 - **[pyo3_bindgen_engine](pyo3_bindgen_engine):** The underlying engine for generation of bindings
 - **[pyo3_bindgen_macros](pyo3_bindgen_macros):** \[Experimental\] Procedural macros for in-place generation
@@ -149,7 +149,7 @@ Then, you can call the `import_python!` macro anywhere in your crate.
 
 ```rs
 #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
-pub(crate) mod target_module {
+pub mod target_module {
     pyo3_bindgen::import_python!("target_module");
 }
 ```
