@@ -1,0 +1,29 @@
+## Rust & Cargo
+target/
+**/*.rs.bk
+**/*.pdb
+**/.cargo/config.toml
+!.cargo/config.toml
+
+## Python
+**/__pycache__/
+**/.pytest_cache/
+**/*.pcd
+**/*.py[cod]
+**/*.pyc
+**/*$py.class
+
+## Shared Objects
+**/*.so
+
+## Virtual environments
+.env/
+.venv/
+
+## VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/*.code-snippets

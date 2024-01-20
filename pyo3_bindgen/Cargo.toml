@@ -1,0 +1,25 @@
+[package]
+name = "pyo3_bindgen"
+authors.workspace = true
+categories.workspace = true
+description = "Automatic generation of Rust bindings to Python modules"
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+pyo3_bindgen_engine = { workspace = true }
+pyo3_bindgen_macros = { workspace = true, optional = true }
+
+[features]
+default = ["macros"]
+macros = ["pyo3_bindgen_macros"]
+
+[lib]
+name = "pyo3_bindgen"
+path = "src/lib.rs"
+crate-type = ["rlib"]

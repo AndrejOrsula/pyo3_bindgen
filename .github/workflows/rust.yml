@@ -1,0 +1,143 @@
+name: Rust
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.10"
+  CARGO_TERM_COLOR: always
+  LIB_PACKAGE_NAME: pyo3_bindgen
+  CLI_PACKAGE_NAME: pyo3_bindgen_cli
+  ENGINE_PACKAGE_NAME: pyo3_bindgen_engine
+  MACROS_PROCEDURAL_PACKAGE_NAME: pyo3_bindgen_macros
+
+jobs:
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      ## cargo fmt
+      - name: cargo fmt
+        run: cargo fmt --all --check --verbose
+
+  cargo:
+    needs: rustfmt
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - "1.70" # Minimal supported Rust version (MSRV)
+          - stable
+          - beta
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.event_name == 'push'}}
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.toolchain }}
+          components: clippy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      ## cargo check
+      - name: cargo check
+        run: cargo check --workspace --all-targets --verbose
+      - name: cargo check --no-default-features
+        run: cargo check --workspace --all-targets --no-default-features --verbose
+      - name: cargo check --all-features
+        run: cargo check --workspace --all-targets --all-features --verbose
+
+      ## cargo test
+      - name: cargo test
+        run: cargo test --workspace --all-targets --verbose
+      - name: cargo test --no-default-features
+        run: cargo test --workspace --all-targets --no-default-features --verbose
+      - name: cargo test --all-features
+        run: cargo test --workspace --all-targets --all-features --verbose
+
+      ## cargo test --doc
+      - name: cargo test --doc
+        run: cargo test --workspace --doc --verbose
+      - name: cargo test --doc --no-default-features
+        run: cargo test --workspace --doc --no-default-features --verbose
+      - name: cargo test --doc --all-features
+        run: cargo test --workspace --doc --all-features --verbose
+
+      ## [stable] cargo clippy
+      - name: stable | cargo clippy
+        if: ${{ matrix.toolchain == 'stable' }}
+        run: cargo clippy --workspace --all-targets --all-features --no-deps --verbose -- --deny warnings
+
+      ## [stable] cargo doc
+      - name: stable | cargo doc --document-private-items
+        if: ${{ matrix.toolchain == 'stable' }}
+        run: cargo doc --workspace --all-features --no-deps --document-private-items --verbose
+
+      ## [stable] Code coverage
+      - name: stable | Install cargo llvm-cov for code coverage
+        uses: taiki-e/install-action@cargo-llvm-cov
+        if: ${{ matrix.toolchain == 'stable' }}
+      ## [stable] Generate coverage with cargo llvm-cov
+      - name: stable | Generate coverage
+        if: ${{ matrix.toolchain == 'stable' }}
+        run: cargo llvm-cov --workspace --all-features --lcov --output-path lcov.info
+      ## [stable] Upload coverage to codecov.io
+      - name: stable | Upload coverage
+        if: ${{ matrix.toolchain == 'stable' }}
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: lcov.info
+          fail_ci_if_error: true
+
+  deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          command: check bans licenses sources
+
+  publish:
+    if: ${{ github.event_name == 'release' }}
+    needs:
+      - cargo
+      - deny
+    runs-on: ubuntu-latest
+    env:
+      CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+
+      ## Publish to crates.io
+      - name: Publish crate (engine)
+        if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}
+        run: cargo publish --no-verify --package ${{ env.ENGINE_PACKAGE_NAME }} --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate (procedural macros)
+        if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}
+        run: cargo publish --no-verify --package ${{ env.MACROS_PROCEDURAL_PACKAGE_NAME }} --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate (public API)
+        if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}
+        run: cargo publish --no-verify --package ${{ env.LIB_PACKAGE_NAME }} --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish crate (CLI tool)
+        if: ${{ env.CARGO_REGISTRY_TOKEN != '' }}
+        run: cargo publish --no-verify --package ${{ env.CLI_PACKAGE_NAME }} --token ${{ secrets.CARGO_REGISTRY_TOKEN }}

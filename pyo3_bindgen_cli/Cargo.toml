@@ -1,0 +1,27 @@
+[package]
+name = "pyo3_bindgen_cli"
+authors.workspace = true
+categories.workspace = true
+description = "CLI tool for automatic generation of Rust bindings to Python modules"
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+prettyplease = { workspace = true }
+pyo3_bindgen = { workspace = true }
+syn = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+predicates = { workspace = true }
+
+[[bin]]
+name = "pyo3_bindgen"
+path = "src/main.rs"
+doc = false

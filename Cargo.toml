@@ -1,0 +1,41 @@
+[workspace]
+members = [
+    # Public API
+    "pyo3_bindgen",
+    # CLI tool
+    "pyo3_bindgen_cli",
+    # The underlying engine
+    "pyo3_bindgen_engine",
+    # Procedural macros
+    "pyo3_bindgen_macros",
+]
+resolver = "2"
+
+[workspace.package]
+authors = ["Andrej Orsula <orsula.andrej@gmail.com>"]
+categories = ["development-tools::ffi"]
+edition = "2021"
+keywords = ["bindgen", "ffi", "pyo3", "python"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/AndrejOrsula/pyo3_bindgen"
+rust-version = "1.70"
+version = "0.1.0"
+
+[workspace.dependencies]
+pyo3_bindgen = { path = "pyo3_bindgen", version = "0.1.0" }
+pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.1.0" }
+pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.1.0" }
+
+assert_cmd = { version = "2" }
+clap = { version = "4.4", features = ["derive"] }
+criterion = { version = "0.5" }
+indoc = { version = "2" }
+itertools = { version = "0.12" }
+predicates = { version = "3" }
+prettyplease = { version = "0.2" }
+proc-macro2 = { version = "1" }
+pyo3 = { version = "0.20", default-features = false }
+pyo3-build-config = { version = "0.20", features = ["resolve-config"] }
+quote = { version = "1" }
+syn = { version = "2" }

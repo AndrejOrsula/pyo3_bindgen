@@ -1,0 +1,53 @@
+# `cargo deny` is only intended to run these targets for this project
+targets = [
+    { triple = "aarch64-unknown-linux-gnu" },
+    { triple = "x86_64-unknown-linux-gnu" },
+    { triple = "x86_64-unknown-linux-musl" },
+]
+
+# Considered when running `cargo deny check advisories`
+# https://embarkstudios.github.io/cargo-deny/checks/advisories/cfg.html
+[advisories]
+notice = "deny"
+unmaintained = "warn"
+unsound = "deny"
+vulnerability = "deny"
+yanked = "deny"
+ignore = []
+
+# Considered when running `cargo deny check licenses`
+# https://embarkstudios.github.io/cargo-deny/checks/licenses/cfg.html
+[licenses]
+allow-osi-fsf-free = "neither"
+copyleft = "deny"
+unlicensed = "deny"
+private = { ignore = true }
+confidence-threshold = 0.925
+allow = [
+    "Apache-2.0 WITH LLVM-exception", # https://spdx.org/licenses/LLVM-exception.html
+    "Apache-2.0",                     # https://spdx.org/licenses/Apache-2.0.html
+    "BSD-3-Clause",                   # https://spdx.org/licenses/BSD-3-Clause.html
+    "ISC",                            # https://spdx.org/licenses/ISC.html
+    "MIT",                            # https://spdx.org/licenses/MIT.html
+    "MPL-2.0",                        # https://spdx.org/licenses/MPL-2.0.html
+    "Unicode-DFS-2016",               # https://spdx.org/licenses/Unicode-DFS-2016.html
+]
+exceptions = []
+
+# Considered when running `cargo deny check bans`
+# https://embarkstudios.github.io/cargo-deny/checks/bans/cfg.html
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+deny = []
+skip = []
+skip-tree = []
+
+# Considered when running `cargo deny check sources`
+# https://embarkstudios.github.io/cargo-deny/checks/sources/cfg.html
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+
+[sources.allow-org]
+github = ["AndrejOrsula"]

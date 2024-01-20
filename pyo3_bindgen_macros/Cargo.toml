@@ -1,0 +1,24 @@
+[package]
+name = "pyo3_bindgen_macros"
+authors.workspace = true
+categories.workspace = true
+description = "Procedural macros for automatic generation of Rust bindings to Python modules"
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+pyo3_bindgen_engine = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
+
+[dev-dependencies]
+pyo3 = { workspace = true }
+
+[lib]
+proc-macro = true
