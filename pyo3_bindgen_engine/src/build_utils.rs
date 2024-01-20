@@ -36,7 +36,12 @@
 /// ```ignore
 /// // src/lib.rs
 ///
-/// #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+/// #[allow(
+///     clippy::all,
+///     non_camel_case_types,
+///     non_snake_case,
+///     non_upper_case_globals
+/// )]
 /// pub mod os {
 ///     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 /// }

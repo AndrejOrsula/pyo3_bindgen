@@ -14,12 +14,22 @@ mod parser;
 /// // use pyo3_bindgen::import_python;
 /// use pyo3_bindgen_macros::import_python;
 ///
-/// #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+/// #[allow(
+///     clippy::all,
+///     non_camel_case_types,
+///     non_snake_case,
+///     non_upper_case_globals
+/// )]
 /// pub mod sys {
 ///    import_python!("sys");
 /// }
 ///
-/// #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+/// #[allow(
+///     clippy::all,
+///     non_camel_case_types,
+///     non_snake_case,
+///     non_upper_case_globals
+/// )]
 /// pub(crate) mod os_path {
 ///    import_python!("os.path");
 /// }

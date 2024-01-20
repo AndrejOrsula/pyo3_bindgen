@@ -1,9 +1,11 @@
 # pyo3_bindgen
 
 <p align="left">
-  <a href="https://crates.io/crates/pyo3_bindgen">                                   <img alt="crates.io" src="https://img.shields.io/crates/v/pyo3_bindgen.svg"></a>
-  <a href="https://github.com/AndrejOrsula/pyo3_bindgen/actions/workflows/rust.yml"> <img alt="Rust"      src="https://github.com/AndrejOrsula/pyo3_bindgen/actions/workflows/rust.yml/badge.svg"></a>
-  <a href="https://codecov.io/gh/AndrejOrsula/pyo3_bindgen">                         <img alt="codecov"   src="https://codecov.io/gh/AndrejOrsula/pyo3_bindgen/branch/main/graph/badge.svg"></a>
+  <a href="https://crates.io/crates/pyo3_bindgen">                                   <img alt="crates.io"  src="https://img.shields.io/crates/v/pyo3_bindgen.svg"></a>
+  <a href="https://docs.rs/pyo3_bindgen">                                            <img alt="docs.rs"    src="https://docs.rs/pyo3_bindgen/badge.svg"></a>
+  <a href="https://github.com/AndrejOrsula/pyo3_bindgen/actions/workflows/rust.yml"> <img alt="Rust"       src="https://github.com/AndrejOrsula/pyo3_bindgen/actions/workflows/rust.yml/badge.svg"></a>
+  <a href="https://deps.rs/repo/github/AndrejOrsula/pyo3_bindgen">                   <img alt="deps.rs"    src="https://deps.rs/repo/github/AndrejOrsula/pyo3_bindgen/status.svg"></a>
+  <a href="https://codecov.io/gh/AndrejOrsula/pyo3_bindgen">                         <img alt="codecov.io" src="https://codecov.io/gh/AndrejOrsula/pyo3_bindgen/branch/main/graph/badge.svg"></a>
 </p>
 
 Automatic generation of Rust FFI bindings to Python modules via [PyO3](https://pyo3.rs). Python modules are analyzed recursively to generate Rust bindings with an identical structure for all public classes, functions, properties, and constants. Any available docstrings and type annotations are also preserved in their Rust equivalents.
@@ -76,7 +78,7 @@ On its own, the generated Rust code does not provide any performance benefits ov
 
 The workspace contains these packages:
 
-- **[pyo3_bindgen](pyo3_bindgen):** Public API for generation of bindings (in `build.rs` scripts or via procedural macros if enabled)
+- **[pyo3_bindgen](pyo3_bindgen):** Public API for generation of bindings (in `build.rs` or via procedural macros)
 - **[pyo3_bindgen_cli](pyo3_bindgen_cli):** CLI tool for generation of bindings via `pyo3_bindgen` executable
 - **[pyo3_bindgen_engine](pyo3_bindgen_engine):** The underlying engine for generation of bindings
 - **[pyo3_bindgen_macros](pyo3_bindgen_macros):** \[Experimental\] Procedural macros for in-place generation
@@ -113,7 +115,12 @@ fn main() {
 Afterwards, include the generated bindings anywhere in your crate.
 
 ```rs
-#[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+#[allow(
+    clippy::all,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals
+)]
 pub mod target_module {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 }
@@ -148,8 +155,13 @@ pyo3_bindgen = { version = "0.1", features = ["macros"] }
 Then, you can call the `import_python!` macro anywhere in your crate.
 
 ```rs
-#[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
-pub(crate) mod target_module {
+#[allow(
+    clippy::all,
+    non_camel_case_types,
+    non_snake_case,
+    non_upper_case_globals
+)]
+pub mod target_module {
     pyo3_bindgen::import_python!("target_module");
 }
 ```
