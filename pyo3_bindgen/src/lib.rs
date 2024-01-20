@@ -32,7 +32,12 @@
 //! Afterwards, include the generated bindings anywhere in your crate.
 //!
 //! ```rs
-//! #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+//! #[allow(
+//!     clippy::all,
+//!     non_camel_case_types,
+//!     non_snake_case,
+//!     non_upper_case_globals
+//! )]
 //! pub mod target_module {
 //!     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 //! }
@@ -67,7 +72,12 @@
 //! Then, you can call the `import_python!` macro anywhere in your crate.
 //!
 //! ```rs
-//! #[allow(non_camel_case_types, non_snake_case, non_upper_case_globals)]
+//! #[allow(
+//!     clippy::all,
+//!     non_camel_case_types,
+//!     non_snake_case,
+//!     non_upper_case_globals
+//! )]
 //! pub mod target_module {
 //!     pyo3_bindgen::import_python!("target_module");
 //! }
