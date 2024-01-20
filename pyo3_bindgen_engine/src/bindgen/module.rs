@@ -242,8 +242,12 @@ pub fn bind_reexport(
         .take_while(|(a, b)| a == b)
         .count();
     let current_module_depth = module_name.split('.').count();
-    let reexport_path: String = std::iter::repeat("super".to_string())
-        .take(current_module_depth - n_common_ancestors)
+    let reexport_path = if (current_module_depth - n_common_ancestors) > 0 {
+        std::iter::repeat("super".to_string()).take(current_module_depth - n_common_ancestors)
+    } else {
+        std::iter::repeat("self".to_string()).take(1)
+    };
+    let reexport_path: String = reexport_path
         .chain(
             attr_origin_module
                 .split('.')
