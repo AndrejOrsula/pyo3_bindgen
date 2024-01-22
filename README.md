@@ -115,15 +115,8 @@ fn main() {
 Afterwards, include the generated bindings anywhere in your crate.
 
 ```rs
-#[allow(
-    clippy::all,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals
-)]
-pub mod target_module {
-    include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-}
+include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+pub use target_module::*;
 ```
 
 ### <a href="#-option-2-cli-tool"><img src="https://www.svgrepo.com/show/353478/bash-icon.svg" width="16" height="16"></a> Option 2: CLI tool
@@ -155,15 +148,8 @@ pyo3_bindgen = { version = "0.1", features = ["macros"] }
 Then, you can call the `import_python!` macro anywhere in your crate.
 
 ```rs
-#[allow(
-    clippy::all,
-    non_camel_case_types,
-    non_snake_case,
-    non_upper_case_globals
-)]
-pub mod target_module {
-    pyo3_bindgen::import_python!("target_module");
-}
+pyo3_bindgen::import_python!("target_module");
+pub use target_module::*;
 ```
 
 ## Status

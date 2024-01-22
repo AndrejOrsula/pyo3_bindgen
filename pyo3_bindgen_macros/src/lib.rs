@@ -14,25 +14,11 @@ mod parser;
 /// // use pyo3_bindgen::import_python;
 /// use pyo3_bindgen_macros::import_python;
 ///
-/// #[allow(
-///     clippy::all,
-///     non_camel_case_types,
-///     non_snake_case,
-///     non_upper_case_globals
-/// )]
-/// pub mod sys {
-///    import_python!("sys");
-/// }
+/// import_python!("sys");
+/// pub use sys::*;
 ///
-/// #[allow(
-///     clippy::all,
-///     non_camel_case_types,
-///     non_snake_case,
-///     non_upper_case_globals
-/// )]
-/// pub(crate) mod os_path {
-///    import_python!("os.path");
-/// }
+/// import_python!("os.path");
+/// pub use path::*;
 /// ```
 #[proc_macro]
 pub fn import_python(input: proc_macro::TokenStream) -> proc_macro::TokenStream {

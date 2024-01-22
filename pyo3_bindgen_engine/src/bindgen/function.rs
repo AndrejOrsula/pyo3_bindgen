@@ -5,11 +5,12 @@ use crate::types::Type;
 
 /// Generate Rust bindings to a Python function. The function can be a standalone function or a
 /// method of a class.
-pub fn bind_function(
+pub fn bind_function<S: ::std::hash::BuildHasher>(
     py: pyo3::Python,
     module_name: &str,
     name: &str,
     function: &pyo3::PyAny,
+    all_types: &std::collections::HashSet<String, S>,
 ) -> Result<proc_macro2::TokenStream, pyo3::PyErr> {
     let inspect = py.import("inspect")?;
 
@@ -156,10 +157,11 @@ pub fn bind_function(
         .map(|(_, param_annotation, _, _)| {
             Type::try_from(param_annotation.unwrap_or_else(|| pynone))
                 .unwrap()
-                .into_rs_borrowed()
+                .into_rs_borrowed(module_name, all_types)
         })
         .collect_vec();
-    let return_annotation = Type::try_from(return_annotation.unwrap_or(pynone))?.into_rs_owned();
+    let return_annotation =
+        Type::try_from(return_annotation.unwrap_or(pynone))?.into_rs_owned(module_name, all_types);
 
     let mut doc = function.getattr("__doc__")?.to_string();
     if doc == "None" {
@@ -172,7 +174,7 @@ pub fn bind_function(
             quote::quote! {
                     #[doc = #doc]
                     pub fn #function_ident<'py>(
-                    &'py mut self,
+                    &'py self,
                     py: ::pyo3::marker::Python<'py>,
                     #(#param_idents: #param_types),*
                 ) -> ::pyo3::PyResult<#return_annotation> {
@@ -180,20 +182,20 @@ pub fn bind_function(
                     use ::pyo3::IntoPy;
                     let __internal_args = (
                         #({
-                            let #positional_args_idents: ::pyo3::PyObject = #positional_args_idents.to_owned().into_py(py);
+                            let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
                             #positional_args_idents
                         },)*
                     );
                     let __internal_kwargs = #var_keyword_ident;
                     #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
-                    self.as_ref(py).call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
+                    self.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
                 }
             }
         } else {
             quote::quote! {
                     #[doc = #doc]
                     pub fn #function_ident<'py>(
-                    &'py mut self,
+                    &'py self,
                     py: ::pyo3::marker::Python<'py>,
                     #(#param_idents: #param_types),*
                 ) -> ::pyo3::PyResult<#return_annotation> {
@@ -201,13 +203,13 @@ pub fn bind_function(
                     use ::pyo3::IntoPy;
                     let __internal_args = (
                         #({
-                            let #positional_args_idents: ::pyo3::PyObject = #positional_args_idents.to_owned().into_py(py);
+                            let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
                             #positional_args_idents
                         },)*
                     );
                     let __internal_kwargs = ::pyo3::types::PyDict::new(py);
                     #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
-                    self.as_ref(py).call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
+                    self.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
                 }
             }
         }
@@ -222,7 +224,7 @@ pub fn bind_function(
                 use ::pyo3::IntoPy;
                 let __internal_args = (
                     #({
-                        let #positional_args_idents: ::pyo3::PyObject = #positional_args_idents.to_owned().into_py(py);
+                        let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
                         #positional_args_idents
                     },)*
                 );
@@ -242,7 +244,7 @@ pub fn bind_function(
                 use ::pyo3::IntoPy;
                 let __internal_args = (
                     #({
-                        let #positional_args_idents: ::pyo3::PyObject = #positional_args_idents.to_owned().into_py(py);
+                        let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
                         #positional_args_idents
                     },)*
                 );

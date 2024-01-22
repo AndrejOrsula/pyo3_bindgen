@@ -2,12 +2,14 @@ use crate::types::Type;
 
 /// Generate Rust bindings to a Python attribute. The attribute can be a standalone
 /// attribute or a property of a class.
-pub fn bind_attribute(
+pub fn bind_attribute<S: ::std::hash::BuildHasher>(
     py: pyo3::Python,
-    module_name: Option<&str>,
+    module_name: &str,
+    is_class: bool,
     name: &str,
     attr: &pyo3::PyAny,
     attr_type: &pyo3::PyAny,
+    all_types: &std::collections::HashSet<String, S>,
 ) -> Result<proc_macro2::TokenStream, pyo3::PyErr> {
     let mut token_stream = proc_macro2::TokenStream::new();
 
@@ -72,10 +74,34 @@ pub fn bind_attribute(
     };
     let setter_ident = quote::format_ident!("set_{}", name);
 
-    let getter_type = Type::try_from(getter_type)?.into_rs_owned();
-    let setter_type = Type::try_from(setter_type)?.into_rs_borrowed();
+    let getter_type = Type::try_from(getter_type)?.into_rs_owned(module_name, all_types);
+    let setter_type = Type::try_from(setter_type)?.into_rs_borrowed(module_name, all_types);
 
-    if let Some(module_name) = module_name {
+    if is_class {
+        token_stream.extend(quote::quote! {
+            #[doc = #getter_doc]
+            pub fn #getter_ident<'py>(
+                &'py self,
+                py: ::pyo3::marker::Python<'py>,
+            ) -> ::pyo3::PyResult<#getter_type> {
+                self.getattr(::pyo3::intern!(py, #name))?
+                .extract()
+            }
+        });
+        if has_setter {
+            token_stream.extend(quote::quote! {
+                #[doc = #setter_doc]
+                pub fn #setter_ident<'py>(
+                    &'py self,
+                    py: ::pyo3::marker::Python<'py>,
+                    value: #setter_type,
+                ) -> ::pyo3::PyResult<()> {
+                    self.setattr(::pyo3::intern!(py, #name), value)?;
+                    Ok(())
+                }
+            });
+        }
+    } else {
         token_stream.extend(quote::quote! {
             #[doc = #getter_doc]
             pub fn #getter_ident<'py>(
@@ -95,32 +121,6 @@ pub fn bind_attribute(
                 ) -> ::pyo3::PyResult<()> {
                     py.import(::pyo3::intern!(py, #module_name))?
                     .setattr(::pyo3::intern!(py, #name), value)?;
-                    Ok(())
-                }
-            });
-        }
-    } else {
-        token_stream.extend(quote::quote! {
-            #[doc = #getter_doc]
-            pub fn #getter_ident<'py>(
-                &'py self,
-                py: ::pyo3::marker::Python<'py>,
-            ) -> ::pyo3::PyResult<#getter_type> {
-                self.as_ref(py)
-                .getattr(::pyo3::intern!(py, #name))?
-                .extract()
-            }
-        });
-        if has_setter {
-            token_stream.extend(quote::quote! {
-                #[doc = #setter_doc]
-                pub fn #setter_ident<'py>(
-                    &'py mut self,
-                    py: ::pyo3::marker::Python<'py>,
-                    value: #setter_type,
-                ) -> ::pyo3::PyResult<()> {
-                    self.as_ref(py)
-                        .setattr(::pyo3::intern!(py, #name), value)?;
                     Ok(())
                 }
             });

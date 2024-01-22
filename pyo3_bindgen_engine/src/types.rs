@@ -2,6 +2,7 @@
 // TODO: Remove allow once impl is finished
 #![allow(unused)]
 
+use itertools::Itertools;
 use std::str::FromStr;
 
 /// Enum that maps Python types to Rust types.
@@ -11,6 +12,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Type {
     PyAny,
+    Unhandled(String),
     Unknown,
 
     // Primitives
@@ -25,6 +27,7 @@ pub enum Type {
     // TODO: Optional causes issues when passed as a position-only argument to a function. Fix!
     Optional(Box<Type>),
     Union(Vec<Type>),
+    PyNone,
 
     // Collections
     PyDict {
@@ -63,6 +66,7 @@ pub enum Type {
     PyCFunction,
     #[cfg(not(Py_LIMITED_API))]
     PyCode,
+    PyEllipsis,
     #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
     PyFrame,
     PyFunction,
@@ -89,7 +93,29 @@ impl TryFrom<&pyo3::types::PyAny> for Type {
                 Self::from_typing(typing)?
             }
             none if none.is_none() => Self::Unknown,
-            _unknown => Self::Unknown,
+            // Unknown | Handle as string if possible
+            _ => {
+                let value = value.to_string();
+                match &value {
+                    _class if value.starts_with("<class '") && value.ends_with("'>") => {
+                        let value = value
+                            .strip_prefix("<class '")
+                            .unwrap()
+                            .strip_suffix("'>")
+                            .unwrap();
+                        Self::from_str(value)?
+                    }
+                    _enum if value.starts_with("<enum '") && value.ends_with("'>") => {
+                        let value = value
+                            .strip_prefix("<enum '")
+                            .unwrap()
+                            .strip_suffix("'>")
+                            .unwrap();
+                        Self::from_str(value)?
+                    }
+                    _ => Self::from_str(&value)?,
+                }
+            }
         })
     }
 }
@@ -131,6 +157,7 @@ impl TryFrom<&pyo3::types::PyType> for Type {
             t if t.is_subclass_of::<pyo3::types::PyDate>()? => Self::PyDate,
             #[cfg(not(Py_LIMITED_API))]
             t if t.is_subclass_of::<pyo3::types::PyDateTime>()? => Self::PyDateTime,
+            #[cfg(not(Py_LIMITED_API))]
             t if t.is_subclass_of::<pyo3::types::PyDelta>()? => Self::PyDelta,
             #[cfg(not(Py_LIMITED_API))]
             t if t.is_subclass_of::<pyo3::types::PyTime>()? => Self::PyTime,
@@ -157,28 +184,22 @@ impl TryFrom<&pyo3::types::PyType> for Type {
                 let value = value.to_string();
                 match &value {
                     _class if value.starts_with("<class '") && value.ends_with("'>") => {
-                        let s = value
+                        let value = value
                             .strip_prefix("<class '")
                             .unwrap()
                             .strip_suffix("'>")
                             .unwrap();
-                        Self::from_str(s)?
+                        Self::from_str(value)?
                     }
                     _enum if value.starts_with("<enum '") && value.ends_with("'>") => {
-                        let s = value
+                        let value = value
                             .strip_prefix("<enum '")
                             .unwrap()
                             .strip_suffix("'>")
                             .unwrap();
-                        Self::from_str(s)?
+                        Self::from_str(value)?
                     }
-                    _ => {
-                        eprintln!(
-                            "Warning: Unexpected type {value} encountered. \
-                             Please report this as a bug.",
-                        );
-                        Self::Unknown
-                    }
+                    _ => Self::Unhandled(value),
                 }
             }
         })
@@ -188,7 +209,7 @@ impl TryFrom<&pyo3::types::PyType> for Type {
 impl std::str::FromStr for Type {
     type Err = pyo3::PyErr;
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        let x = Ok(match value {
+        Ok(match value {
             "Any" => Self::PyAny,
 
             // Primitives
@@ -203,10 +224,11 @@ impl std::str::FromStr for Type {
             optional
                 if optional.matches('|').count() == 1 && optional.matches("None").count() == 1 =>
             {
-                let (t1, t2) = optional.split_once('|').unwrap();
-                let t1 = t1.trim();
-                let t2 = t2.trim();
-                let t = if t2 == "None" { t1 } else { t2 };
+                let t = optional
+                    .split('|')
+                    .map(str::trim)
+                    .find(|x| *x != "None")
+                    .unwrap();
                 Self::Optional(Box::new(Self::from_str(t)?))
             }
             r#union if r#union.contains('|') => {
@@ -222,9 +244,10 @@ impl std::str::FromStr for Type {
                         .collect::<Result<Vec<_>, _>>()?,
                 )
             }
+            "None" | "NoneType" => Self::PyNone,
 
             // Collections
-            dict if dict.starts_with("dict[") => {
+            dict if dict.starts_with("dict[") && dict.ends_with(']') => {
                 let (key, value) = dict
                     .strip_prefix("dict[")
                     .unwrap()
@@ -239,7 +262,11 @@ impl std::str::FromStr for Type {
                     t_value: Box::new(Self::from_str(value)?),
                 }
             }
-            frozenset if frozenset.starts_with("frozenset[") => {
+            "dict" | "Dict" => Self::PyDict {
+                t_key: Box::new(Self::Unknown),
+                t_value: Box::new(Self::Unknown),
+            },
+            frozenset if frozenset.starts_with("frozenset[") && frozenset.ends_with(']') => {
                 let t = frozenset
                     .strip_prefix("frozenset[")
                     .unwrap()
@@ -247,7 +274,7 @@ impl std::str::FromStr for Type {
                     .unwrap();
                 Self::PyFrozenSet(Box::new(Self::from_str(t)?))
             }
-            list if list.starts_with("list[") => {
+            list if list.starts_with("list[") && list.ends_with(']') => {
                 let t = list
                     .strip_prefix("list[")
                     .unwrap()
@@ -255,7 +282,8 @@ impl std::str::FromStr for Type {
                     .unwrap();
                 Self::PyList(Box::new(Self::from_str(t)?))
             }
-            sequence if sequence.starts_with("Sequence[") => {
+            "list" => Self::PyList(Box::new(Self::Unknown)),
+            sequence if sequence.starts_with("Sequence[") && sequence.ends_with(']') => {
                 let t = sequence
                     .strip_prefix("Sequence[")
                     .unwrap()
@@ -263,11 +291,11 @@ impl std::str::FromStr for Type {
                     .unwrap();
                 Self::PyList(Box::new(Self::from_str(t)?))
             }
-            set if set.starts_with("set[") => {
+            set if set.starts_with("set[") && set.ends_with(']') => {
                 let t = set.strip_prefix("set[").unwrap().strip_suffix(']').unwrap();
                 Self::PySet(Box::new(Self::from_str(t)?))
             }
-            tuple if tuple.starts_with("tuple[") => {
+            tuple if tuple.starts_with("tuple[") && tuple.ends_with(']') => {
                 let mut t_sequence = tuple
                     .strip_prefix("tuple[")
                     .unwrap()
@@ -310,10 +338,11 @@ impl std::str::FromStr for Type {
             "cfunction" => Self::PyCFunction,
             #[cfg(not(Py_LIMITED_API))]
             "code" => Self::PyCode,
+            "Ellipsis" | "..." => Self::PyEllipsis,
             #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
             "frame" => Self::PyFrame,
             "function" => Self::PyFunction,
-            callable if callable.starts_with("Callable[") => {
+            callable if callable.starts_with("Callable[") && callable.ends_with(']') => {
                 // TODO: Use callable types for something if useful
                 // let (args, return_value) = callable
                 //     .strip_prefix("Callable[")
@@ -333,13 +362,14 @@ impl std::str::FromStr for Type {
                 // let return_value = return_value.trim();
                 Self::PyFunction
             }
+            "Callable" | "callable" => Self::PyFunction,
             "module" => Self::PyModule,
             #[cfg(not(PyPy))]
             "super" => Self::PySuper,
             "traceback" => Self::PyTraceback,
-            r#type if r#type.starts_with("type[") => {
+            typ if typ.starts_with("type[") && typ.ends_with(']') => {
                 // TODO: Use inner type for something if useful
-                // let t = r#type
+                // let t = typ
                 //     .strip_prefix("type[")
                 //     .unwrap()
                 //     .strip_suffix(']')
@@ -347,42 +377,167 @@ impl std::str::FromStr for Type {
                 Self::PyType
             }
 
-            // TODO: Handle classes and other types
-            _unknown => Self::Unknown,
-        });
+            // typing
+            typing if typing.starts_with("typing.") => {
+                let s = typing.strip_prefix("typing.").unwrap();
+                Self::from_str(s)?
+            }
 
-        // let y = x.as_ref().unwrap();
-        // if y == &Self::Unknown {
-        //     let value = value.to_string();
-        //     if value != "property" {
-        //         dbg!(value);
-        //     }
-        // }
+            // collection.abc
+            collection if collection.starts_with("collection.abc.") => {
+                let s = collection.strip_prefix("collection.abc.").unwrap();
+                Self::from_str(s)?
+            }
 
-        x
+            unhandled => Self::Unhandled(unhandled.to_owned()),
+        })
     }
 }
 
 impl Type {
     pub fn from_typing(value: &pyo3::types::PyAny) -> pyo3::PyResult<Self> {
-        Ok(Self::Unknown)
-    }
+        if let (Ok(t), Ok(t_inner)) = (value.getattr("__origin__"), value.getattr("__args__")) {
+            let t_inner = t_inner.downcast::<pyo3::types::PyTuple>()?;
 
-    #[must_use]
-    pub fn into_rs(self, owned: bool) -> proc_macro2::TokenStream {
-        if owned {
-            self.into_rs_owned()
+            if t.is_instance_of::<pyo3::types::PyType>() {
+                let t = t.downcast::<pyo3::types::PyType>()?;
+                match Self::try_from(t)? {
+                    Self::PyDict { .. } => {
+                        let (t_key, t_value) = (
+                            Self::try_from(t_inner.get_item(0)?)?,
+                            Self::try_from(t_inner.get_item(1)?)?,
+                        );
+                        return Ok(Self::PyDict {
+                            t_key: Box::new(t_key),
+                            t_value: Box::new(t_value),
+                        });
+                    }
+                    Self::PyList(..) => {
+                        let t_inner = Self::try_from(t_inner.get_item(0)?)?;
+                        return Ok(Self::PyList(Box::new(t_inner)));
+                    }
+                    Self::PyTuple(..) => {
+                        let t_sequence = t_inner
+                            .iter()
+                            .map(Self::try_from)
+                            .collect::<Result<Vec<_>, _>>()?;
+                        return Ok(Self::PyTuple(t_sequence));
+                    }
+                    Self::PyType => {
+                        // TODO: See if the inner type is useful for something here
+                        return Ok(Self::PyType);
+                    }
+                    _ => {
+                        // Noop - processed as string below
+                        // eprintln!(
+                        //     "Warning: Unexpected type encountered: {value}\n \
+                        //      Bindings could be improved by handling the type here \
+                        //      Please report this as a bug. [scope: Type::from_typing()]",
+                        // );
+                    }
+                }
+            }
+
+            let t = t.to_string();
+            Ok(match &t {
+                _typing if t.starts_with("typing.") => {
+                    let t = t.strip_prefix("typing.").unwrap();
+                    match t {
+                        "Union" => {
+                            let t_sequence = t_inner
+                                .iter()
+                                .map(Self::try_from)
+                                .collect::<Result<Vec<_>, _>>()?;
+
+                            if t_sequence.len() == 2 && t_sequence.contains(&Self::PyNone) {
+                                let t = t_sequence
+                                    .iter()
+                                    .find(|x| **x != Self::PyNone)
+                                    .unwrap()
+                                    .clone();
+                                Self::Optional(Box::new(t))
+                            } else {
+                                Self::Union(t_sequence)
+                            }
+                        }
+                        _ => Self::Unhandled(value.to_string()),
+                    }
+                }
+                _collections if t.starts_with("<class 'collections.abc") && t.ends_with("'>") => {
+                    let t = t
+                        .strip_prefix("<class 'collections.abc.")
+                        .unwrap()
+                        .strip_suffix("'>")
+                        .unwrap();
+                    match t {
+                        "Iterable" | "Sequence" => {
+                            let t_inner = Self::try_from(t_inner.get_item(0)?)?;
+                            Self::PyList(Box::new(t_inner))
+                        }
+                        "Callable" => {
+                            // TODO: Use callable types for something if useful (t_inner)
+                            Self::PyFunction
+                        }
+                        _ => Self::Unhandled(value.to_string()),
+                    }
+                }
+                // Unknown | Handle the type as string if possible
+                _ => {
+                    // TODO: Handle also the inner type here if possible
+                    let t = t.to_string();
+                    match &t {
+                        _class if t.starts_with("<class '") && t.ends_with("'>") => {
+                            let t = t
+                                .strip_prefix("<class '")
+                                .unwrap()
+                                .strip_suffix("'>")
+                                .unwrap();
+                            Self::from_str(t)?
+                        }
+                        _enum if t.starts_with("<enum '") && t.ends_with("'>") => {
+                            let t = t
+                                .strip_prefix("<enum '")
+                                .unwrap()
+                                .strip_suffix("'>")
+                                .unwrap();
+                            Self::from_str(t)?
+                        }
+                        _ => Self::from_str(&t)?,
+                    }
+                }
+            })
         } else {
-            self.into_rs_borrowed()
+            let value = value.to_string();
+            Type::from_str(&value)
         }
     }
 
     #[must_use]
-    pub fn into_rs_owned(self) -> proc_macro2::TokenStream {
+    pub fn into_rs<S: ::std::hash::BuildHasher>(
+        self,
+        owned: bool,
+        module_name: &str,
+        all_types: &std::collections::HashSet<String, S>,
+    ) -> proc_macro2::TokenStream {
+        if owned {
+            self.into_rs_owned(module_name, all_types)
+        } else {
+            self.into_rs_borrowed(module_name, all_types)
+        }
+    }
+
+    #[must_use]
+    pub fn into_rs_owned<S: ::std::hash::BuildHasher>(
+        self,
+        module_name: &str,
+        all_types: &std::collections::HashSet<String, S>,
+    ) -> proc_macro2::TokenStream {
         match self {
             Self::PyAny => {
                 quote::quote! {&'py ::pyo3::types::PyAny}
             }
+            Self::Unhandled(..) => self.try_into_module_path(module_name, all_types),
+
             Self::Unknown => {
                 quote::quote! {&'py ::pyo3::types::PyAny}
             }
@@ -406,7 +561,7 @@ impl Type {
 
             // Enums
             Self::Optional(t) => {
-                let inner = t.into_rs_owned();
+                let inner = t.into_rs_owned(module_name, all_types);
                 quote::quote! {
                     ::std::option::Option<#inner>
                 }
@@ -417,12 +572,18 @@ impl Type {
                     &'py ::pyo3::types::PyAny
                 }
             }
+            Self::PyNone => {
+                // TODO: Not sure what to do with None
+                quote::quote! {
+                    &'py ::pyo3::types::PyAny
+                }
+            }
 
             // Collections
             Self::PyDict { t_key, t_value } => {
                 if t_key.is_owned_hashable() {
-                    let t_key = t_key.into_rs_owned();
-                    let t_value = t_value.into_rs_owned();
+                    let t_key = t_key.into_rs_owned(module_name, all_types);
+                    let t_value = t_value.into_rs_owned(module_name, all_types);
                     quote::quote! {
                         ::std::collections::HashMap<#t_key, #t_value>
                     }
@@ -439,7 +600,7 @@ impl Type {
                 }
             }
             Self::PyList(t) => {
-                let inner = t.into_rs_owned();
+                let inner = t.into_rs_owned(module_name, all_types);
                 quote::quote! {
                     Vec<#inner>
                 }
@@ -508,6 +669,12 @@ impl Type {
             Self::PyCode => {
                 quote::quote! {&'py ::pyo3::types::PyCode}
             }
+            Self::PyEllipsis => {
+                // TODO: Not sure what to do with ellipsis
+                quote::quote! {
+                    &'py ::pyo3::types::PyAny
+                }
+            }
             #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
             Self::PyFrame => {
                 quote::quote! {&'py ::pyo3::types::PyFrame}
@@ -537,11 +704,16 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs_borrowed(self) -> proc_macro2::TokenStream {
+    pub fn into_rs_borrowed<S: ::std::hash::BuildHasher>(
+        self,
+        module_name: &str,
+        all_types: &std::collections::HashSet<String, S>,
+    ) -> proc_macro2::TokenStream {
         match self {
             Self::PyAny => {
                 quote::quote! {&'py ::pyo3::types::PyAny}
             }
+            Self::Unhandled(..) => self.try_into_module_path(module_name, all_types),
             Self::Unknown => {
                 quote::quote! {&'py ::pyo3::types::PyAny}
             }
@@ -565,7 +737,7 @@ impl Type {
 
             // Enums
             Self::Optional(t) => {
-                let inner = t.into_rs_borrowed();
+                let inner = t.into_rs_borrowed(module_name, all_types);
                 quote::quote! {
                     ::std::option::Option<#inner>
                 }
@@ -576,12 +748,18 @@ impl Type {
                     &'py ::pyo3::types::PyAny
                 }
             }
+            Self::PyNone => {
+                // TODO: Not sure what to do with None
+                quote::quote! {
+                    &'py ::pyo3::types::PyAny
+                }
+            }
 
             // Collections
             Self::PyDict { t_key, t_value } => {
                 if t_key.is_owned_hashable() {
-                    let t_key = t_key.into_rs_owned();
-                    let t_value = t_value.into_rs_owned();
+                    let t_key = t_key.into_rs_owned(module_name, all_types);
+                    let t_value = t_value.into_rs_owned(module_name, all_types);
                     quote::quote! {
                         &::std::collections::HashMap<#t_key, #t_value>
                     }
@@ -598,7 +776,7 @@ impl Type {
                 }
             }
             Self::PyList(t) => {
-                let inner = t.into_rs_owned();
+                let inner = t.into_rs_owned(module_name, all_types);
                 quote::quote! {
                     &[#inner]
                 }
@@ -667,6 +845,12 @@ impl Type {
             Self::PyCode => {
                 quote::quote! {&'py ::pyo3::types::PyCode}
             }
+            Self::PyEllipsis => {
+                // TODO: Not sure what to do with ellipsis
+                quote::quote! {
+                    &'py ::pyo3::types::PyAny
+                }
+            }
             #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
             Self::PyFrame => {
                 quote::quote! {&'py ::pyo3::types::PyFrame}
@@ -695,6 +879,99 @@ impl Type {
         }
     }
 
+    fn try_into_module_path<S: ::std::hash::BuildHasher>(
+        self,
+        module_name: &str,
+        all_types: &std::collections::HashSet<String, S>,
+    ) -> proc_macro2::TokenStream {
+        let value = match self {
+            Self::Unhandled(value) => value,
+            _ => unreachable!(),
+        };
+        let module_root = if module_name.contains('.') {
+            module_name.split('.').next().unwrap()
+        } else {
+            module_name
+        };
+        match value.as_str() {
+            // Ignorelist
+            "property"
+            | "member_descriptor"
+            | "method_descriptor"
+            | "getset_descriptor"
+            | "_collections._tuplegetter"
+            | "AsyncState" => {
+                quote::quote! {&'py ::pyo3::types::PyAny}
+            }
+            module_member_full if module_member_full.starts_with(module_root) => {
+                // Ignore unknown types
+                if !all_types.contains(module_member_full) {
+                    return quote::quote! {&'py ::pyo3::types::PyAny};
+                }
+
+                let value_name = module_member_full.split('.').last().unwrap();
+
+                let n_common_ancestors = module_name
+                    .split('.')
+                    .zip(module_member_full.split('.'))
+                    .take_while(|(a, b)| a == b)
+                    .count();
+                let current_module_depth = module_name.split('.').count();
+                let reexport_path = if (current_module_depth - n_common_ancestors) > 0 {
+                    std::iter::repeat("super".to_string())
+                        .take(current_module_depth - n_common_ancestors)
+                } else {
+                    std::iter::repeat("self".to_string()).take(1)
+                };
+                let reexport_path: String = reexport_path
+                    .chain(
+                        module_member_full
+                            .split('.')
+                            .skip(n_common_ancestors)
+                            .map(|s| {
+                                if syn::parse_str::<syn::Ident>(s).is_ok() {
+                                    s.to_owned()
+                                } else {
+                                    format!("r#{s}")
+                                }
+                            }),
+                    )
+                    .join("::");
+
+                // dbg!(all_types);
+
+                // The path contains both ident and "::", combine into something that can be quoted
+                let reexport_path = syn::parse_str::<syn::Path>(&reexport_path).unwrap();
+                quote::quote! {
+                    &'py #reexport_path
+                }
+            }
+            _ => {
+                // TODO: Make this more robust (possibly parsing all local reexports to figure out where the type is coming from)
+                // TODO: Fix this! The matching is wrong in many cases
+                let module_member_end_match = value
+                    .split_once('[')
+                    .unwrap_or((&value, ""))
+                    .0
+                    .split('.')
+                    .last()
+                    .unwrap();
+                if let Some(module_member_full) = all_types
+                    .iter()
+                    .find(|x| x.ends_with(module_member_end_match))
+                {
+                    Self::Unhandled(module_member_full.to_owned())
+                        .try_into_module_path(module_name, all_types)
+                } else {
+                    // Unsupported
+                    // TODO: Support more types
+                    // dbg!(value);
+                    quote::quote! {&'py ::pyo3::types::PyAny}
+                }
+            }
+        }
+    }
+
     fn is_owned_hashable(&self) -> bool {
         matches!(
             self,
@@ -714,20 +991,33 @@ impl Type {
 
 // TODO: Replace this with something more sensible
 fn ugly_hack_repair_complex_split_sequence(sequence: &mut Vec<String>) {
-    let mut traversed_elements = false;
-    while !traversed_elements {
-        traversed_elements = true;
-        'outer: for i in 0..(sequence.len() - 1) {
-            if sequence[i].contains('[') {
-                for j in (i + 1)..sequence.len() {
-                    if sequence[j].contains(']') {
-                        let mut new_element = String::new();
-                        for inner_sequences in sequence.iter().take(j + 1).skip(i) {
-                            new_element = format!("{},{}", new_element, inner_sequences);
-                        }
-                        sequence[i] = new_element;
-                        sequence.drain((i + 1)..=j);
-                        traversed_elements = false;
+    let mut traversed_all_elements = false;
+    let mut start_index = 0;
+    'outer: while !traversed_all_elements {
+        traversed_all_elements = true;
+        'inner: for i in start_index..(sequence.len() - 1) {
+            let mut n_scopes = sequence[i].matches('[').count() - sequence[i].matches(']').count();
+            if n_scopes == 0 {
+                continue;
+            }
+            for j in (i + 1)..sequence.len() {
+                n_scopes += sequence[j].matches('[').count();
+                n_scopes -= sequence[j].matches(']').count();
+                if n_scopes == 0 {
+                    let mut new_element = sequence[i].clone();
+                    for relevant_element in sequence.iter().take(j + 1).skip(i + 1) {
+                        new_element = format!("{new_element},{relevant_element}");
+                    }
+
+                    // Update sequence and remove the elements that were merged
+                    sequence[i] = new_element;
+                    sequence.drain((i + 1)..=j);
+
+                    if j < sequence.len() - 1 {
+                        traversed_all_elements = false;
+                        start_index = i;
+                        break 'inner;
+                    } else {
                         break 'outer;
                     }
                 }

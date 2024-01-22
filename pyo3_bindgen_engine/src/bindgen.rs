@@ -10,6 +10,10 @@ pub use class::bind_class;
 pub use function::bind_function;
 pub use module::{bind_module, bind_reexport};
 
+// TODO: Ensure there are no duplicate entries in the generated code
+// TODO: Refactor everything into a large configurable struct that keeps track of all the
+//       important information needed to properly generate the bindings
+
 /// Generate Rust bindings to a Python module specified by its name. Generating bindings to
 /// submodules such as `os.path` is also supported as long as the module can be directly imported
 /// from the Python interpreter via `import os.path`.
@@ -75,7 +79,21 @@ pub fn generate_bindings_for_module(
     py: pyo3::Python,
     module: &pyo3::types::PyModule,
 ) -> Result<proc_macro2::TokenStream, pyo3::PyErr> {
-    bind_module(py, module, module, &mut std::collections::HashSet::new())
+    let all_types = module::collect_types_of_module(
+        py,
+        module,
+        module,
+        &mut std::collections::HashSet::new(),
+        &mut std::collections::HashSet::default(),
+    )?;
+
+    bind_module(
+        py,
+        module,
+        module,
+        &mut std::collections::HashSet::new(),
+        &all_types,
+    )
 }
 
 /// Generate Rust bindings to a Python module specified by its `source_code`. The module will be
