@@ -1,4 +1,4 @@
-use crate::types::map_attr_type;
+use crate::types::Type;
 
 /// Generate Rust bindings to a Python attribute. The attribute can be a standalone
 /// attribute or a property of a class.
@@ -72,8 +72,8 @@ pub fn bind_attribute(
     };
     let setter_ident = quote::format_ident!("set_{}", name);
 
-    let getter_type = map_attr_type(getter_type, true)?;
-    let setter_type = map_attr_type(setter_type, false)?;
+    let getter_type = Type::try_from(getter_type)?.into_rs_owned();
+    let setter_type = Type::try_from(setter_type)?.into_rs_borrowed();
 
     if let Some(module_name) = module_name {
         token_stream.extend(quote::quote! {

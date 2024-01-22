@@ -1,5 +1,8 @@
 use crate::bindgen::{bind_attribute, bind_function};
 
+// TODO: Look into pyo3::pyobject_native_type_named pyo3::pyobject_native_type_extract macros
+// Just look into how one of the native Pyo3 types is implemented and copy that
+
 /// Generate Rust bindings to a Python class with all its methods and attributes (properties).
 /// This function will call itself recursively to generate bindings to all nested classes.
 pub fn bind_class(

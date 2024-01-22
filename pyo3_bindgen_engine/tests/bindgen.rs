@@ -77,13 +77,9 @@ test_bindgen! {
         ) -> ::pyo3::PyResult<i64> {
             #[allow(unused_imports)]
             use ::pyo3::IntoPy;
-            let __internal_args = (
-                {
-                    let t_arg1: ::pyo3::PyObject = t_arg1.into_py(py);
-                    t_arg1
-                },
-            );
+            let __internal_args = ();
             let __internal_kwargs = ::pyo3::types::PyDict::new(py);
+            __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
             py.import(::pyo3::intern!(py, "t_mod_test_bindgen_function"))?
                 .call_method(
                     ::pyo3::intern!(py, "t_fn"),
@@ -169,17 +165,10 @@ test_bindgen! {
             ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
                 #[allow(unused_imports)]
                 use ::pyo3::IntoPy;
-                let __internal_args = (
-                    {
-                        let t_arg1: ::pyo3::PyObject = t_arg1.into_py(py);
-                        t_arg1
-                    },
-                    {
-                        let t_arg2: ::pyo3::PyObject = t_arg2.into_py(py);
-                        t_arg2
-                    },
-                );
+                let __internal_args = ();
                 let __internal_kwargs = ::pyo3::types::PyDict::new(py);
+                __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
+                __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg2"), t_arg2)?;
                 self.as_ref(py)
                     .call_method(
                         ::pyo3::intern!(py, "__init__"),
@@ -197,13 +186,9 @@ test_bindgen! {
             ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
                 #[allow(unused_imports)]
                 use ::pyo3::IntoPy;
-                let __internal_args = (
-                    {
-                        let t_arg1: ::pyo3::PyObject = t_arg1.into_py(py);
-                        t_arg1
-                    },
-                );
+                let __internal_args = ();
                 let __internal_kwargs = kwargs;
+                __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
                 self.as_ref(py)
                     .call_method(
                         ::pyo3::intern!(py, "t_method"),
@@ -237,17 +222,10 @@ test_bindgen! {
             ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
                 #[allow(unused_imports)]
                 use ::pyo3::IntoPy;
-                let __internal_args = (
-                    {
-                        let t_arg1: ::pyo3::PyObject = t_arg1.into_py(py);
-                        t_arg1
-                    },
-                    {
-                        let t_arg2: ::pyo3::PyObject = t_arg2.into_py(py);
-                        t_arg2
-                    },
-                );
+                let __internal_args = ();
                 let __internal_kwargs = ::pyo3::types::PyDict::new(py);
+                __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
+                __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg2"), t_arg2)?;
                 self.as_ref(py)
                     .call_method(
                         ::pyo3::intern!(py, "__init__"),
