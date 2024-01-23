@@ -43,7 +43,15 @@ test_bindgen! {
 
     rs:r#"
         ///
-        #[allow(clippy::all, non_camel_case_types, non_snake_case, non_upper_case_globals, unused)]
+        #[allow(
+            clippy::all,
+            clippy::nursery,
+            clippy::pedantic,
+            non_camel_case_types,
+            non_snake_case,
+            non_upper_case_globals,
+            unused
+        )]
         mod t_mod_test_bindgen_attribute {
             ///Getter for the `t_const_float` attribute
             pub fn t_const_float<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<f64> {
@@ -77,10 +85,12 @@ test_bindgen! {
         ///
         #[allow(
             clippy::all,
-            non_camel_case_types,
-            non_snake_case,
-            non_upper_case_globals,
-            unused
+                clippy::nursery,
+                clippy::pedantic,
+                non_camel_case_types,
+                non_snake_case,
+                non_upper_case_globals,
+                unused
         )]
         mod t_mod_test_bindgen_function {
             ///t_docs
@@ -128,10 +138,12 @@ test_bindgen! {
         ///
         #[allow(
             clippy::all,
-            non_camel_case_types,
-            non_snake_case,
-            non_upper_case_globals,
-            unused
+                clippy::nursery,
+                clippy::pedantic,
+                non_camel_case_types,
+                non_snake_case,
+                non_upper_case_globals,
+                unused
         )]
         mod t_mod_test_bindgen_class {
             ///t_docs

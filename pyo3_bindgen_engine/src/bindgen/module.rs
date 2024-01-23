@@ -240,6 +240,8 @@ pub fn bind_module<S: ::std::hash::BuildHasher + Default>(
             #[doc = #doc]
             #[allow(
                 clippy::all,
+                clippy::nursery,
+                clippy::pedantic,
                 non_camel_case_types,
                 non_snake_case,
                 non_upper_case_globals,
