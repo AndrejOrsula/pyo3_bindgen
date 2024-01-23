@@ -58,7 +58,6 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
                 Some(param_default)
             };
             // TODO: Turn into enum or process in-place
-            // TODO: Fully support positional-only parameters
             let param_kind = match param_kind.extract::<usize>().unwrap() {
                 0 => "POSITIONAL_ONLY",
                 1 => "POSITIONAL_OR_KEYWORD",

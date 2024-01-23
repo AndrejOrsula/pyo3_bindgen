@@ -593,9 +593,15 @@ impl Type {
                 }
             }
             Self::PyFrozenSet(t) => {
-                // TODO: Support Rust HashSet where possible
-                quote::quote! {
-                    &'py ::pyo3::types::PyFrozenSet
+                if t.is_owned_hashable() {
+                    let t = t.into_rs_owned(module_name, all_types);
+                    quote::quote! {
+                        ::std::collections::HashSet<#t>
+                    }
+                } else {
+                    quote::quote! {
+                        &'py ::pyo3::types::PyFrozenSet
+                    }
                 }
             }
             Self::PyList(t) => {
@@ -605,15 +611,32 @@ impl Type {
                 }
             }
             Self::PySet(t) => {
-                // TODO: Support Rust HashSet where possible
-                quote::quote! {
-                    &'py ::pyo3::types::PySet
+                if t.is_owned_hashable() {
+                    let t = t.into_rs_owned(module_name, all_types);
+                    quote::quote! {
+                        ::std::collections::HashSet<#t>
+                    }
+                } else {
+                    quote::quote! {
+                        &'py ::pyo3::types::PySet
+                    }
                 }
             }
             Self::PyTuple(t_sequence) => {
-                // TODO: Support Rust tuple where possible
-                quote::quote! {
-                    &'py ::pyo3::types::PyTuple
+                if t_sequence.is_empty()
+                    || (t_sequence.len() == 1 && t_sequence[0] == Self::Unknown)
+                {
+                    quote::quote! {
+                        &'py ::pyo3::types::PyTuple
+                    }
+                } else {
+                    let inner = t_sequence
+                        .into_iter()
+                        .map(|x| x.into_rs_owned(module_name, all_types))
+                        .collect::<Vec<_>>();
+                    quote::quote! {
+                        (#(#inner),*)
+                    }
                 }
             }
 
@@ -769,9 +792,15 @@ impl Type {
                 }
             }
             Self::PyFrozenSet(t) => {
-                // TODO: Support Rust HashSet where possible
-                quote::quote! {
-                    &'py ::pyo3::types::PyFrozenSet
+                if t.is_owned_hashable() {
+                    let t = t.into_rs_owned(module_name, all_types);
+                    quote::quote! {
+                        &::std::collections::HashSet<#t>
+                    }
+                } else {
+                    quote::quote! {
+                        &'py ::pyo3::types::PyFrozenSet
+                    }
                 }
             }
             Self::PyList(t) => {
@@ -781,15 +810,32 @@ impl Type {
                 }
             }
             Self::PySet(t) => {
-                // TODO: Support Rust HashSet where possible
-                quote::quote! {
-                    &'py ::pyo3::types::PySet
+                if t.is_owned_hashable() {
+                    let t = t.into_rs_owned(module_name, all_types);
+                    quote::quote! {
+                        &::std::collections::HashSet<#t>
+                    }
+                } else {
+                    quote::quote! {
+                        &'py ::pyo3::types::PySet
+                    }
                 }
             }
             Self::PyTuple(t_sequence) => {
-                // TODO: Support Rust tuple where possible
-                quote::quote! {
-                    &'py ::pyo3::types::PyTuple
+                if t_sequence.is_empty()
+                    || (t_sequence.len() == 1 && t_sequence[0] == Self::Unknown)
+                {
+                    quote::quote! {
+                        &'py ::pyo3::types::PyTuple
+                    }
+                } else {
+                    let inner = t_sequence
+                        .into_iter()
+                        .map(|x| x.into_rs_owned(module_name, all_types))
+                        .collect::<Vec<_>>();
+                    quote::quote! {
+                        (#(#inner),*)
+                    }
                 }
             }
 
