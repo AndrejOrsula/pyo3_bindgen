@@ -36,15 +36,8 @@
 /// ```ignore
 /// // src/lib.rs
 ///
-/// #[allow(
-///     clippy::all,
-///     non_camel_case_types,
-///     non_snake_case,
-///     non_upper_case_globals
-/// )]
-/// pub mod os {
-///     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-/// }
+/// include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+/// pub use os::*;
 /// ```
 // TODO: Add `println!("cargo:rerun-if-changed={}.py");` for all files of the target Python module
 pub fn build_bindings(
