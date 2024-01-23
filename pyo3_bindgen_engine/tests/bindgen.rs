@@ -75,15 +75,19 @@ test_bindgen! {
 
     rs:r#"
         ///
-        #[allow(clippy::all, non_camel_case_types, non_snake_case, non_upper_case_globals, unused)]
+        #[allow(
+            clippy::all,
+            non_camel_case_types,
+            non_snake_case,
+            non_upper_case_globals,
+            unused
+        )]
         mod t_mod_test_bindgen_function {
             ///t_docs
             pub fn t_fn<'py>(
                 py: ::pyo3::marker::Python<'py>,
                 t_arg1: &str,
             ) -> ::pyo3::PyResult<i64> {
-                #[allow(unused_imports)]
-                use ::pyo3::IntoPy;
                 let __internal_args = ();
                 let __internal_kwargs = ::pyo3::types::PyDict::new(py);
                 __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
@@ -149,8 +153,6 @@ test_bindgen! {
                     t_arg1: &str,
                     t_arg2: ::std::option::Option<i64>,
                 ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    #[allow(unused_imports)]
-                    use ::pyo3::IntoPy;
                     let __internal_args = ();
                     let __internal_kwargs = ::pyo3::types::PyDict::new(py);
                     __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
@@ -169,8 +171,6 @@ test_bindgen! {
                     t_arg1: &::std::collections::HashMap<::std::string::String, i64>,
                     kwargs: &'py ::pyo3::types::PyDict,
                 ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    #[allow(unused_imports)]
-                    use ::pyo3::IntoPy;
                     let __internal_args = ();
                     let __internal_kwargs = kwargs;
                     __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
@@ -204,8 +204,6 @@ test_bindgen! {
                     t_arg1: &str,
                     t_arg2: ::std::option::Option<i64>,
                 ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    #[allow(unused_imports)]
-                    use ::pyo3::IntoPy;
                     let __internal_args = ();
                     let __internal_kwargs = ::pyo3::types::PyDict::new(py);
                     __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;

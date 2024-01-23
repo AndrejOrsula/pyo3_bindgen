@@ -7,7 +7,7 @@ use crate::bindgen::{bind_attribute, bind_class, bind_function};
 /// attributes of the Python module. During the first call, the `root_module` argument should be
 /// the same as the `module` argument and the `processed_modules` argument should be an empty
 /// `HashSet`.
-pub fn bind_module<S: ::std::hash::BuildHasher>(
+pub fn bind_module<S: ::std::hash::BuildHasher + Default>(
     py: pyo3::Python,
     root_module: &pyo3::types::PyModule,
     module: &pyo3::types::PyModule,

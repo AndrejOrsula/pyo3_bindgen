@@ -24,7 +24,6 @@ pub enum Type {
     PyString,
 
     // Enums
-    // TODO: Optional causes issues when passed as a position-only argument to a function. Fix!
     Optional(Box<Type>),
     Union(Vec<Type>),
     PyNone,
@@ -513,7 +512,7 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs<S: ::std::hash::BuildHasher>(
+    pub fn into_rs<S: ::std::hash::BuildHasher + Default>(
         self,
         owned: bool,
         module_name: &str,
@@ -527,7 +526,7 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs_owned<S: ::std::hash::BuildHasher>(
+    pub fn into_rs_owned<S: ::std::hash::BuildHasher + Default>(
         self,
         module_name: &str,
         all_types: &std::collections::HashSet<String, S>,
@@ -704,7 +703,7 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs_borrowed<S: ::std::hash::BuildHasher>(
+    pub fn into_rs_borrowed<S: ::std::hash::BuildHasher + Default>(
         self,
         module_name: &str,
         all_types: &std::collections::HashSet<String, S>,
@@ -737,7 +736,7 @@ impl Type {
 
             // Enums
             Self::Optional(t) => {
-                let inner = t.into_rs_borrowed(module_name, all_types);
+                let inner = t.into_rs_owned(module_name, all_types);
                 quote::quote! {
                     ::std::option::Option<#inner>
                 }
@@ -879,14 +878,13 @@ impl Type {
         }
     }
 
-    fn try_into_module_path<S: ::std::hash::BuildHasher>(
+    fn try_into_module_path<S: ::std::hash::BuildHasher + Default>(
         self,
         module_name: &str,
         all_types: &std::collections::HashSet<String, S>,
     ) -> proc_macro2::TokenStream {
-        let value = match self {
-            Self::Unhandled(value) => value,
-            _ => unreachable!(),
+        let Self::Unhandled(value) = self else {
+            unreachable!()
         };
         let module_root = if module_name.contains('.') {
             module_name.split('.').next().unwrap()
@@ -938,8 +936,6 @@ impl Type {
                     )
                     .join("::");
 
-                // dbg!(all_types);
-
                 // The path contains both ident and "::", combine into something that can be quoted
                 let reexport_path = syn::parse_str::<syn::Path>(&reexport_path).unwrap();
                 quote::quote! {
@@ -947,27 +943,56 @@ impl Type {
                 }
             }
             _ => {
-                // TODO: Make this more robust (possibly parsing all local reexports to figure out where the type is coming from)
-                // TODO: Fix this! The matching is wrong in many cases
-                let module_member_end_match = value
-                    .split_once('[')
-                    .unwrap_or((&value, ""))
-                    .0
-                    .split('.')
-                    .last()
-                    .unwrap();
-                if let Some(module_member_full) = all_types
-                    .iter()
-                    .find(|x| x.ends_with(module_member_end_match))
-                {
-                    Self::Unhandled(module_member_full.to_owned())
-                        .try_into_module_path(module_name, all_types)
-                } else {
-                    // Unsupported
-                    // TODO: Support more types
-                    // dbg!(value);
-                    quote::quote! {&'py ::pyo3::types::PyAny}
+                let value_without_brackets = value.split_once('[').unwrap_or((&value, "")).0;
+                let module_scopes = value_without_brackets.split('.');
+                let n_module_scopes = module_scopes.clone().count();
+
+                // Approach: Find types without a module scope (no dot) and check if the type is local (or imported in the current module)
+                if !value_without_brackets.contains('.') {
+                    if let Some(member) = all_types
+                        .iter()
+                        .filter(|member| {
+                            member
+                                .split('.')
+                                .take(member.split('.').count() - 1)
+                                .join(".")
+                                == module_name
+                        })
+                        .find(|&member| {
+                            member.trim_start_matches(&format!("{module_name}."))
+                                == value_without_brackets
+                        })
+                    {
+                        return Self::Unhandled(member.to_owned())
+                            .try_into_module_path(module_name, all_types);
+                    }
                 }
+
+                // Approach: Find the shallowest match that contains the value
+                // TODO: Fix this! The matching might be wrong in many cases
+                let mut possible_matches = std::collections::HashSet::<String, S>::default();
+                for i in 0..n_module_scopes {
+                    let module_member_scopes_end = module_scopes.clone().skip(i).join(".");
+                    all_types
+                        .iter()
+                        .filter(|member| member.ends_with(&module_member_scopes_end))
+                        .for_each(|member| {
+                            possible_matches.insert(member.to_owned());
+                        });
+                    if !possible_matches.is_empty() {
+                        let shallowest_match = possible_matches
+                            .iter()
+                            .min_by(|m1, m2| m1.split('.').count().cmp(&m2.split('.').count()))
+                            .unwrap();
+                        return Self::Unhandled(shallowest_match.to_owned())
+                            .try_into_module_path(module_name, all_types);
+                    }
+                }
+
+                // Unsupported
+                // TODO: Support more types
+                // dbg!(value);
+                quote::quote! {&'py ::pyo3::types::PyAny}
             }
         }
     }

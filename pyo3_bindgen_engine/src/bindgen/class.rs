@@ -2,7 +2,7 @@ use crate::bindgen::{bind_attribute, bind_function};
 
 /// Generate Rust bindings to a Python class with all its methods and attributes (properties).
 /// This function will call itself recursively to generate bindings to all nested classes.
-pub fn bind_class<S: ::std::hash::BuildHasher>(
+pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
     py: pyo3::Python,
     root_module: &pyo3::types::PyModule,
     class: &pyo3::types::PyType,
@@ -165,6 +165,7 @@ pub fn bind_class<S: ::std::hash::BuildHasher>(
         });
 
     // Add new and call aliases (currently a reimplemented versions of the function)
+    // TODO: Call the Rust `self.__init__()` and `self.__call__()` functions directly instead of reimplementing it
     if fn_names.contains(&"__init__".to_string()) && !fn_names.contains(&"new".to_string()) {
         impl_token_stream.extend(bind_function(
             py,

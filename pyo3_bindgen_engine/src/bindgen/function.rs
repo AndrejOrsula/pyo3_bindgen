@@ -5,7 +5,7 @@ use crate::types::Type;
 
 /// Generate Rust bindings to a Python function. The function can be a standalone function or a
 /// method of a class.
-pub fn bind_function<S: ::std::hash::BuildHasher>(
+pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
     py: pyo3::Python,
     module_name: &str,
     name: &str,
@@ -168,90 +168,79 @@ pub fn bind_function<S: ::std::hash::BuildHasher>(
         doc = String::new();
     };
 
-    // TODO: Use `call_method0` and `call_method1`` where appropriate
-    Ok(if has_self_param {
-        if let Some(var_keyword_ident) = var_keyword_ident {
-            quote::quote! {
-                    #[doc = #doc]
-                    pub fn #function_ident<'py>(
-                    &'py self,
-                    py: ::pyo3::marker::Python<'py>,
-                    #(#param_idents: #param_types),*
-                ) -> ::pyo3::PyResult<#return_annotation> {
-                    #[allow(unused_imports)]
-                    use ::pyo3::IntoPy;
-                    let __internal_args = (
-                        #({
-                            let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
-                            #positional_args_idents
-                        },)*
-                    );
-                    let __internal_kwargs = #var_keyword_ident;
-                    #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
-                    self.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
-                }
-            }
-        } else {
-            quote::quote! {
-                    #[doc = #doc]
-                    pub fn #function_ident<'py>(
-                    &'py self,
-                    py: ::pyo3::marker::Python<'py>,
-                    #(#param_idents: #param_types),*
-                ) -> ::pyo3::PyResult<#return_annotation> {
-                    #[allow(unused_imports)]
-                    use ::pyo3::IntoPy;
-                    let __internal_args = (
-                        #({
-                            let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
-                            #positional_args_idents
-                        },)*
-                    );
-                    let __internal_kwargs = ::pyo3::types::PyDict::new(py);
-                    #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
-                    self.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
-                }
-            }
-        }
-    } else if let Some(var_keyword_ident) = var_keyword_ident {
-        quote::quote! {
-            #[doc = #doc]
-            pub fn #function_ident<'py>(
-                py: ::pyo3::marker::Python<'py>,
-                #(#param_idents: #param_types),*
-            ) -> ::pyo3::PyResult<#return_annotation> {
-                #[allow(unused_imports)]
-                use ::pyo3::IntoPy;
-                let __internal_args = (
-                    #({
-                        let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
-                        #positional_args_idents
-                    },)*
-                );
-                let __internal_kwargs = #var_keyword_ident;
-                #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
-                py.import(::pyo3::intern!(py, #module_name))?.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
-            }
-        }
+    let (maybe_ref_self, callable_object) = if has_self_param {
+        (quote::quote! { &'py self, }, quote::quote! { self })
     } else {
-        quote::quote! {
+        (
+            quote::quote! {},
+            quote::quote! { py.import(::pyo3::intern!(py, #module_name))? },
+        )
+    };
+
+    let has_positional_args = !positional_args_idents.is_empty();
+    let set_args = match (
+        positional_args_idents.len() > 1,
+        var_positional_ident.is_some(),
+    ) {
+        (true, _) => {
+            quote::quote! {
+                let __internal_args = ::pyo3::types::PyTuple::new(
+                    py,
+                    [#(::pyo3::IntoPy::<::pyo3::PyObject>::into_py(#positional_args_idents.to_owned(), py).as_ref(py),)*]
+                );
+            }
+        }
+        (false, true) => {
+            let var_positional_ident = var_positional_ident.unwrap();
+            quote::quote! {
+                let __internal_args = #var_positional_ident;
+            }
+        }
+        (false, false) => {
+            quote::quote! { let __internal_args = (); }
+        }
+    };
+
+    let has_kwargs = !keyword_args_idents.is_empty();
+    let kwargs_initial = if let Some(var_keyword_ident) = var_keyword_ident {
+        quote::quote! { #var_keyword_ident }
+    } else {
+        quote::quote! { ::pyo3::types::PyDict::new(py) }
+    };
+    let set_kwargs = quote::quote! {
+       let __internal_kwargs = #kwargs_initial;
+       #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
+    };
+
+    let call_method = match (has_positional_args, has_kwargs) {
+        (_, true) => {
+            quote::quote! {
+                #set_args
+                #set_kwargs
+                #callable_object.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?
+            }
+        }
+        (true, false) => {
+            quote::quote! {
+                #set_args
+                #callable_object.call_method1(::pyo3::intern!(py, #function_name), __internal_args)?
+            }
+        }
+        (false, false) => {
+            quote::quote! {
+                #callable_object.call_method0(::pyo3::intern!(py, #function_name))?
+            }
+        }
+    };
+
+    Ok(quote::quote! {
             #[doc = #doc]
             pub fn #function_ident<'py>(
-                py: ::pyo3::marker::Python<'py>,
-                #(#param_idents: #param_types),*
-            ) -> ::pyo3::PyResult<#return_annotation> {
-                #[allow(unused_imports)]
-                use ::pyo3::IntoPy;
-                let __internal_args = (
-                    #({
-                        let #positional_args_idents: &'py ::pyo3::PyAny = #positional_args_idents.into();
-                        #positional_args_idents
-                    },)*
-                );
-                let __internal_kwargs = ::pyo3::types::PyDict::new(py);
-                #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
-                py.import(::pyo3::intern!(py, #module_name))?.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?.extract()
-            }
+            #maybe_ref_self
+            py: ::pyo3::marker::Python<'py>,
+            #(#param_idents: #param_types),*
+        ) -> ::pyo3::PyResult<#return_annotation> {
+            #call_method.extract()
         }
     })
 }

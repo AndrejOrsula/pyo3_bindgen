@@ -2,7 +2,7 @@ use crate::types::Type;
 
 /// Generate Rust bindings to a Python attribute. The attribute can be a standalone
 /// attribute or a property of a class.
-pub fn bind_attribute<S: ::std::hash::BuildHasher>(
+pub fn bind_attribute<S: ::std::hash::BuildHasher + Default>(
     py: pyo3::Python,
     module_name: &str,
     is_class: bool,

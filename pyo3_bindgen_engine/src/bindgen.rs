@@ -10,9 +10,14 @@ pub use class::bind_class;
 pub use function::bind_function;
 pub use module::{bind_module, bind_reexport};
 
-// TODO: Ensure there are no duplicate entries in the generated code
 // TODO: Refactor everything into a large configurable struct that keeps track of all the
 //       important information needed to properly generate the bindings
+//  - Use builder pattern for the configuration of the struct
+//  - Keep track of all the types/classes that have been generated
+//  - Keep track of all imports to understand where each type is coming from
+//  - Keep track of all the external types that are used as parameters/return types and consider generating bindings for them as well
+
+// TODO: Ensure there are no duplicate entries in the generated code
 
 /// Generate Rust bindings to a Python module specified by its name. Generating bindings to
 /// submodules such as `os.path` is also supported as long as the module can be directly imported
