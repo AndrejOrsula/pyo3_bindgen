@@ -629,6 +629,9 @@ impl Type {
                     quote::quote! {
                         &'py ::pyo3::types::PyTuple
                     }
+                } else if t_sequence.len() == 2 && t_sequence.last().unwrap() == &Self::PyEllipsis {
+                    Self::PyList(Box::new(t_sequence[0].clone()))
+                        .into_rs_owned(module_name, all_types)
                 } else {
                     let inner = t_sequence
                         .into_iter()
@@ -828,6 +831,9 @@ impl Type {
                     quote::quote! {
                         &'py ::pyo3::types::PyTuple
                     }
+                } else if t_sequence.len() == 2 && t_sequence.last().unwrap() == &Self::PyEllipsis {
+                    Self::PyList(Box::new(t_sequence[0].clone()))
+                        .into_rs_borrowed(module_name, all_types)
                 } else {
                     let inner = t_sequence
                         .into_iter()
