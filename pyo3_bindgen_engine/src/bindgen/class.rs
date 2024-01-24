@@ -14,16 +14,7 @@ pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
     let root_module_name = root_module.name()?;
     let class_full_name = class.name()?;
     let class_name = class_full_name.split('.').last().unwrap();
-    let class_module_name = format!(
-        "{}{}{}",
-        class.getattr("__module__")?,
-        if class_full_name.contains('.') {
-            "."
-        } else {
-            ""
-        },
-        class_full_name.trim_end_matches(&format!(".{class_name}"))
-    );
+    let class_module_name = class.getattr("__module__")?.to_string();
 
     // Create the Rust class identifier (raw string if it is a keyword)
     let class_ident = if syn::parse_str::<syn::Ident>(class_name).is_ok() {
@@ -32,18 +23,65 @@ pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
         quote::format_ident!("r#{class_name}")
     };
 
-    let mut fn_names = Vec::new();
+    // let mut fn_names = Vec::new();
+
+    let mut impl_token_stream = proc_macro2::TokenStream::new();
+
+    // Implement new()
+    if class.hasattr("__init__")? {
+        for i in 0.. {
+            let new_fn_name = if i == 0 {
+                "new".to_string()
+            } else {
+                format!("new{i}")
+            };
+            if !class.hasattr(new_fn_name.as_str())? {
+                impl_token_stream.extend(bind_function(
+                    py,
+                    &class_module_name,
+                    &new_fn_name,
+                    class.getattr("__init__")?,
+                    all_types,
+                    Some(class),
+                ));
+                break;
+            }
+        }
+    }
+    // Implement call() method
+    if class.hasattr("__call__")? {
+        for i in 0.. {
+            let call_fn_name = if i == 0 {
+                "call".to_string()
+            } else {
+                format!("call{i}")
+            };
+            if !class.hasattr(call_fn_name.as_str())? {
+                impl_token_stream.extend(bind_function(
+                    py,
+                    &class_module_name,
+                    &call_fn_name,
+                    class.getattr("__call__")?,
+                    all_types,
+                    Some(class),
+                ));
+                break;
+            }
+        }
+    }
 
     // Iterate over all attributes of the module while updating the token stream
-    let mut impl_token_stream = proc_macro2::TokenStream::new();
     class
         .dir()
         .iter()
-        .map(|name| {
+        .filter_map(|name| {
             let name = name.str().unwrap().to_str().unwrap();
-            let attr = class.getattr(name).unwrap();
-            let attr_type = attr.get_type();
-            (name, attr, attr_type)
+            if let Ok(attr) = class.getattr(name) {
+                let attr_type = attr.get_type();
+                Some((name, attr, attr_type))
+            } else {
+                None
+            }
         })
         .filter(|&(_, _, attr_type)| {
             // Skip builtin functions
@@ -52,8 +90,8 @@ pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
                 .unwrap_or(false)
         })
         .filter(|&(name, _, _)| {
-            // Skip private attributes (except for __init__ and __call__)
-            !name.starts_with('_') || name == "__init__" || name == "__call__"
+            // Skip private attributes
+            !name.starts_with('_')
         })
         .filter(|(_, attr, attr_type)| {
             // Skip typing attributes
@@ -136,20 +174,22 @@ pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
             debug_assert!(![is_class, is_function].iter().all(|&v| v));
 
             if is_class && !is_reexport {
-                impl_token_stream.extend(bind_class(
-                    py,
-                    root_module,
-                    attr.downcast().unwrap(),
-                    all_types,
-                ));
+                // TODO: Properly handle nested classes
+                // impl_token_stream.extend(bind_class(
+                //     py,
+                //     root_module,
+                //     attr.downcast().unwrap(),
+                //     all_types,
+                // ));
             } else if is_function {
-                fn_names.push(name.to_string());
+                // fn_names.push(name.to_string());
                 impl_token_stream.extend(bind_function(
                     py,
                     &class_module_name,
                     name,
                     attr,
                     all_types,
+                    Some(class),
                 ));
             } else if !name.starts_with('_') {
                 impl_token_stream.extend(bind_attribute(
@@ -164,31 +204,12 @@ pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
             }
         });
 
-    // Add new and call aliases (currently a reimplemented versions of the function)
-    // TODO: Call the Rust `self.__init__()` and `self.__call__()` functions directly instead of reimplementing it
-    if fn_names.contains(&"__init__".to_string()) && !fn_names.contains(&"new".to_string()) {
-        impl_token_stream.extend(bind_function(
-            py,
-            &class_module_name,
-            "new",
-            class.getattr("__init__")?,
-            all_types,
-        ));
-    }
-    if fn_names.contains(&"__call__".to_string()) && !fn_names.contains(&"call".to_string()) {
-        impl_token_stream.extend(bind_function(
-            py,
-            &class_module_name,
-            "call",
-            class.getattr("__call__")?,
-            all_types,
-        ));
-    }
-
     let mut doc = class.getattr("__doc__")?.to_string();
     if doc == "None" {
         doc = String::new();
     };
+
+    let object_name = format!("{class_module_name}.{class_name}");
 
     Ok(quote::quote! {
         #[doc = #doc]
@@ -196,7 +217,7 @@ pub fn bind_class<S: ::std::hash::BuildHasher + Default>(
         pub struct #class_ident(::pyo3::PyAny);
         // Note: Using these macros is probably not the best idea, but it makes possible wrapping around ::pyo3::PyAny instead of ::pyo3::PyObject, which improves usability
         ::pyo3::pyobject_native_type_named!(#class_ident);
-        ::pyo3::pyobject_native_type_info!(#class_ident, ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type), ::std::option::Option::Some(#class_module_name));
+        ::pyo3::pyobject_native_type_info!(#class_ident, ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type), ::std::option::Option::Some(#object_name));
         ::pyo3::pyobject_native_type_extract!(#class_ident);
         #[automatically_derived]
         impl #class_ident {

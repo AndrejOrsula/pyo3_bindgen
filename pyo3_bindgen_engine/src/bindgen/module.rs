@@ -47,7 +47,7 @@ pub fn bind_module<S: ::std::hash::BuildHasher + Default>(
         })
         .filter(|&(name, _, _)| {
             // Skip private attributes
-            !name.starts_with('_') || name == "__init__" || name == "__call__"
+            !name.starts_with('_')
         })
         .filter(|(_, attr, attr_type)| {
             // Skip typing attributes
@@ -153,7 +153,7 @@ pub fn bind_module<S: ::std::hash::BuildHasher + Default>(
                 let content = if is_class {
                     bind_class(py, root_module, attr.downcast().unwrap(), all_types).unwrap()
                 } else if is_function {
-                    bind_function(py, full_module_name, name, attr, all_types).unwrap()
+                    bind_function(py, full_module_name, name, attr, all_types, None).unwrap()
                 } else {
                     unreachable!()
                 };
@@ -201,7 +201,10 @@ pub fn bind_module<S: ::std::hash::BuildHasher + Default>(
                         attr,
                     ));
                 }
-            } else if is_reexport {
+            } else if is_reexport
+                && (is_function
+                    || (is_class && all_types.contains(&format!("{full_module_name}.{name}"))))
+            {
                 mod_token_stream.extend(bind_reexport(
                     root_module_name,
                     full_module_name,
@@ -216,7 +219,14 @@ pub fn bind_module<S: ::std::hash::BuildHasher + Default>(
                     all_types,
                 ));
             } else if is_function {
-                mod_token_stream.extend(bind_function(py, full_module_name, name, attr, all_types));
+                mod_token_stream.extend(bind_function(
+                    py,
+                    full_module_name,
+                    name,
+                    attr,
+                    all_types,
+                    None,
+                ));
             } else {
                 mod_token_stream.extend(bind_attribute(
                     py,
@@ -383,7 +393,7 @@ pub fn collect_types_of_module<S: ::std::hash::BuildHasher + Clone>(
         })
         .filter(|&(name, _, _)| {
             // Skip private attributes
-            !name.starts_with('_') || name == "__init__" || name == "__call__"
+            !name.starts_with('_')
         })
         .filter(|(_, attr, attr_type)| {
             // Skip typing attributes
@@ -502,7 +512,7 @@ pub fn collect_types_of_module<S: ::std::hash::BuildHasher + Clone>(
                         all_types,
                     );
                 }
-            } else if is_class {
+            } else if is_class && !attr.to_string().contains("<locals>") {
                 let full_class_name =
                     format!("{}.{}", full_module_name, attr.getattr("__name__").unwrap());
                 all_types.insert(full_class_name.clone());

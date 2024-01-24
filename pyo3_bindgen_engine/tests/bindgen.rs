@@ -138,12 +138,12 @@ test_bindgen! {
         ///
         #[allow(
             clippy::all,
-                clippy::nursery,
-                clippy::pedantic,
-                non_camel_case_types,
-                non_snake_case,
-                non_upper_case_globals,
-                unused
+            clippy::nursery,
+            clippy::pedantic,
+            non_camel_case_types,
+            non_snake_case,
+            non_upper_case_globals,
+            unused
         )]
         mod t_mod_test_bindgen_class {
             ///t_docs
@@ -153,14 +153,13 @@ test_bindgen! {
             ::pyo3::pyobject_native_type_info!(
                 t_class,
                 ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type),
-                ::std::option::Option::Some("t_mod_test_bindgen_classt_class")
+                ::std::option::Option::Some("t_mod_test_bindgen_class.t_class")
             );
             ::pyo3::pyobject_native_type_extract!(t_class);
             #[automatically_derived]
             impl t_class {
                 ///t_docs_init
-                pub fn __init__<'py>(
-                    &'py self,
+                pub fn new<'py>(
                     py: ::pyo3::marker::Python<'py>,
                     t_arg1: &str,
                     t_arg2: ::std::option::Option<i64>,
@@ -169,11 +168,20 @@ test_bindgen! {
                     let __internal_kwargs = ::pyo3::types::PyDict::new(py);
                     __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
                     __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg2"), t_arg2)?;
-                    self.call_method(
-                            ::pyo3::intern!(py, "__init__"),
-                            __internal_args,
-                            Some(__internal_kwargs),
-                        )?
+                    py.import(::pyo3::intern!(py, "t_mod_test_bindgen_class"))?
+                        .getattr(::pyo3::intern!(py, "t_class"))?
+                        .call(__internal_args, Some(__internal_kwargs))?
+                        .extract()
+                }
+                ///Call self as a function.
+                pub fn call<'py>(
+                    &'py self,
+                    py: ::pyo3::marker::Python<'py>,
+                    args: &'py ::pyo3::types::PyTuple,
+                    kwargs: &'py ::pyo3::types::PyDict,
+                ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
+                    let __internal_args = args;
+                    self.call_method1(::pyo3::intern!(py, "__call__"), __internal_args)?
                         .extract()
                 }
                 ///t_docs_method
@@ -208,24 +216,6 @@ test_bindgen! {
                 ) -> ::pyo3::PyResult<()> {
                     self.setattr(::pyo3::intern!(py, "t_prop"), value)?;
                     Ok(())
-                }
-                ///t_docs_init
-                pub fn new<'py>(
-                    &'py self,
-                    py: ::pyo3::marker::Python<'py>,
-                    t_arg1: &str,
-                    t_arg2: ::std::option::Option<i64>,
-                ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    let __internal_args = ();
-                    let __internal_kwargs = ::pyo3::types::PyDict::new(py);
-                    __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
-                    __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg2"), t_arg2)?;
-                    self.call_method(
-                            ::pyo3::intern!(py, "__init__"),
-                            __internal_args,
-                            Some(__internal_kwargs),
-                        )?
-                        .extract()
                 }
             }
         }

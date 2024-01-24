@@ -11,6 +11,7 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
     name: &str,
     function: &pyo3::PyAny,
     all_types: &std::collections::HashSet<String, S>,
+    method_of_class: Option<&pyo3::types::PyType>,
 ) -> Result<proc_macro2::TokenStream, pyo3::PyErr> {
     let inspect = py.import("inspect")?;
 
@@ -136,6 +137,8 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
     let has_self_param = parameters
         .iter()
         .any(|(param_name, _, _, _)| param_name == "self");
+    let is_class_method =
+        method_of_class.is_some() && (!has_self_param || function_name == "__init__");
 
     let param_idents = parameters
         .iter()
@@ -167,13 +170,25 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
         doc = String::new();
     };
 
-    let (maybe_ref_self, callable_object) = if has_self_param {
-        (quote::quote! { &'py self, }, quote::quote! { self })
+    let (has_self_param, is_class_method) = if function_name == "__call__" {
+        (true, false)
     } else {
-        (
+        (has_self_param, is_class_method)
+    };
+
+    let (maybe_ref_self, callable_object) = match (has_self_param, is_class_method) {
+        (true, false) => (quote::quote! { &'py self, }, quote::quote! { self }),
+        (_, true) => {
+            let class_name = method_of_class.unwrap().name().unwrap();
+            (
+                quote::quote! {},
+                quote::quote! { py.import(::pyo3::intern!(py, #module_name))?.getattr(::pyo3::intern!(py, #class_name))?},
+            )
+        }
+        _ => (
             quote::quote! {},
             quote::quote! { py.import(::pyo3::intern!(py, #module_name))? },
-        )
+        ),
     };
 
     let has_positional_args = !positional_args_idents.is_empty();
@@ -211,21 +226,41 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
        #(__internal_kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents)?;)*
     };
 
-    let call_method = match (has_positional_args, has_kwargs) {
-        (_, true) => {
+    let is_init_fn = function_name == "__init__";
+
+    let call_method = match (is_init_fn, has_positional_args, has_kwargs) {
+        (true, _, true) => {
+            quote::quote! {
+                #set_args
+                #set_kwargs
+                #callable_object.call(__internal_args, Some(__internal_kwargs))?
+            }
+        }
+        (true, true, false) => {
+            quote::quote! {
+                #set_args
+                #callable_object.call1(__internal_args)?
+            }
+        }
+        (true, false, false) => {
+            quote::quote! {
+                #callable_object.call0()?
+            }
+        }
+        (false, _, true) => {
             quote::quote! {
                 #set_args
                 #set_kwargs
                 #callable_object.call_method(::pyo3::intern!(py, #function_name), __internal_args, Some(__internal_kwargs))?
             }
         }
-        (true, false) => {
+        (false, true, false) => {
             quote::quote! {
                 #set_args
                 #callable_object.call_method1(::pyo3::intern!(py, #function_name), __internal_args)?
             }
         }
-        (false, false) => {
+        (false, false, false) => {
             quote::quote! {
                 #callable_object.call_method0(::pyo3::intern!(py, #function_name))?
             }

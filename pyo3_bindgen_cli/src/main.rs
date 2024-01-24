@@ -7,9 +7,9 @@ fn main() {
     let args = Args::parse();
 
     // Generate the bindings for the module specified by the `--module-name` argument
-    let bindings = pyo3_bindgen::generate_bindings(&args.module_name).unwrap_or_else(|_| {
+    let bindings = pyo3_bindgen::generate_bindings(&args.module_name).unwrap_or_else(|err| {
         panic!(
-            "Failed to generate bindings for module: {}",
+            "Failed to generate bindings for module: {}\n{err}",
             args.module_name
         )
     });
