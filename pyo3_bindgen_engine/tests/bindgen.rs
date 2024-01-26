@@ -163,7 +163,7 @@ test_bindgen! {
                     py: ::pyo3::marker::Python<'py>,
                     t_arg1: &str,
                     t_arg2: ::std::option::Option<i64>,
-                ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
+                ) -> ::pyo3::PyResult<&'py Self> {
                     let __internal_args = ();
                     let __internal_kwargs = ::pyo3::types::PyDict::new(py);
                     __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
@@ -177,7 +177,7 @@ test_bindgen! {
                 pub fn call<'py>(
                     &'py self,
                     py: ::pyo3::marker::Python<'py>,
-                    args: &'py ::pyo3::types::PyTuple,
+                    args: impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyTuple>>,
                     kwargs: &'py ::pyo3::types::PyDict,
                 ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
                     let __internal_args = args;
