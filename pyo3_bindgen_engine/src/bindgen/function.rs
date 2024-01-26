@@ -160,7 +160,7 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
             if param_kind == "VAR_POSITIONAL" {
                 quote::quote! { impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyTuple>>}
             } else {
-                Type::try_from(param_annotation.unwrap_or_else(|| pynone))
+                Type::try_from(param_annotation.unwrap_or(pynone))
                     .unwrap()
                     .into_rs_borrowed(module_name, all_types)
             }
