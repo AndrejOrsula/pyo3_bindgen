@@ -162,8 +162,6 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
                 .into_rs_borrowed(module_name, all_types)
         })
         .collect_vec();
-    let return_annotation =
-        Type::try_from(return_annotation.unwrap_or(pynone))?.into_rs_owned(module_name, all_types);
 
     let mut doc = function.getattr("__doc__")?.to_string();
     if doc == "None" {
@@ -227,6 +225,14 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
     };
 
     let is_init_fn = function_name == "__init__";
+
+    let return_annotation = if is_init_fn && method_of_class.is_some() {
+        quote::quote! {
+           &'py Self
+        }
+    } else {
+        Type::try_from(return_annotation.unwrap_or(pynone))?.into_rs_owned(module_name, all_types)
+    };
 
     let call_method = match (is_init_fn, has_positional_args, has_kwargs) {
         (true, _, true) => {
