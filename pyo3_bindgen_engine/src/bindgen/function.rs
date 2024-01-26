@@ -156,10 +156,14 @@ pub fn bind_function<S: ::std::hash::BuildHasher + Default>(
     let param_types = parameters
         .iter()
         .skip(usize::from(has_self_param))
-        .map(|(_, param_annotation, _, _)| {
-            Type::try_from(param_annotation.unwrap_or_else(|| pynone))
-                .unwrap()
-                .into_rs_borrowed(module_name, all_types)
+        .map(|&(_, param_annotation, _, param_kind)| {
+            if param_kind == "VAR_POSITIONAL" {
+                quote::quote! { impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyTuple>>}
+            } else {
+                Type::try_from(param_annotation.unwrap_or_else(|| pynone))
+                    .unwrap()
+                    .into_rs_borrowed(module_name, all_types)
+            }
         })
         .collect_vec();
 
