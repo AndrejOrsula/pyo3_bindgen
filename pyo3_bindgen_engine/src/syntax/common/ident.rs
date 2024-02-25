@@ -4,10 +4,12 @@ pub struct Ident(String);
 
 impl Ident {
     pub fn from_rs(value: &str) -> Self {
+        debug_assert!(!value.is_empty());
         Self(value.to_owned())
     }
 
     pub fn from_py(value: &str) -> Self {
+        debug_assert!(!value.is_empty());
         Self(Self::py_to_rs(value))
     }
 

@@ -1,9 +1,5 @@
 use super::Path;
-use crate::{
-    traits::{Canonicalize, Generate},
-    types::Type,
-    Config, Result,
-};
+use crate::{types::Type, Config, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Property {
@@ -149,14 +145,14 @@ impl Property {
     }
 }
 
-impl Generate for Property {
-    fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
+impl Property {
+    pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
         todo!()
     }
 }
 
-impl Canonicalize for Property {
-    fn canonicalize(&mut self) {
+impl Property {
+    pub fn canonicalize(&mut self) {
         todo!()
     }
 }

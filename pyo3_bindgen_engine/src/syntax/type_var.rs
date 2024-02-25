@@ -1,5 +1,5 @@
 use super::Path;
-use crate::{traits::Generate, Config, Result};
+use crate::{Config, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TypeVar {
@@ -12,8 +12,8 @@ impl TypeVar {
     }
 }
 
-impl Generate for TypeVar {
-    fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
+impl TypeVar {
+    pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
         todo!()
     }
 }

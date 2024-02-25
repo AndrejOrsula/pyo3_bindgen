@@ -1,11 +1,11 @@
 use super::Path;
-use crate::{traits::Generate, Config, Result};
+use crate::{Config, Result};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Import {
     pub origin: Path,
     pub target: Path,
-    import_type: ImportType,
+    pub import_type: ImportType,
 }
 
 impl Import {
@@ -19,17 +19,52 @@ impl Import {
     }
 }
 
-impl Generate for Import {
-    fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
-        todo!()
+impl Import {
+    pub fn generate(&self, cfg: &Config) -> Result<proc_macro2::TokenStream> {
+        // Skip external imports if their generation is disabled
+        if !cfg.generate_dependencies && self.import_type == ImportType::ExternalImport {
+            return Ok(proc_macro2::TokenStream::new());
+        }
+
+        // Skip identity imports
+        if self.origin == self.target {
+            return Ok(proc_macro2::TokenStream::new());
+        }
+
+        // Determine the visibility of the import based on its type
+        let visibility = match self.import_type {
+            ImportType::ExternalImport => proc_macro2::TokenStream::new(),
+            ImportType::Reexport => quote::quote! { pub(crate) },
+            ImportType::ScopedReexport => quote::quote! { pub },
+        };
+
+        // Generate the path to the target module
+        let relative_path: syn::Path = self
+            .target
+            .parent()
+            .unwrap_or_default()
+            .relative_to(&self.origin)
+            .try_into()?;
+
+        // Use alias for the target module if it has a different name than the last segment of its path
+        let maybe_alias = if self.origin.name() != self.target.name() {
+            let alias: syn::Ident = self.target.name().try_into()?;
+            quote::quote! { as #alias }
+        } else {
+            proc_macro2::TokenStream::new()
+        };
+
+        Ok(quote::quote! {
+            #visibility use #relative_path #maybe_alias;
+        })
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-enum ImportType {
+pub enum ImportType {
     ExternalImport,
-    PackageReexport,
-    SubmoduleReexport,
+    Reexport,
+    ScopedReexport,
 }
 
 impl ImportType {
@@ -43,8 +78,8 @@ impl ImportType {
                 .is_some_and(|parent_module| origin.starts_with(&parent_module));
         match (is_package_reexport, is_submodule_reexport) {
             (false, false) => Self::ExternalImport,
-            (true, false) => Self::PackageReexport,
-            (true, true) => Self::SubmoduleReexport,
+            (true, false) => Self::Reexport,
+            (true, true) => Self::ScopedReexport,
             _ => unreachable!(),
         }
     }

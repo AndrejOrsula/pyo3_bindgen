@@ -1,10 +1,5 @@
 use super::{Ident, Path};
-use crate::{
-    traits::{Canonicalize, Generate},
-    types::Type,
-    Config, Result,
-};
-
+use crate::{types::Type, Config, Result};
 use pyo3::ToPyObject;
 
 #[derive(Debug, Clone)]
@@ -25,69 +20,6 @@ impl Function {
     ) -> Result<Self> {
         let py = function.py();
 
-        // Extract the signature of the function
-        let function_signature = py
-            .import(pyo3::intern!(py, "inspect"))
-            .unwrap()
-            .call_method1(pyo3::intern!(py, "signature"), (function,))
-            .unwrap();
-
-        // Extract the parameters of the function
-        let parameters = function_signature
-            .getattr(pyo3::intern!(py, "parameters"))
-            .unwrap()
-            .call_method0(pyo3::intern!(py, "values"))
-            .unwrap()
-            .iter()
-            .unwrap()
-            .map(|param| {
-                let param = param?;
-
-                let name = Ident::from_py(&param.getattr(pyo3::intern!(py, "name"))?.to_string());
-                let kind =
-                    ParameterKind::from(param.getattr(pyo3::intern!(py, "kind"))?.extract::<u8>()?);
-                let annotation = {
-                    let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
-                    if annotation.is(param.getattr(pyo3::intern!(py, "empty")).unwrap()) {
-                        None
-                    } else {
-                        Some(annotation)
-                    }
-                }
-                .try_into()?;
-                let default = {
-                    let default = param.getattr(pyo3::intern!(py, "default"))?;
-                    if default.is(param.getattr(pyo3::intern!(py, "empty")).unwrap()) {
-                        None
-                    } else {
-                        Some(default.to_object(py))
-                    }
-                };
-
-                Result::Ok(Parameter {
-                    name,
-                    kind,
-                    annotation,
-                    default,
-                })
-            })
-            .collect::<Result<Vec<_>>>()?;
-
-        // Extract the return annotation of the function
-        let return_annotation = {
-            let return_annotation =
-                function_signature.getattr(pyo3::intern!(py, "return_annotation"))?;
-            if return_annotation.is(function_signature
-                .getattr(pyo3::intern!(py, "empty"))
-                .unwrap())
-            {
-                None
-            } else {
-                Some(return_annotation)
-            }
-        }
-        .try_into()?;
-
         // Extract the docstring of the function
         let docstring = {
             let docstring = function.getattr(pyo3::intern!(py, "__doc__"))?.to_string();
@@ -98,24 +30,113 @@ impl Function {
             }
         };
 
-        Ok(Self {
-            name,
-            typ,
-            parameters,
-            return_annotation,
-            docstring,
-        })
+        // Extract the signature of the function
+        if let Ok(function_signature) = py
+            .import(pyo3::intern!(py, "inspect"))
+            .unwrap()
+            .call_method1(pyo3::intern!(py, "signature"), (function,))
+        {
+            // Extract the parameters of the function
+            let parameters = function_signature
+                .getattr(pyo3::intern!(py, "parameters"))
+                .unwrap()
+                .call_method0(pyo3::intern!(py, "values"))
+                .unwrap()
+                .iter()
+                .unwrap()
+                .map(|param| {
+                    let param = param?;
+
+                    let name =
+                        Ident::from_py(&param.getattr(pyo3::intern!(py, "name"))?.to_string());
+                    let kind = ParameterKind::from(
+                        param.getattr(pyo3::intern!(py, "kind"))?.extract::<u8>()?,
+                    );
+                    let annotation = {
+                        let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
+                        if annotation.is(param.getattr(pyo3::intern!(py, "empty")).unwrap()) {
+                            None
+                        } else {
+                            Some(annotation)
+                        }
+                    }
+                    .try_into()?;
+                    let default = {
+                        let default = param.getattr(pyo3::intern!(py, "default"))?;
+                        if default.is(param.getattr(pyo3::intern!(py, "empty")).unwrap()) {
+                            None
+                        } else {
+                            Some(default.to_object(py))
+                        }
+                    };
+
+                    Result::Ok(Parameter {
+                        name,
+                        kind,
+                        annotation,
+                        default,
+                    })
+                })
+                .collect::<Result<Vec<_>>>()?;
+
+            // Extract the return annotation of the function
+            let return_annotation = {
+                let return_annotation =
+                    function_signature.getattr(pyo3::intern!(py, "return_annotation"))?;
+                if return_annotation.is(function_signature
+                    .getattr(pyo3::intern!(py, "empty"))
+                    .unwrap())
+                {
+                    None
+                } else {
+                    Some(return_annotation)
+                }
+            }
+            .try_into()?;
+
+            Ok(Self {
+                name,
+                typ,
+                parameters,
+                return_annotation,
+                docstring,
+            })
+        } else {
+            Ok(Self {
+                name,
+                typ,
+                parameters: vec![
+                    Parameter {
+                        name: Ident::from_rs("args"),
+                        kind: ParameterKind::VarPositional,
+                        annotation: Type::PyTuple(vec![Type::Unknown]),
+                        default: None,
+                    },
+                    Parameter {
+                        name: Ident::from_rs("kwargs"),
+                        kind: ParameterKind::VarKeyword,
+                        annotation: Type::PyDict {
+                            t_key: Box::new(Type::PyString),
+                            t_value: Box::new(Type::Unknown),
+                        },
+                        default: None,
+                    },
+                ],
+                return_annotation: Type::Unknown,
+                docstring,
+            })
+        }
     }
 }
 
-impl Generate for Function {
-    fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
+impl Function {
+    pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
         todo!()
     }
 }
 
-impl Canonicalize for Function {
-    fn canonicalize(&mut self) {
+impl Function {
+    pub fn canonicalize(&mut self) {
         todo!()
     }
 }
@@ -124,7 +145,7 @@ impl Canonicalize for Function {
 pub enum FunctionType {
     Function,
     Method { class_path: Path, typ: MethodType },
-    Closure(Path),
+    Closure,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

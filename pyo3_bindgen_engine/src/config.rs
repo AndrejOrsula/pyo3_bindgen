@@ -22,7 +22,6 @@ impl Default for Config {
 impl Config {
     pub fn is_attr_allowed(
         &self,
-        _attr: &pyo3::types::PyAny,
         attr_name: &Ident,
         attr_module: &Path,
         attr_type: &pyo3::types::PyType,

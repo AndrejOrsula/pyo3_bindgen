@@ -1,7 +1,7 @@
 use super::Ident;
 use itertools::Itertools;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Hash)]
 pub struct Path {
     pub leading_colon: bool,
     segments: Vec<Ident>,
@@ -9,7 +9,9 @@ pub struct Path {
 
 impl Path {
     pub fn from_rs(value: &str) -> Self {
-        assert!(!value.is_empty(), "Empty Rust path is not allowed");
+        if value.is_empty() {
+            return Self::default();
+        }
         debug_assert!(!value.contains('.'), "Invalid Rust path: {value}");
         Self {
             leading_colon: value.starts_with("::"),
@@ -22,6 +24,9 @@ impl Path {
     }
 
     pub fn from_py(value: &str) -> Self {
+        if value.is_empty() {
+            return Self::default();
+        }
         debug_assert!(!value.contains("::"), "Invalid Python path: {value}");
         Self {
             leading_colon: false,
@@ -62,14 +67,18 @@ impl Path {
             .join(".")
     }
 
-    pub fn join(&self, other: &Ident) -> Self {
+    pub fn join(&self, other: &Path) -> Self {
+        assert!(
+            !other.leading_colon,
+            "Leading colon is not allowed in the second path when joining"
+        );
         Self {
             leading_colon: self.leading_colon,
             segments: self
                 .segments
                 .iter()
                 .cloned()
-                .chain(std::iter::once(other.clone()))
+                .chain(other.iter().cloned())
                 .collect(),
         }
     }
@@ -113,6 +122,64 @@ impl Path {
             })
         } else {
             None
+        }
+    }
+
+    /// Define a fully qualified path from self to target.
+    /// Use self if they start at the same point.
+    /// Use super to go up the hierarchy.
+    /// If they do not share any common prefix, use super until the nothing is reached
+    pub fn relative_to(&self, target: &Path) -> Self {
+        if self == target {
+            return Path {
+                leading_colon: false,
+                segments: vec![Ident::from_rs("self")],
+            };
+        }
+
+        // Find the length of the common prefix
+        let common_prefix_length = self
+            .segments
+            .iter()
+            .zip(target.segments.iter())
+            .take_while(|(a, b)| a == b)
+            .count();
+
+        // Determine the relative path
+        let relative_segments = match common_prefix_length {
+            n if n < self.segments.len() => std::iter::repeat(Ident::from_rs("super"))
+                .take(self.segments.len() - n)
+                .chain(target.segments.iter().skip(n).cloned())
+                .collect_vec(),
+            n if n == self.segments.len() => std::iter::once(Ident::from_rs("self"))
+                .chain(target.segments.iter().skip(n).cloned())
+                .collect_vec(),
+            _ => {
+                unreachable!()
+            }
+        };
+
+        Path {
+            leading_colon: false,
+            segments: relative_segments,
+        }
+    }
+}
+
+impl From<Ident> for Path {
+    fn from(ident: Ident) -> Self {
+        Self {
+            leading_colon: false,
+            segments: vec![ident],
+        }
+    }
+}
+
+impl From<&[Ident]> for Path {
+    fn from(segments: &[Ident]) -> Self {
+        Self {
+            leading_colon: false,
+            segments: segments.to_owned(),
         }
     }
 }

@@ -1,11 +1,7 @@
 use super::{
     AttributeVariant, Function, FunctionType, Ident, MethodType, Path, Property, PropertyOwner,
 };
-use crate::{
-    traits::{Canonicalize, Generate},
-    Config, Result,
-};
-use itertools::Itertools;
+use crate::{Config, Result};
 
 #[derive(Debug, Clone)]
 pub struct Class {
@@ -50,12 +46,13 @@ impl Class {
                 (attr, attr_name, attr_module, attr_type)
             })
             // Filter attributes based on various configurable conditions
-            .filter(|(attr, attr_name, attr_module, attr_type)| {
-                cfg.is_attr_allowed(attr, attr_name, attr_module, attr_type)
+            .filter(|(_attr, attr_name, attr_module, attr_type)| {
+                cfg.is_attr_allowed(attr_name, attr_module, attr_type)
                     || ["__init__", "__call__"].contains(&attr_name.as_py())
             })
             // Iterate over the remaining attributes and parse them
             .try_for_each(|(attr, attr_name, attr_module, attr_type)| {
+                let attr_name_full = name.join(&attr_name.clone().into());
                 match AttributeVariant::determine(py, attr, attr_type, &attr_module, &name, false)
                     .unwrap()
                 {
@@ -67,15 +64,14 @@ impl Class {
                     }
                     AttributeVariant::Class => {
                         let subclass =
-                            Self::parse(cfg, attr.downcast().unwrap(), name.join(&attr_name))
-                                .unwrap();
+                            Self::parse(cfg, attr.downcast().unwrap(), attr_name_full).unwrap();
                         subclasses.push(subclass);
                     }
                     AttributeVariant::Function | AttributeVariant::Method => {
                         let method = Function::parse(
                             cfg,
                             attr,
-                            name.join(&attr_name),
+                            attr_name_full,
                             FunctionType::Method {
                                 class_path: name.clone(),
                                 typ: match attr_name.as_py() {
@@ -98,7 +94,7 @@ impl Class {
                         let property = Property::parse(
                             cfg,
                             attr,
-                            name.join(&attr_name),
+                            attr_name_full,
                             PropertyOwner::Class(name.clone()),
                         )
                         .unwrap();
@@ -128,14 +124,14 @@ impl Class {
     }
 }
 
-impl Generate for Class {
-    fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
+impl Class {
+    pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
         todo!()
     }
 }
 
-impl Canonicalize for Class {
-    fn canonicalize(&mut self) {
+impl Class {
+    pub fn canonicalize(&mut self) {
         todo!()
     }
 }

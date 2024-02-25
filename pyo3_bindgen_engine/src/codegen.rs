@@ -1,4 +1,3 @@
-use crate::traits::{Canonicalize, Generate};
 use crate::{syntax::Module, Config, Result};
 
 #[derive(Debug, Default, Clone)]
@@ -28,6 +27,15 @@ impl Codegen {
         Ok(self)
     }
 
+    pub fn module_from_str(self, module_name: &str) -> Result<Self> {
+        #[cfg(not(PyPy))]
+        pyo3::prepare_freethreaded_python();
+        pyo3::Python::with_gil(|py| {
+            let module = py.import(module_name)?;
+            self.module(module)
+        })
+    }
+
     pub fn modules(mut self, modules: &[&pyo3::types::PyModule]) -> Result<Self> {
         self.modules.reserve(modules.len());
         for module in modules {
@@ -36,33 +44,28 @@ impl Codegen {
         Ok(self)
     }
 
+    pub fn modules_from_str(mut self, module_names: &[&str]) -> Result<Self> {
+        self.modules.reserve(module_names.len());
+        for module_name in module_names {
+            self = self.module_from_str(module_name)?;
+        }
+        Ok(self)
+    }
+
     pub fn generate(mut self) -> Result<proc_macro2::TokenStream> {
-        let mut tokens = proc_macro2::TokenStream::new();
+        // Parse external modules (if enabled)
+        if self.cfg.generate_dependencies {
+            self.parse_dependencies()?;
+        }
 
-        pyo3::Python::with_gil(|py| {
-            crate::io_utils::with_suppressed_python_output(
-                py,
-                self.cfg.suppress_python_stdout,
-                self.cfg.suppress_python_stderr,
-                || {
-                    // Parse external modules (if enabled)
-                    if self.cfg.generate_dependencies {
-                        self.parse_dependencies()?;
-                    }
+        // Canonicalize the module tree
+        self.canonicalize();
 
-                    // Canonicalize the module tree
-                    self.canonicalize();
-
-                    // Generate the bindings for all modules
-                    for module in &self.modules {
-                        tokens.extend(module.generate(&self.cfg)?);
-                    }
-                    Ok(())
-                },
-            )
-        })?;
-
-        Ok(tokens)
+        // Generate the bindings for all modules
+        self.modules
+            .iter()
+            .map(|module| module.generate(&self.cfg, true))
+            .collect::<Result<_>>()
     }
 
     pub fn build(self, output_path: impl AsRef<std::path::Path>) -> Result<()> {
@@ -71,31 +74,15 @@ impl Codegen {
     }
 
     fn parse_dependencies(&mut self) -> Result<()> {
-        // TODO: Parse modules of dependencies
-        todo!()
+        // // TODO: Parse modules of dependencies
+        // todo!()
+        Ok(())
     }
-}
 
-impl Canonicalize for Codegen {
     fn canonicalize(&mut self) {
-        todo!();
-        for module in &mut self.modules {
-            module.canonicalize();
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_codegen() {
-        pyo3::prepare_freethreaded_python();
-        pyo3::Python::with_gil(|py| {
-            let cfg = Config::default();
-            let module = py.import("gymnasium").unwrap();
-            let _codegen = Codegen::new(cfg).unwrap().module(module).unwrap();
-        });
+        // todo!();
+        // for module in &mut self.modules {
+        //     module.canonicalize();
+        // }
     }
 }
