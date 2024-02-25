@@ -9,7 +9,7 @@ use std::str::FromStr;
 ///
 /// Note that this is not a complete mapping at the moment. The public API is
 /// subject to large changes.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Type {
     PyAny,
     Unhandled(String),
@@ -74,6 +74,16 @@ pub enum Type {
     PySuper,
     PyTraceback,
     PyType,
+}
+
+impl TryFrom<Option<&pyo3::types::PyAny>> for Type {
+    type Error = pyo3::PyErr;
+    fn try_from(value: Option<&pyo3::types::PyAny>) -> Result<Self, Self::Error> {
+        Ok(match value {
+            Some(t) => Self::try_from(t)?,
+            None => Self::PyNone,
+        })
+    }
 }
 
 impl TryFrom<&pyo3::types::PyAny> for Type {
