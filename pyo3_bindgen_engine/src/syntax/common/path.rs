@@ -133,7 +133,7 @@ impl Path {
         if self == target {
             return Path {
                 leading_colon: false,
-                segments: vec![Ident::from_rs("self")],
+                segments: vec![Ident::from_rs("super"), target.name().clone()],
             };
         }
 
@@ -146,7 +146,7 @@ impl Path {
             .count();
 
         // Determine the relative path
-        let relative_segments = match common_prefix_length {
+        let mut relative_segments = match common_prefix_length {
             n if n < self.segments.len() => std::iter::repeat(Ident::from_rs("super"))
                 .take(self.segments.len() - n)
                 .chain(target.segments.iter().skip(n).cloned())
@@ -158,6 +158,11 @@ impl Path {
                 unreachable!()
             }
         };
+
+        // If the relative segment ends with "super", fully specify the path by adding another "super" and the name of the target
+        if relative_segments.last().map(Ident::as_rs) == Some("super") {
+            relative_segments.extend([Ident::from_rs("super"), target.name().clone()]);
+        }
 
         Path {
             leading_colon: false,
@@ -181,6 +186,18 @@ impl From<&[Ident]> for Path {
             leading_colon: false,
             segments: segments.to_owned(),
         }
+    }
+}
+
+impl std::cmp::PartialOrd for Path {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl std::cmp::Ord for Path {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.to_py().cmp(&other.to_py())
     }
 }
 

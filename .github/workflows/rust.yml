@@ -41,7 +41,7 @@ jobs:
       fail-fast: false
       matrix:
         toolchain:
-          - "1.70" # Minimal supported Rust version (MSRV)
+          - "1.74" # Minimal supported Rust version (MSRV)
           - stable
           - beta
     steps:
@@ -106,7 +106,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: lcov.info
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   deny:
     runs-on: ubuntu-latest

@@ -21,7 +21,7 @@ impl AttributeVariant {
         attr_type: &pyo3::types::PyType,
         attr_module: &Path,
         owner_name: &Path,
-        consider_imported: bool,
+        consider_import: bool,
     ) -> Result<Self> {
         let inspect = py.import("inspect")?;
 
@@ -53,7 +53,7 @@ impl AttributeVariant {
         let is_external = attr_module != owner_name;
         let is_imported = is_external && (is_submodule || is_class || is_function || is_method);
 
-        Ok(if consider_imported && is_imported {
+        Ok(if consider_import && is_imported {
             AttributeVariant::Import
         } else if is_submodule {
             AttributeVariant::Module

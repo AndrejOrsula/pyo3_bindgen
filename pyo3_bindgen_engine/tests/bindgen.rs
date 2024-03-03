@@ -1,9 +1,9 @@
 macro_rules! test_bindgen {
     {
         $(#[$meta:meta])*
-        $test_name:ident                        $(,)?
-        $(py)?$(python)? $(:)? $code_py:literal $(,)?
-        $(rs)?$(rust)?   $(:)? $code_rs:literal $(,)?
+        $test_name:ident                       $(,)?
+        $(py)?$(python)?$(:)? $code_py:literal $(,)?
+        $(rs)?$(rust)?$(:)?   $code_rs:literal $(,)?
     } => {
         #[test]
         $(#[$meta])*
@@ -13,13 +13,16 @@ macro_rules! test_bindgen {
             const CODE_RS: &str = indoc::indoc! { $code_rs };
 
             // Act
-            let bindings = pyo3_bindgen_engine::generate_bindings_from_str(
-                CODE_PY,
-                concat!("t_mod_", stringify!($test_name)),
-            )
-            .unwrap();
+            let bindings = pyo3_bindgen_engine::Codegen::default()
+                .module_from_str(CODE_PY, concat!("t_mod_", stringify!($test_name)))
+                .unwrap()
+                .generate()
+                .unwrap();
 
             // Assert
+            fn format_code(input: &str) -> String {
+                prettyplease::unparse(&syn::parse_str(input).unwrap())
+            }
             let generated_code = format_code(&bindings.to_string());
             let target_code = format_code(CODE_RS);
             assert_eq!(
@@ -30,19 +33,14 @@ macro_rules! test_bindgen {
     };
 }
 
-fn format_code(input: &str) -> String {
-    prettyplease::unparse(&syn::parse_str(input).unwrap())
-}
-
 test_bindgen! {
     test_bindgen_attribute
 
-    py:r#"
+    py: r#"
         t_const_float: float = 0.42
     "#
 
-    rs:r#"
-        ///
+    rs: r#"
         #[allow(
             clippy::all,
             clippy::nursery,
@@ -52,21 +50,18 @@ test_bindgen! {
             non_upper_case_globals,
             unused
         )]
-        mod t_mod_test_bindgen_attribute {
-            ///Getter for the `t_const_float` attribute
+        pub mod t_mod_test_bindgen_attribute {
             pub fn t_const_float<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<f64> {
                 py.import(::pyo3::intern!(py, "t_mod_test_bindgen_attribute"))?
                     .getattr(::pyo3::intern!(py, "t_const_float"))?
                     .extract()
             }
-            ///Setter for the `t_const_float` attribute
             pub fn set_t_const_float<'py>(
                 py: ::pyo3::marker::Python<'py>,
-                value: f64,
+                p_value: f64,
             ) -> ::pyo3::PyResult<()> {
                 py.import(::pyo3::intern!(py, "t_mod_test_bindgen_attribute"))?
-                    .setattr(::pyo3::intern!(py, "t_const_float"), value)?;
-                Ok(())
+                    .setattr(::pyo3::intern!(py, "t_const_float"), p_value)
             }
         }
     "#
@@ -75,39 +70,40 @@ test_bindgen! {
 test_bindgen! {
     test_bindgen_function
 
-    py:r#"
+    py: r#"
         def t_fn(t_arg1: str) -> int:
             """t_docs"""
             ...
     "#
 
-    rs:r#"
-        ///
+    rs: r#"
         #[allow(
             clippy::all,
-                clippy::nursery,
-                clippy::pedantic,
-                non_camel_case_types,
-                non_snake_case,
-                non_upper_case_globals,
-                unused
+            clippy::nursery,
+            clippy::pedantic,
+            non_camel_case_types,
+            non_snake_case,
+            non_upper_case_globals,
+            unused
         )]
-        mod t_mod_test_bindgen_function {
-            ///t_docs
+        pub mod t_mod_test_bindgen_function {
+            /// t_docs
             pub fn t_fn<'py>(
                 py: ::pyo3::marker::Python<'py>,
-                t_arg1: &str,
+                p_t_arg1: &str,
             ) -> ::pyo3::PyResult<i64> {
-                let __internal_args = ();
-                let __internal_kwargs = ::pyo3::types::PyDict::new(py);
-                __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
-                py.import(::pyo3::intern!(py, "t_mod_test_bindgen_function"))?
-                    .call_method(
-                        ::pyo3::intern!(py, "t_fn"),
-                        __internal_args,
-                        Some(__internal_kwargs),
-                    )?
-                    .extract()
+                ::pyo3::FromPyObject::extract(
+                    py
+                        .import(::pyo3::intern!(py, "t_mod_test_bindgen_function"))?
+                        .getattr(::pyo3::intern!(py, "t_fn"))?
+                        .call_method1(
+                            ::pyo3::intern!(py, "t_fn"),
+                            ::pyo3::types::PyTuple::new(
+                                py,
+                                [::pyo3::ToPyObject::to_object(&p_t_arg1, py)],
+                            ),
+                        )?,
+                )
             }
         }
     "#
@@ -116,7 +112,7 @@ test_bindgen! {
 test_bindgen! {
     test_bindgen_class
 
-    py:r#"
+    py: r#"
         from typing import Dict, Optional
         class t_class:
             """t_docs"""
@@ -134,8 +130,7 @@ test_bindgen! {
                 ...
     "#
 
-    rs:r#"
-        ///
+    rs: r#"
         #[allow(
             clippy::all,
             clippy::nursery,
@@ -145,8 +140,8 @@ test_bindgen! {
             non_upper_case_globals,
             unused
         )]
-        mod t_mod_test_bindgen_class {
-            ///t_docs
+        pub mod t_mod_test_bindgen_class {
+            /// t_docs
             #[repr(transparent)]
             pub struct t_class(::pyo3::PyAny);
             ::pyo3::pyobject_native_type_named!(t_class);
@@ -158,64 +153,58 @@ test_bindgen! {
             ::pyo3::pyobject_native_type_extract!(t_class);
             #[automatically_derived]
             impl t_class {
-                ///t_docs_init
+                /// t_docs_init
                 pub fn new<'py>(
                     py: ::pyo3::marker::Python<'py>,
-                    t_arg1: &str,
-                    t_arg2: ::std::option::Option<i64>,
+                    p_t_arg1: &str,
+                    p_t_arg2: ::std::option::Option<i64>,
                 ) -> ::pyo3::PyResult<&'py Self> {
-                    let __internal_args = ();
-                    let __internal_kwargs = ::pyo3::types::PyDict::new(py);
-                    __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
-                    __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg2"), t_arg2)?;
-                    py.import(::pyo3::intern!(py, "t_mod_test_bindgen_class"))?
-                        .getattr(::pyo3::intern!(py, "t_class"))?
-                        .call(__internal_args, Some(__internal_kwargs))?
-                        .extract()
+                    ::pyo3::FromPyObject::extract(
+                        py
+                            .import(::pyo3::intern!(py, "t_mod_test_bindgen_class"))?
+                            .getattr(::pyo3::intern!(py, "t_class"))?
+                            .call1(
+                                ::pyo3::types::PyTuple::new(
+                                    py,
+                                    [
+                                        ::pyo3::ToPyObject::to_object(&p_t_arg1, py),
+                                        ::pyo3::ToPyObject::to_object(&p_t_arg2, py),
+                                    ],
+                                ),
+                            )?,
+                    )
                 }
-                ///Call self as a function.
-                pub fn call<'py>(
-                    &'py self,
-                    py: ::pyo3::marker::Python<'py>,
-                    args: impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyTuple>>,
-                    kwargs: &'py ::pyo3::types::PyDict,
-                ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    let __internal_args = args;
-                    self.call_method1(::pyo3::intern!(py, "__call__"), __internal_args)?
-                        .extract()
-                }
-                ///t_docs_method
+                /// t_docs_method
                 pub fn t_method<'py>(
                     &'py self,
                     py: ::pyo3::marker::Python<'py>,
-                    t_arg1: &::std::collections::HashMap<::std::string::String, i64>,
-                    kwargs: &'py ::pyo3::types::PyDict,
+                    p_t_arg1: &::std::collections::HashMap<::std::string::String, i64>,
+                    p_kwargs: &'py ::pyo3::types::PyDict,
                 ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    let __internal_args = ();
-                    let __internal_kwargs = kwargs;
-                    __internal_kwargs.set_item(::pyo3::intern!(py, "t_arg1"), t_arg1)?;
-                    self.call_method(
-                            ::pyo3::intern!(py, "t_method"),
-                            __internal_args,
-                            Some(__internal_kwargs),
-                        )?
-                        .extract()
+                    ::pyo3::FromPyObject::extract(
+                        self
+                            .0
+                            .call(
+                                ::pyo3::types::PyTuple::new(
+                                    py,
+                                    [::pyo3::ToPyObject::to_object(&p_t_arg1, py)],
+                                ),
+                                Some(p_kwargs),
+                            )?,
+                    )
                 }
-                ///Getter for the `t_prop` attribute
                 pub fn t_prop<'py>(
                     &'py self,
                     py: ::pyo3::marker::Python<'py>,
                 ) -> ::pyo3::PyResult<i64> {
-                    self.getattr(::pyo3::intern!(py, "t_prop"))?.extract()
+                    self.0.getattr(::pyo3::intern!(py, "t_prop"))?.extract()
                 }
-                ///Setter for the `t_prop` attribute
                 pub fn set_t_prop<'py>(
                     &'py self,
                     py: ::pyo3::marker::Python<'py>,
-                    value: i64,
+                    p_value: i64,
                 ) -> ::pyo3::PyResult<()> {
-                    self.setattr(::pyo3::intern!(py, "t_prop"), value)?;
-                    Ok(())
+                    self.0.setattr(::pyo3::intern!(py, "t_prop"), p_value)
                 }
             }
         }

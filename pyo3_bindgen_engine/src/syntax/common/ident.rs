@@ -52,6 +52,18 @@ impl TryFrom<&Ident> for syn::Ident {
     }
 }
 
+impl std::cmp::PartialOrd for Ident {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl std::cmp::Ord for Ident {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_py().cmp(other.as_py())
+    }
+}
+
 impl std::ops::Deref for Ident {
     type Target = str;
     fn deref(&self) -> &Self::Target {

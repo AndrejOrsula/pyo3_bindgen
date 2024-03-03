@@ -17,9 +17,11 @@ impl Import {
             import_type,
         })
     }
-}
 
-impl Import {
+    pub fn is_external(&self) -> bool {
+        self.import_type == ImportType::ExternalImport
+    }
+
     pub fn generate(&self, cfg: &Config) -> Result<proc_macro2::TokenStream> {
         // Skip external imports if their generation is disabled
         if !cfg.generate_dependencies && self.import_type == ImportType::ExternalImport {
@@ -34,29 +36,31 @@ impl Import {
         // Determine the visibility of the import based on its type
         let visibility = match self.import_type {
             ImportType::ExternalImport => proc_macro2::TokenStream::new(),
-            ImportType::Reexport => quote::quote! { pub(crate) },
-            ImportType::ScopedReexport => quote::quote! { pub },
+            ImportType::Reexport | ImportType::ScopedReexport => quote::quote! { pub },
         };
 
         // Generate the path to the target module
-        let relative_path: syn::Path = self
+        let relative_path: std::result::Result<syn::Path, _> = self
             .target
             .parent()
             .unwrap_or_default()
             .relative_to(&self.origin)
-            .try_into()?;
+            .try_into();
+        if let Ok(relative_path) = relative_path {
+            // Use alias for the target module if it has a different name than the last segment of its path
+            let maybe_alias = if self.origin.name() != self.target.name() {
+                let alias: syn::Ident = self.target.name().try_into()?;
+                quote::quote! { as #alias }
+            } else {
+                proc_macro2::TokenStream::new()
+            };
 
-        // Use alias for the target module if it has a different name than the last segment of its path
-        let maybe_alias = if self.origin.name() != self.target.name() {
-            let alias: syn::Ident = self.target.name().try_into()?;
-            quote::quote! { as #alias }
+            Ok(quote::quote! {
+                #visibility use #relative_path #maybe_alias;
+            })
         } else {
-            proc_macro2::TokenStream::new()
-        };
-
-        Ok(quote::quote! {
-            #visibility use #relative_path #maybe_alias;
-        })
+            Ok(proc_macro2::TokenStream::new())
+        }
     }
 }
 

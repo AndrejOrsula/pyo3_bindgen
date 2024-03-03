@@ -7,13 +7,16 @@ pub struct TypeVar {
 }
 
 impl TypeVar {
-    pub fn new(name: Path) -> Result<Self> {
-        Ok(Self { name })
+    pub fn new(name: Path) -> Self {
+        Self { name }
     }
 }
 
 impl TypeVar {
     pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
-        todo!()
+        let typevar_ident: syn::Ident = self.name.name().try_into()?;
+        Ok(quote::quote! {
+            pub type #typevar_ident<'py> = &'py ::pyo3::types::PyAny;
+        })
     }
 }

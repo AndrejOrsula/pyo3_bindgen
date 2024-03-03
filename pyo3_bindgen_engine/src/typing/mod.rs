@@ -1,8 +1,10 @@
 //! Module for handling Rust, Python and `PyO3` types.
-// TODO: Remove allow once impl is finished
 #![allow(unused)]
 
+// TODO: Refactor typing
+
 use itertools::Itertools;
+use rustc_hash::FxHashSet as HashSet;
 use std::str::FromStr;
 
 /// Enum that maps Python types to Rust types.
@@ -73,6 +75,7 @@ pub enum Type {
     #[cfg(not(PyPy))]
     PySuper,
     PyTraceback,
+    #[allow(clippy::enum_variant_names)]
     PyType,
 }
 
@@ -81,7 +84,7 @@ impl TryFrom<Option<&pyo3::types::PyAny>> for Type {
     fn try_from(value: Option<&pyo3::types::PyAny>) -> Result<Self, Self::Error> {
         Ok(match value {
             Some(t) => Self::try_from(t)?,
-            None => Self::PyNone,
+            None => Self::Unknown,
         })
     }
 }
@@ -439,7 +442,7 @@ impl Type {
                     _ => {
                         // Noop - processed as string below
                         // eprintln!(
-                        //     "Warning: Unexpected type encountered: {value}\n \
+                        //     "WARN: Unexpected type encountered: {value}\n \
                         //      Bindings could be improved by handling the type here \
                         //      Please report this as a bug. [scope: Type::from_typing()]",
                         // );
@@ -522,11 +525,11 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs<S: ::std::hash::BuildHasher + Default>(
+    pub fn into_rs(
         self,
         owned: bool,
         module_name: &str,
-        all_types: &std::collections::HashSet<String, S>,
+        all_types: &HashSet<String>,
     ) -> proc_macro2::TokenStream {
         if owned {
             self.into_rs_owned(module_name, all_types)
@@ -536,10 +539,10 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs_owned<S: ::std::hash::BuildHasher + Default>(
+    pub fn into_rs_owned(
         self,
         module_name: &str,
-        all_types: &std::collections::HashSet<String, S>,
+        all_types: &HashSet<String>,
     ) -> proc_macro2::TokenStream {
         match self {
             Self::PyAny => {
@@ -682,7 +685,9 @@ impl Type {
                 quote::quote! {&'py ::pyo3::types::PyDateTime}
             }
             Self::PyDelta => {
-                quote::quote! {::std::time::Duration}
+                // The trait `ToPyObject` is not implemented for `Duration`, so we can't use it here yet
+                // quote::quote! {::std::time::Duration}
+                quote::quote! {&'py ::pyo3::types::PyAny}
             }
             #[cfg(not(Py_LIMITED_API))]
             Self::PyTime => {
@@ -739,10 +744,10 @@ impl Type {
     }
 
     #[must_use]
-    pub fn into_rs_borrowed<S: ::std::hash::BuildHasher + Default>(
+    pub fn into_rs_borrowed(
         self,
         module_name: &str,
-        all_types: &std::collections::HashSet<String, S>,
+        all_types: &HashSet<String>,
     ) -> proc_macro2::TokenStream {
         match self {
             Self::PyAny => {
@@ -808,7 +813,7 @@ impl Type {
                 if t.is_owned_hashable() {
                     let t = t.into_rs_owned(module_name, all_types);
                     quote::quote! {
-                        &::std::collections::HashSet<#t>
+                        &::HashSet<#t>
                     }
                 } else {
                     quote::quote! {
@@ -826,7 +831,7 @@ impl Type {
                 if t.is_owned_hashable() {
                     let t = t.into_rs_owned(module_name, all_types);
                     quote::quote! {
-                        &::std::collections::HashSet<#t>
+                        &::HashSet<#t>
                     }
                 } else {
                     quote::quote! {
@@ -884,7 +889,9 @@ impl Type {
                 quote::quote! {&'py ::pyo3::types::PyDateTime}
             }
             Self::PyDelta => {
-                quote::quote! {::std::time::Duration}
+                // The trait `ToPyObject` is not implemented for `Duration`, so we can't use it here yet
+                // quote::quote! {::std::time::Duration}
+                quote::quote! {&'py ::pyo3::types::PyAny}
             }
             #[cfg(not(Py_LIMITED_API))]
             Self::PyTime => {
@@ -940,10 +947,10 @@ impl Type {
         }
     }
 
-    fn try_into_module_path<S: ::std::hash::BuildHasher + Default>(
+    fn try_into_module_path(
         self,
         module_name: &str,
-        all_types: &std::collections::HashSet<String, S>,
+        all_types: &HashSet<String>,
     ) -> proc_macro2::TokenStream {
         let Self::Unhandled(value) = self else {
             unreachable!()
@@ -968,8 +975,6 @@ impl Type {
                 if !all_types.contains(module_member_full) {
                     return quote::quote! {&'py ::pyo3::types::PyAny};
                 }
-
-                let value_name = module_member_full.split('.').last().unwrap();
 
                 let n_common_ancestors = module_name
                     .split('.')
@@ -1032,7 +1037,7 @@ impl Type {
 
                 // Approach: Find the shallowest match that contains the value
                 // TODO: Fix this! The matching might be wrong in many cases
-                let mut possible_matches = std::collections::HashSet::<String, S>::default();
+                let mut possible_matches = HashSet::default();
                 for i in 0..n_module_scopes {
                     let module_member_scopes_end = module_scopes.clone().skip(i).join(".");
                     all_types

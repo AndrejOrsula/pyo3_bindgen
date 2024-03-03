@@ -1,68 +1,61 @@
-macro_rules! bench_bindgen_from_str {
-    {
-        |$criterion:ident|                      $(,)?
-        $bench_name:ident                       $(,)?
-        $(py)?$(python)? $(:)? $code_py:literal $(,)?
-    } => {
-        {
-            const CODE_PY: &str = indoc::indoc! { $code_py };
-            $criterion.bench_function(stringify!($bench_name), |b| {
-                b.iter(|| {
-                    pyo3_bindgen_engine::generate_bindings_from_str(
-                        criterion::black_box(CODE_PY),
-                        criterion::black_box(concat!("bench_mod_", stringify!($bench_name))),
-                    )
-                    .unwrap()
-                });
-            });
-        }
-    };
-}
-
-macro_rules! try_bench_bindgen_for_module {
-    {
-        |$py:ident, $criterion:ident|         $(,)?
-        $(module)? $(:)? $module_name:literal $(,)?
-    } => {
-        if let Ok(module) = $py.import($module_name) {
-            $criterion.bench_function(concat!("bench_bindgen_module_", $module_name), |b| {
-                b.iter(|| {
-                    pyo3_bindgen_engine::generate_bindings_for_module(
-                        criterion::black_box($py),
-                        criterion::black_box(module),
-                    )
-                    .unwrap()
-                });
-            });
-        }
-    };
-}
+criterion::criterion_group!(benches, criterion_benchmark);
+criterion::criterion_main!(benches);
 
 fn criterion_benchmark(crit: &mut criterion::Criterion) {
-    let mut group_from_str = crit.benchmark_group("generate_bindings_from_str");
+    bench_from_str(crit);
+    bench_mod(crit);
+}
+
+fn bench_from_str(crit: &mut criterion::Criterion) {
+    let mut group_from_str = crit.benchmark_group("bindgen_str");
     group_from_str
         .warm_up_time(std::time::Duration::from_millis(250))
         .sample_size(100);
-    bench_bindgen_from_str! {
+
+    macro_rules! bench_impl {
+        {
+            |$criterion:ident|                     $(,)?
+            $bench_name:ident                      $(,)?
+            $(py)?$(python)?$(:)? $code_py:literal $(,)?
+        } => {
+            {
+                const CODE_PY: &str = indoc::indoc! { $code_py };
+                $criterion.bench_function(stringify!($bench_name), |b| {
+                    b.iter(|| {
+                        pyo3_bindgen_engine::Codegen::default()
+                        .module_from_str(
+                            criterion::black_box(CODE_PY),
+                            criterion::black_box(concat!("bench_mod_", stringify!($bench_name)))
+                        )
+                        .unwrap()
+                        .generate()
+                        .unwrap()
+                    });
+                });
+            }
+        };
+    }
+
+    bench_impl! {
         |group_from_str|
-        bench_bindgen_attribute
-        py: r#"
+        attribute
+        r#"
             t_const_float: float = 0.42
         "#
     }
-    bench_bindgen_from_str! {
+    bench_impl! {
         |group_from_str|
-        bench_bindgen_function
-        py: r#"
+        function
+        r#"
             def t_fn(t_arg1: str) -> int:
                 """t_docs"""
                 ...
         "#
     }
-    bench_bindgen_from_str! {
+    bench_impl! {
         |group_from_str|
-        bench_bindgen_class
-        py: r#"
+        class
+        r#"
             from typing import Dict, Optional
             class t_class:
                 """t_docs"""
@@ -80,28 +73,54 @@ fn criterion_benchmark(crit: &mut criterion::Criterion) {
                     ...
         "#
     }
-    group_from_str.finish();
 
-    let mut group_for_module = crit.benchmark_group("generate_bindings_for_module");
-    group_for_module
-        .warm_up_time(std::time::Duration::from_secs(2))
-        .sample_size(10);
-    pyo3::Python::with_gil(|py| {
-        try_bench_bindgen_for_module! {
-            |py, group_for_module|
-            module: "os"
-        }
-        try_bench_bindgen_for_module! {
-            |py, group_for_module|
-            module: "sys"
-        }
-        try_bench_bindgen_for_module! {
-            |py, group_for_module|
-            module: "numpy"
-        }
-    });
-    group_for_module.finish();
+    group_from_str.finish();
 }
 
-criterion::criterion_group!(benches, criterion_benchmark);
-criterion::criterion_main!(benches);
+fn bench_mod(crit: &mut criterion::Criterion) {
+    let mut group_module = crit.benchmark_group("bindgen_mod");
+    group_module
+        .warm_up_time(std::time::Duration::from_secs(2))
+        .sample_size(10);
+
+    macro_rules! bench_impl {
+        (
+            |$criterion:ident|               $(,)?
+            $(module:)? $module_name:literal $(,)?
+        ) => {
+            $criterion.bench_function($module_name, |b| {
+                b.iter(|| {
+                    pyo3_bindgen_engine::Codegen::default()
+                    .module_name(
+                        criterion::black_box($module_name)
+                    )
+                    .unwrap()
+                    .generate()
+                    .unwrap()
+                });
+            });
+        };
+        {
+            |$criterion:ident|                          $(,)?
+            $(modules:)? [ $($module:literal),+ $(,)? ] $(,)?
+        } => {
+            $(
+                bench_impl!(|$criterion| $module);
+            )+
+        };
+    }
+
+    bench_impl! {
+        |group_module|
+        modules: [
+            "io",
+            "math",
+            "os",
+            "re",
+            "sys",
+            "time",
+        ]
+    }
+
+    group_module.finish();
+}
