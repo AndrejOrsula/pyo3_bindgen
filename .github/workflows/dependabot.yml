@@ -11,7 +11,7 @@ permissions:
 jobs:
   approve:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]' && github.event_name == 'pull_request'
+    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request' }}
     steps:
       - name: Fetch metadata
         id: metadata
@@ -26,14 +26,14 @@ jobs:
 
   auto_merge:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]' && github.event_name == 'check_run'
+    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'check_run' }}
     steps:
       - name: Fetch metadata
         id: metadata
         uses: dependabot/fetch-metadata@v1
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Enable auto-merge
+      - name: Enable PR auto-merge
         if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
