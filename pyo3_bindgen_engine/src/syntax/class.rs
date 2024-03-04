@@ -1,17 +1,17 @@
-use itertools::Itertools;
-
 use super::{
     AttributeVariant, Function, FunctionType, Ident, MethodType, Path, Property, PropertyOwner,
 };
 use crate::{Config, Result};
+use itertools::Itertools;
+use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Class {
     pub name: Path,
-    // pub subclasses: Vec<Class>,
-    pub methods: Vec<Function>,
-    pub properties: Vec<Property>,
-    pub docstring: Option<String>,
+    // subclasses: Vec<Class>,
+    methods: Vec<Function>,
+    properties: Vec<Property>,
+    docstring: Option<String>,
 }
 
 impl Class {
@@ -135,10 +135,12 @@ impl Class {
             docstring,
         })
     }
-}
 
-impl Class {
-    pub fn generate(&self, cfg: &Config) -> Result<proc_macro2::TokenStream> {
+    pub fn generate(
+        &self,
+        cfg: &Config,
+        local_types: &HashMap<Path, Path>,
+    ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
         // Documentation
@@ -209,7 +211,7 @@ impl Class {
         struct_impl.extend(
             self.methods
                 .iter()
-                .map(|method| method.generate(cfg, &scoped_function_idents))
+                .map(|method| method.generate(cfg, &scoped_function_idents, local_types))
                 .collect::<Result<proc_macro2::TokenStream>>()?,
         );
         // Properties
@@ -241,7 +243,7 @@ impl Class {
             struct_impl.extend(
                 self.properties
                     .iter()
-                    .map(|property| property.generate(cfg, &scoped_function_idents))
+                    .map(|property| property.generate(cfg, &scoped_function_idents, local_types))
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }

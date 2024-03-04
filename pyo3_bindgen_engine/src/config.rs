@@ -2,6 +2,16 @@ use crate::syntax::{Ident, Path};
 
 /// Array of forbidden attribute names that are reserved for internal use by derived traits
 pub const FORBIDDEN_FUNCTION_NAMES: [&str; 4] = ["get_type", "obj", "repr", "str"];
+/// Array of forbidden type names
+pub const FORBIDDEN_TYPE_NAMES: [&str; 6] = [
+    "_collections._tuplegetter",
+    "AsyncState",
+    "getset_descriptor",
+    "member_descriptor",
+    "method_descriptor",
+    "property",
+];
+
 /// Default array of blocklisted attribute names
 const DEFAULT_BLOCKLIST_ATTRIBUTE_NAMES: [&str; 4] = ["builtins", "testing", "tests", "test"];
 
@@ -41,6 +51,8 @@ pub struct Config {
 
     /// Flag that determines whether to generate code for all dependencies of the target modules.
     /// The list of dependent modules is derived from the imports of the target modules.
+    ///
+    /// Warning: This feature is not fully supported yet.
     #[builder(default = false)]
     pub(crate) generate_dependencies: bool,
 

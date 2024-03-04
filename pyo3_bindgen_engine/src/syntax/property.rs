@@ -1,17 +1,23 @@
 use super::{Ident, Path};
 use crate::{typing::Type, Config, Result};
 use itertools::Itertools;
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Property {
     pub name: Path,
-    pub owner: PropertyOwner,
-    pub is_mutable: bool,
-    pub annotation: Type,
-    pub setter_annotation: Type,
-    pub docstring: Option<String>,
-    pub setter_docstring: Option<String>,
+    owner: PropertyOwner,
+    is_mutable: bool,
+    annotation: Type,
+    setter_annotation: Type,
+    docstring: Option<String>,
+    setter_docstring: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum PropertyOwner {
+    Module,
+    Class,
 }
 
 impl Property {
@@ -138,22 +144,21 @@ impl Property {
             setter_docstring,
         })
     }
-}
 
-impl Property {
     pub fn generate(
         &self,
         cfg: &Config,
         scoped_function_idents: &[&Ident],
+        local_types: &HashMap<Path, Path>,
     ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
         // Getter
-        output.extend(self.generate_getter(cfg, scoped_function_idents)?);
+        output.extend(self.generate_getter(cfg, scoped_function_idents, local_types)?);
 
         // Setter (if mutable)
         if self.is_mutable {
-            output.extend(self.generate_setter(cfg, scoped_function_idents)?);
+            output.extend(self.generate_setter(cfg, scoped_function_idents, local_types)?);
         }
 
         Ok(output)
@@ -163,6 +168,7 @@ impl Property {
         &self,
         cfg: &Config,
         scoped_function_idents: &[&Ident],
+        local_types: &HashMap<Path, Path>,
     ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
@@ -210,10 +216,7 @@ impl Property {
                 }
             }
         };
-        let param_type = self
-            .annotation
-            .clone()
-            .into_rs_owned("", &HashSet::default());
+        let param_type = self.annotation.clone().into_rs_owned(local_types);
         match &self.owner {
             PropertyOwner::Module => {
                 let package = self.name.root().unwrap_or_else(|| unreachable!()).to_py();
@@ -256,6 +259,7 @@ impl Property {
         &self,
         _cfg: &Config,
         scoped_function_idents: &[&Ident],
+        local_types: &HashMap<Path, Path>,
     ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
@@ -284,10 +288,7 @@ impl Property {
             }
         };
         let param_name = self.name.name().as_py();
-        let param_type = self
-            .annotation
-            .clone()
-            .into_rs_borrowed("", &HashSet::default());
+        let param_type = self.annotation.clone().into_rs_borrowed(local_types);
         match &self.owner {
             PropertyOwner::Module => {
                 let package = self.name.root().unwrap_or_else(|| unreachable!()).to_py();
@@ -324,10 +325,4 @@ impl Property {
 
         Ok(output)
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum PropertyOwner {
-    Module,
-    Class,
 }

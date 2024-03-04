@@ -1,10 +1,10 @@
-mod class;
-mod common;
-mod function;
-mod import;
-mod module;
-mod property;
-mod type_var;
+pub(crate) mod class;
+pub(crate) mod common;
+pub(crate) mod function;
+pub(crate) mod import;
+pub(crate) mod module;
+pub(crate) mod property;
+pub(crate) mod type_var;
 
 pub use class::Class;
 pub use common::{AttributeVariant, Ident, Path};

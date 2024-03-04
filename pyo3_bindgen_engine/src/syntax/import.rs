@@ -9,22 +9,22 @@ pub struct Import {
 }
 
 impl Import {
-    pub fn new(origin: Path, target: Path) -> Result<Self> {
+    pub fn new(origin: Path, target: Path) -> Self {
         let import_type = ImportType::from_paths(&origin, &target);
-        Ok(Self {
+        Self {
             origin,
             target,
             import_type,
-        })
+        }
     }
 
     pub fn is_external(&self) -> bool {
         self.import_type == ImportType::ExternalImport
     }
 
-    pub fn generate(&self, cfg: &Config) -> Result<proc_macro2::TokenStream> {
-        // Skip external imports if their generation is disabled
-        if !cfg.generate_dependencies && self.import_type == ImportType::ExternalImport {
+    pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
+        // For now, we only generate imports for submodule reexports
+        if self.import_type != ImportType::SubmoduleReexport {
             return Ok(proc_macro2::TokenStream::new());
         }
 
@@ -35,8 +35,10 @@ impl Import {
 
         // Determine the visibility of the import based on its type
         let visibility = match self.import_type {
-            ImportType::ExternalImport => proc_macro2::TokenStream::new(),
-            ImportType::Reexport | ImportType::ScopedReexport => quote::quote! { pub },
+            ImportType::ExternalImport | ImportType::PackageReexport => {
+                proc_macro2::TokenStream::new()
+            }
+            ImportType::SubmoduleReexport => quote::quote! { pub },
         };
 
         // Generate the path to the target module
@@ -44,15 +46,15 @@ impl Import {
             .target
             .parent()
             .unwrap_or_default()
-            .relative_to(&self.origin)
+            .relative_to(&self.origin, true)
             .try_into();
         if let Ok(relative_path) = relative_path {
             // Use alias for the target module if it has a different name than the last segment of its path
-            let maybe_alias = if self.origin.name() != self.target.name() {
+            let maybe_alias = if self.origin.name() == self.target.name() {
+                proc_macro2::TokenStream::new()
+            } else {
                 let alias: syn::Ident = self.target.name().try_into()?;
                 quote::quote! { as #alias }
-            } else {
-                proc_macro2::TokenStream::new()
             };
 
             Ok(quote::quote! {
@@ -67,8 +69,8 @@ impl Import {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ImportType {
     ExternalImport,
-    Reexport,
-    ScopedReexport,
+    PackageReexport,
+    SubmoduleReexport,
 }
 
 impl ImportType {
@@ -82,8 +84,8 @@ impl ImportType {
                 .is_some_and(|parent_module| origin.starts_with(&parent_module));
         match (is_package_reexport, is_submodule_reexport) {
             (false, false) => Self::ExternalImport,
-            (true, false) => Self::Reexport,
-            (true, true) => Self::ScopedReexport,
+            (true, false) => Self::PackageReexport,
+            (true, true) => Self::SubmoduleReexport,
             _ => unreachable!(),
         }
     }

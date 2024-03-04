@@ -138,7 +138,7 @@ impl Module {
                         });
 
                         if is_origin_attr_allowed {
-                            let import = Import::new(origin, attr_name_full)?;
+                            let import = Import::new(origin, attr_name_full);
                             imports.push(import);
                         }
                     }
@@ -226,12 +226,13 @@ impl Module {
     pub fn generate(
         &self,
         cfg: &Config,
-        is_top_level: bool,
         top_level_modules: &[Self],
+        all_types: &[Path],
     ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
         // Extra configuration for top-level modules
+        let is_top_level = top_level_modules.contains(self);
         if is_top_level {
             output.extend(quote::quote! {
                 #[allow(
@@ -268,6 +269,39 @@ impl Module {
             .map(|function| function.name.name())
             .collect::<Vec<_>>();
 
+        // Get all local types mapped to the full path
+        let local_types = all_types
+            .iter()
+            .cloned()
+            .map(|path| {
+                let relative_path = self.name.relative_to(&path, false);
+                (path, relative_path)
+            })
+            .chain(self.imports.iter().flat_map(|import| {
+                all_types
+                    .iter()
+                    .filter(|&path| path.starts_with(&import.origin))
+                    .cloned()
+                    .map(|path| {
+                        let imported_path = {
+                            if let Some(stripped_path) = path
+                                .to_py()
+                                .strip_prefix(&format!("{}.", import.origin.to_py()))
+                            {
+                                let mut path = Path::from_py(stripped_path);
+                                // Overwrite the first segment with the target name to support aliasing
+                                path[0] = import.target.name().to_owned();
+                                path
+                            } else {
+                                import.target.name().to_owned().into()
+                            }
+                        };
+                        let relative_path = self.name.relative_to(&path, false);
+                        (imported_path, relative_path)
+                    })
+            }))
+            .collect();
+
         // Generate the module content
         let mut module_content = proc_macro2::TokenStream::new();
         // Imports
@@ -302,7 +336,7 @@ impl Module {
             module_content.extend(
                 self.classes
                     .iter()
-                    .map(|class| class.generate(cfg))
+                    .map(|class| class.generate(cfg, &local_types))
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }
@@ -311,7 +345,7 @@ impl Module {
             module_content.extend(
                 self.functions
                     .iter()
-                    .map(|function| function.generate(cfg, &scoped_function_idents))
+                    .map(|function| function.generate(cfg, &scoped_function_idents, &local_types))
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }
@@ -320,7 +354,7 @@ impl Module {
             module_content.extend(
                 self.properties
                     .iter()
-                    .map(|property| property.generate(cfg, &scoped_function_idents))
+                    .map(|property| property.generate(cfg, &scoped_function_idents, &local_types))
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }
@@ -329,7 +363,7 @@ impl Module {
             module_content.extend(
                 self.submodules
                     .iter()
-                    .map(|module| module.generate(cfg, false, top_level_modules))
+                    .map(|module| module.generate(cfg, top_level_modules, all_types))
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }

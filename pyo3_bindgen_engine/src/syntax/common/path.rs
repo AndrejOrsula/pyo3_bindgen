@@ -104,13 +104,13 @@ impl Path {
     }
 
     pub fn root(&self) -> Option<Self> {
-        if !self.segments.is_empty() {
+        if self.segments.is_empty() {
+            None
+        } else {
             Some(Self {
                 leading_colon: self.leading_colon,
                 segments: vec![self.segments[0].clone()],
             })
-        } else {
-            None
         }
     }
 
@@ -129,11 +129,18 @@ impl Path {
     /// Use self if they start at the same point.
     /// Use super to go up the hierarchy.
     /// If they do not share any common prefix, use super until the nothing is reached
-    pub fn relative_to(&self, target: &Path) -> Self {
+    pub fn relative_to(&self, target: &Path, fully_unambiguous: bool) -> Self {
         if self == target {
-            return Path {
-                leading_colon: false,
-                segments: vec![Ident::from_rs("super"), target.name().clone()],
+            return if fully_unambiguous {
+                Path {
+                    leading_colon: false,
+                    segments: vec![Ident::from_rs("super"), target.name().clone()],
+                }
+            } else {
+                Path {
+                    leading_colon: false,
+                    segments: vec![Ident::from_rs("self")],
+                }
             };
         }
 
@@ -146,22 +153,39 @@ impl Path {
             .count();
 
         // Determine the relative path
-        let mut relative_segments = match common_prefix_length {
-            n if n < self.segments.len() => std::iter::repeat(Ident::from_rs("super"))
-                .take(self.segments.len() - n)
-                .chain(target.segments.iter().skip(n).cloned())
-                .collect_vec(),
-            n if n == self.segments.len() => std::iter::once(Ident::from_rs("self"))
-                .chain(target.segments.iter().skip(n).cloned())
-                .collect_vec(),
-            _ => {
-                unreachable!()
+        let mut relative_segments = if fully_unambiguous {
+            match common_prefix_length {
+                n if n < self.segments.len() => std::iter::repeat(Ident::from_rs("super"))
+                    .take(self.segments.len() - n)
+                    .chain(target.segments.iter().skip(n).cloned())
+                    .collect_vec(),
+                n if n == self.segments.len() => std::iter::once(Ident::from_rs("self"))
+                    .chain(target.segments.iter().skip(n).cloned())
+                    .collect_vec(),
+                _ => {
+                    unreachable!()
+                }
+            }
+        } else {
+            match common_prefix_length {
+                n if n < self.segments.len() => std::iter::repeat(Ident::from_rs("super"))
+                    .take(self.segments.len() - n)
+                    .chain(target.segments.iter().skip(n).cloned())
+                    .collect_vec(),
+                n if n == self.segments.len() => {
+                    target.segments.iter().skip(n).cloned().collect_vec()
+                }
+                _ => {
+                    unreachable!()
+                }
             }
         };
 
-        // If the relative segment ends with "super", fully specify the path by adding another "super" and the name of the target
-        if relative_segments.last().map(Ident::as_rs) == Some("super") {
-            relative_segments.extend([Ident::from_rs("super"), target.name().clone()]);
+        if fully_unambiguous {
+            // If the relative segment ends with "super", fully specify the path by adding another "super" and the name of the target
+            if relative_segments.last().map(Ident::as_rs) == Some("super") {
+                relative_segments.extend([Ident::from_rs("super"), target.name().clone()]);
+            }
         }
 
         Path {
@@ -219,6 +243,12 @@ impl std::ops::Deref for Path {
     type Target = [Ident];
     fn deref(&self) -> &Self::Target {
         &self.segments
+    }
+}
+
+impl std::ops::DerefMut for Path {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.segments
     }
 }
 

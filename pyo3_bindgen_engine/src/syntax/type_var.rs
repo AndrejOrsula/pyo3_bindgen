@@ -10,13 +10,11 @@ impl TypeVar {
     pub fn new(name: Path) -> Self {
         Self { name }
     }
-}
 
-impl TypeVar {
     pub fn generate(&self, _cfg: &Config) -> Result<proc_macro2::TokenStream> {
         let typevar_ident: syn::Ident = self.name.name().try_into()?;
         Ok(quote::quote! {
-            pub type #typevar_ident<'py> = &'py ::pyo3::types::PyAny;
+            pub type #typevar_ident = ::pyo3::types::PyAny;
         })
     }
 }

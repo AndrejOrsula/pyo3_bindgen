@@ -2,15 +2,32 @@ use super::{Ident, Path};
 use crate::{typing::Type, Config, Result};
 use itertools::Itertools;
 use pyo3::{types::IntoPyDict, ToPyObject};
-use rustc_hash::FxHashSet as HashSet;
+use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Function {
     pub name: Path,
     pub typ: FunctionType,
-    pub parameters: Vec<Parameter>,
-    pub return_annotation: Type,
-    pub docstring: Option<String>,
+    parameters: Vec<Parameter>,
+    return_annotation: Type,
+    docstring: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum FunctionType {
+    Function,
+    Method { class_path: Path, typ: MethodType },
+    Closure,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub enum MethodType {
+    InstanceMethod,
+    ClassMethod,
+    StaticMethod,
+    Constructor,
+    Callable,
+    Unknown,
 }
 
 impl Function {
@@ -53,8 +70,8 @@ impl Function {
                     let annotation = match kind {
                         ParameterKind::VarPositional => Type::PyTuple(vec![Type::Unknown]),
                         ParameterKind::VarKeyword => Type::PyDict {
-                            t_key: Box::new(Type::Unknown),
-                            t_value: Box::new(Type::Unknown),
+                            key_type: Box::new(Type::Unknown),
+                            value_type: Box::new(Type::Unknown),
                         },
                         _ => {
                             let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
@@ -199,8 +216,8 @@ impl Function {
                                     name: Ident::from_rs("kwargs"),
                                     kind: ParameterKind::VarKeyword,
                                     annotation: Type::PyDict {
-                                        t_key: Box::new(Type::Unknown),
-                                        t_value: Box::new(Type::Unknown),
+                                        key_type: Box::new(Type::Unknown),
+                                        value_type: Box::new(Type::Unknown),
                                     },
                                     default: None,
                                 },
@@ -257,8 +274,8 @@ impl Function {
                         name: Ident::from_rs("kwargs"),
                         kind: ParameterKind::VarKeyword,
                         annotation: Type::PyDict {
-                            t_key: Box::new(Type::Unknown),
-                            t_value: Box::new(Type::Unknown),
+                            key_type: Box::new(Type::Unknown),
+                            value_type: Box::new(Type::Unknown),
                         },
                         default: None,
                     },
@@ -287,8 +304,8 @@ impl Function {
                         name: Ident::from_rs("kwargs"),
                         kind: ParameterKind::VarKeyword,
                         annotation: Type::PyDict {
-                            t_key: Box::new(Type::Unknown),
-                            t_value: Box::new(Type::Unknown),
+                            key_type: Box::new(Type::Unknown),
+                            value_type: Box::new(Type::Unknown),
                         },
                         default: None,
                     },
@@ -298,13 +315,12 @@ impl Function {
             })
         }
     }
-}
 
-impl Function {
     pub fn generate(
         &self,
         cfg: &Config,
         scoped_function_idents: &[&Ident],
+        local_types: &HashMap<Path, Path>,
     ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
@@ -361,19 +377,9 @@ impl Function {
         let param_types: Vec<proc_macro2::TokenStream> = self
             .parameters
             .iter()
-            .map(|param| {
-                Result::Ok(
-                    param
-                        .annotation
-                        .clone()
-                        .into_rs_borrowed("", &HashSet::default()),
-                )
-            })
+            .map(|param| Result::Ok(param.annotation.clone().into_rs_borrowed(local_types)))
             .collect::<Result<Vec<_>>>()?;
-        let return_type = self
-            .return_annotation
-            .clone()
-            .into_rs_owned("", &HashSet::default());
+        let return_type = self.return_annotation.clone().into_rs_owned(local_types);
         output.extend(match &self.typ {
             FunctionType::Method {
                 typ: MethodType::InstanceMethod,
@@ -452,8 +458,8 @@ impl Function {
         let function_dispatcher = match &self.typ {
             FunctionType::Function | FunctionType::Closure => {
                 let package = self.name.root().unwrap_or_else(|| unreachable!()).to_py();
-                let module_path = if self.name.len() > 1 {
-                    &self.name[1..]
+                let module_path = if self.name.len() > 2 {
+                    &self.name[1..self.name.len() - 1]
                 } else {
                     &[]
                 }
@@ -489,7 +495,10 @@ impl Function {
                     self.0
                 }
             }
-            _ => {
+            FunctionType::Method {
+                typ: MethodType::Unknown,
+                ..
+            } => {
                 eprintln!(
                     "WARN: Method '{}' has an unknown type. Bindings will not be generated.",
                     self.name
@@ -603,39 +612,37 @@ impl Function {
             }
         };
         // Function body: call
-        let call = match &self.typ {
-            FunctionType::Method {
-                typ: MethodType::InstanceMethod | MethodType::Constructor | MethodType::Callable,
-                ..
-            } => {
-                if has_keyword_args {
-                    quote::quote! {
-                        call(#positional_args, Some(#keyword_args))
-                    }
-                } else if has_positional_args {
-                    quote::quote! {
-                        call1(#positional_args)
-                    }
-                } else {
-                    quote::quote! {
-                        call0()
-                    }
+        let call = if let FunctionType::Method {
+            typ: MethodType::Constructor | MethodType::Callable,
+            ..
+        } = &self.typ
+        {
+            if has_keyword_args {
+                quote::quote! {
+                    call(#positional_args, Some(#keyword_args))
+                }
+            } else if has_positional_args {
+                quote::quote! {
+                    call1(#positional_args)
+                }
+            } else {
+                quote::quote! {
+                    call0()
                 }
             }
-            _ => {
-                let method_name = self.name.name().as_py();
-                if has_keyword_args {
-                    quote::quote! {
-                        call_method(::pyo3::intern!(py, #method_name), #positional_args, Some(#keyword_args))
-                    }
-                } else if has_positional_args {
-                    quote::quote! {
-                        call_method1(::pyo3::intern!(py, #method_name), #positional_args)
-                    }
-                } else {
-                    quote::quote! {
-                        call_method0(::pyo3::intern!(py, #method_name))
-                    }
+        } else {
+            let method_name = self.name.name().as_py();
+            if has_keyword_args {
+                quote::quote! {
+                    call_method(::pyo3::intern!(py, #method_name), #positional_args, Some(#keyword_args))
+                }
+            } else if has_positional_args {
+                quote::quote! {
+                    call_method1(::pyo3::intern!(py, #method_name), #positional_args)
+                }
+            } else {
+                quote::quote! {
+                    call_method0(::pyo3::intern!(py, #method_name))
                 }
             }
         };
@@ -653,29 +660,12 @@ impl Function {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum FunctionType {
-    Function,
-    Method { class_path: Path, typ: MethodType },
-    Closure,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub enum MethodType {
-    InstanceMethod,
-    ClassMethod,
-    StaticMethod,
-    Constructor,
-    Callable,
-    Unknown,
-}
-
 #[derive(Debug, Clone)]
-pub struct Parameter {
-    pub name: Ident,
-    pub kind: ParameterKind,
-    pub annotation: Type,
-    pub default: Option<pyo3::Py<pyo3::types::PyAny>>,
+struct Parameter {
+    name: Ident,
+    kind: ParameterKind,
+    annotation: Type,
+    default: Option<pyo3::Py<pyo3::types::PyAny>>,
 }
 
 impl PartialEq for Parameter {
@@ -699,7 +689,7 @@ impl std::hash::Hash for Parameter {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ParameterKind {
+enum ParameterKind {
     PositionalOnly,
     PositionalOrKeyword,
     VarPositional,

@@ -111,7 +111,7 @@ impl Codegen {
         // Generate the bindings for all modules
         self.modules
             .iter()
-            .map(|module| module.generate(&self.cfg, true, &self.modules))
+            .map(|module| module.generate(&self.cfg, &self.modules, &self.get_all_types()))
             .collect::<Result<_>>()
     }
 
@@ -121,19 +121,10 @@ impl Codegen {
         Ok(std::fs::write(output_path, self.generate()?.to_string())?)
     }
 
-    // pub fn all_types_in_module(&self, module_path: &Path) -> Vec<String> {
-    //     // self.modules
-    //     //     .iter()
-    //     //     .find(|module| module.name == *module_path)
-    //     //     .map(|module| module.retrieve_types())
-    //     //     .unwrap_or_default()
-    //     todo!()
-    // }
-
     fn parse_dependencies(&mut self) -> Result<()> {
         fn get_imports_recursive(input: &[Module]) -> Vec<Import> {
             let mut imports = Vec::new();
-            input.iter().for_each(|module| {
+            for module in input {
                 imports.extend(
                     module
                         .imports
@@ -142,14 +133,14 @@ impl Codegen {
                         .cloned(),
                 );
                 imports.extend(get_imports_recursive(&module.submodules));
-            });
+            }
             imports
         }
 
         // Get a unique list of all external imports (these could be modules, classes, functions, etc.)
         let external_imports = get_imports_recursive(&self.modules)
             .into_iter()
-            .filter(|import| import.is_external())
+            .filter(super::syntax::import::Import::is_external)
             .map(|import| import.origin.clone())
             .unique()
             .collect_vec();
@@ -169,7 +160,7 @@ impl Codegen {
                                 .as_str(),
                         )
                         .unwrap();
-                    for path in import[1..].iter() {
+                    for path in &import[1..] {
                         if let Ok(attr) = last_module.getattr(path.as_py()) {
                             if let Ok(module) = attr.extract::<&pyo3::types::PyModule>() {
                                 last_module = module;
@@ -330,5 +321,27 @@ impl Codegen {
                     merge_duplicate_submodules_recursive(&self.modules[range.clone()]);
                 self.modules.drain(range.start + 1..range.end);
             });
+    }
+
+    fn get_all_types(&self) -> Vec<Path> {
+        fn get_types_recursive(input: &[Module]) -> Vec<Path> {
+            let mut types = Vec::new();
+            for module in input {
+                types.extend(module.classes.iter().map(|class| class.name.clone()));
+                types.extend(
+                    module
+                        .type_vars
+                        .iter()
+                        .map(|type_var| type_var.name.clone()),
+                );
+                types.extend(get_types_recursive(&module.submodules));
+            }
+            types
+        }
+
+        get_types_recursive(&self.modules)
+            .into_iter()
+            .unique()
+            .collect()
     }
 }
