@@ -26,15 +26,16 @@ use rustc_hash::FxHashSet as HashSet;
 /// ```
 ///
 /// For more focused generation, paths to specific submodules can be provided.
-/// In the following example, only the `core` and `utils.io` submodules of the
-/// `other_module` module will be included in the generated bindings alongside
-/// their respective submodules, classes, functions, and parameters.
+/// In the following example, only the `entities` and `parser` submodules of the
+/// `html` module will be included in the generated bindings alongside their
+/// respective submodules, classes, functions, and parameters. No direct attributes
+/// or submodules of the `html` top-level module will be included.
 ///
 /// ```no_run
 /// # use pyo3_bindgen_engine::{Codegen, Config};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     Codegen::new(Config::default())?
-///         .module_names(&["other_module.core", "other_module.utils.io"])?
+///         .module_names(&["html.entities", "html.parser"])?
 ///         .generate()?;
 ///     Ok(())
 /// }
