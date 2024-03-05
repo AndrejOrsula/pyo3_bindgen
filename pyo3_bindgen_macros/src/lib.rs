@@ -12,21 +12,24 @@ mod parser;
 ///
 /// Here is a simple example of how to use the macro to generate bindings for the `sys` module.
 ///
-/// ```ignore
+/// ```
+/// # use pyo3_bindgen_macros::import_python;
 /// import_python!("sys");
 /// pub use sys::*;
 /// ```
 ///
 /// For consistency, the top-level package is always included in the generated bindings.
 ///
-/// ```ignore
-/// import_python!("mod.submod.subsubmod");
-/// pub use mod::submod::subsubmod::*;
+/// ```
+/// # use pyo3_bindgen_macros::import_python;
+/// import_python!("html.parser");
+/// pub use html::parser::*;
 /// ```
 ///
 /// Furthermore, the actual name of the package is always used regardless of how it is aliased.
 ///
-/// ```ignore
+/// ```
+/// # use pyo3_bindgen_macros::import_python;
 /// import_python!("os.path");
 /// pub use posixpath::*;
 /// ```
