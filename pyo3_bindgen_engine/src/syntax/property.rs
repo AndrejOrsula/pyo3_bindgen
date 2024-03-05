@@ -1,6 +1,5 @@
 use super::{Ident, Path};
 use crate::{typing::Type, Config, Result};
-use itertools::Itertools;
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -216,24 +215,23 @@ impl Property {
                 }
             }
         };
+        let param_name = self.name.name().as_py();
         let param_type = self.annotation.clone().into_rs_owned(local_types);
         match &self.owner {
             PropertyOwner::Module => {
-                let package = self.name.root().unwrap_or_else(|| unreachable!()).to_py();
-                let module_path = if self.name.len() > 1 {
-                    &self.name[1..]
-                } else {
-                    &[]
-                }
-                .iter()
-                .map(|ident| ident.as_py().to_owned())
-                .collect_vec();
-
+                let import = pyo3::Python::with_gil(|py| {
+                    self.name
+                        .parent()
+                        .unwrap_or_else(|| unreachable!())
+                        .import_quote(py)
+                });
                 output.extend(quote::quote! {
                     pub fn #function_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                     ) -> ::pyo3::PyResult<#param_type> {
-                        py.import(::pyo3::intern!(py, #package))?#(.getattr(::pyo3::intern!(py, #module_path))?)*.extract()
+                        ::pyo3::FromPyObject::extract(
+                            #import.getattr(::pyo3::intern!(py, #param_name))?
+                        )
                     }
                 });
             }
@@ -288,25 +286,26 @@ impl Property {
             }
         };
         let param_name = self.name.name().as_py();
+        let param_preprocessing = self.annotation.preprocess_borrowed(
+            &syn::Ident::new("p_value", proc_macro2::Span::call_site()),
+            local_types,
+        );
         let param_type = self.annotation.clone().into_rs_borrowed(local_types);
         match &self.owner {
             PropertyOwner::Module => {
-                let package = self.name.root().unwrap_or_else(|| unreachable!()).to_py();
-                let module_path = if self.name.len() > 1 {
-                    &self.name[1..self.name.len() - 1]
-                } else {
-                    &[]
-                }
-                .iter()
-                .map(|ident| ident.as_py().to_owned())
-                .collect_vec();
-
+                let import = pyo3::Python::with_gil(|py| {
+                    self.name
+                        .parent()
+                        .unwrap_or_else(|| unreachable!())
+                        .import_quote(py)
+                });
                 output.extend(quote::quote! {
                     pub fn #function_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                         p_value: #param_type,
                     ) -> ::pyo3::PyResult<()> {
-                        py.import(::pyo3::intern!(py, #package))?#(.getattr(::pyo3::intern!(py, #module_path))?)*.setattr(::pyo3::intern!(py, #param_name), p_value)
+                        #param_preprocessing
+                        #import.setattr(::pyo3::intern!(py, #param_name), p_value)
                     }
                 });
             }
@@ -317,6 +316,7 @@ impl Property {
                         py: ::pyo3::marker::Python<'py>,
                         p_value: #param_type,
                     ) -> ::pyo3::PyResult<()> {
+                        #param_preprocessing
                         self.0.setattr(::pyo3::intern!(py, #param_name), p_value)
                     }
                 });

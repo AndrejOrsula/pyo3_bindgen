@@ -1,5 +1,5 @@
-mod from_py;
-mod into_rs;
+pub(crate) mod from_py;
+pub(crate) mod into_rs;
 
 /// Enum that maps Python types to Rust types.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]

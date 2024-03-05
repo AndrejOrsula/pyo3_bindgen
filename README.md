@@ -72,7 +72,7 @@ pub fn main() -> pyo3::PyResult<()> {
 
 This project is intended to simplify the integration or transition of existing Python codebases into Rust. You, as a developer, gain immediate access to the Rust type system and countless other benefits of modern compiled languages with the generated bindings. Furthermore, the entire stock of high-quality crates from [crates.io](https://crates.io) becomes at your disposal.
 
-On its own, the generated Rust code does not provide any performance benefits over using the Python code (it might actually be slower — yet to be benchmarked). However, it can be used as a starting point for further optimization if you decide to rewrite performance-critical parts of your codebase in pure Rust.
+On its own, the generated Rust code does not provide any performance benefits over using the Python code. However, it can be used as a starting point for further optimization if you decide to rewrite performance-critical parts of your codebase in pure Rust.
 
 ## Overview
 
@@ -107,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate Rust bindings to Python modules
     Codegen::new(Config::default())?
         .module_name("py_module")?
-        .module_name("other_module")?
+        .module_names(&["other_module.core", "other_module.utils.io"])?
         .build(std::path::Path::new(&std::env::var("OUT_DIR")?).join("bindings.rs"))?;
     Ok(())
 }
@@ -132,7 +132,7 @@ Afterwards, run the `pyo3_bindgen` executable while passing the name of the targ
 
 ```bash
 # Pass `--help` to show the usage and available options
-pyo3_bindgen -m py_module other_module -o bindings.rs
+pyo3_bindgen -m py_module other_module.core -o bindings.rs
 ```
 
 ### <a href="#-option-3-experimental-procedural-macros"><img src="https://www.svgrepo.com/show/269868/lab.svg" width="16" height="16"></a> Option 3 \[Experimental\]: Procedural macros
@@ -158,11 +158,11 @@ pub use py_module::*;
 This project is in early development, and as such, the API of the generated bindings is not yet stable.
 
 - Not all Python types are mapped to their Rust equivalents yet. For this reason, some additional typecasting might be currently required when using the generated bindings (e.g. `let typed_value: py_module::MyClass = get_value()?.extract()?;`).
-- The binding generation is primarily designed to be used inside build scripts or via procedural macros. Therefore, the performance of the codegen process is [benchmarked](./pyo3_bindgen_engine/benches/bindgen.rs) to understand the potential impact on build times. Here are some preliminary results for version `0.3.0` (measured: parsing IO & codegen | not measured: compilation of the generated bindings, which takes much longer):
-  - `sys`: 1.17 ms (0.56k total LoC)
-  - `os`: 7.03 ms (3.30k total LoC)
-  - `numpy`: 819 ms (242k total LoC)
-  - `torch`: 6.42 s (1.02M total LoC)
+- The binding generation is primarily designed to be used inside build scripts or via procedural macros. Therefore, the performance of the codegen process is [benchmarked](./pyo3_bindgen_engine/benches/bindgen.rs) to understand the potential impact on build times. Here are some preliminary results for version `0.3.0` with the default configuration (measured: parsing IO & codegen | not measured: compilation of the generated bindings, which takes much longer):
+  - `sys`: 1.24 ms (0.66k total LoC)
+  - `os`: 8.38 ms (3.88k total LoC)
+  - `numpy`: 1.02 s (294k total LoC)
+  - `torch`: 7.05 s (1.08M total LoC)
 - The generation of bindings should never panic as long as the target Python module can be successfully imported. If it does, please [report](https://github.com/AndrejOrsula/pyo3_bindgen/issues/new) this as a bug.
 - The generated bindings should always be compilable and usable in Rust. If you encounter any issues, consider manually fixing the problematic parts of the bindings and please [report](https://github.com/AndrejOrsula/pyo3_bindgen/issues/new) this as a bug.
 - However, the generated bindings are based on the introspection of the target Python module. Therefore, the correctness of the generated bindings is directly dependent on the quality of the type annotations and docstrings in the target Python module. Ideally, the generated bindings should be considered unsafe and serve as a starting point for safe and idiomatic Rust APIs.

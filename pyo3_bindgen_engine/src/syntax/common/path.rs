@@ -193,6 +193,35 @@ impl Path {
             segments: relative_segments,
         }
     }
+
+    pub fn import_quote(&self, py: pyo3::marker::Python) -> proc_macro2::TokenStream {
+        // Find the last package and import it via py.import, then get the rest of the path via getattr()
+        let mut package_path = self.root().unwrap_or_else(|| unreachable!());
+        for i in (1..self.len()).rev() {
+            let module_name = Self::from(&self[..i]);
+            if py.import(module_name.to_py().as_str()).is_ok() {
+                package_path = module_name;
+                break;
+            }
+        }
+
+        // Resolve the remaining path
+        let remaining_path = self
+            .strip_prefix(package_path.segments.as_slice())
+            .unwrap_or_else(|| unreachable!());
+
+        // Convert paths to strings
+        let package_path = package_path.to_py();
+        let remaining_path = remaining_path
+            .iter()
+            .map(|ident| ident.as_py().to_owned())
+            .collect_vec();
+
+        // Generate the import code
+        quote::quote! {
+            py.import(::pyo3::intern!(py, #package_path))?#(.getattr(::pyo3::intern!(py, #remaining_path))?)*
+        }
+    }
 }
 
 impl From<Ident> for Path {

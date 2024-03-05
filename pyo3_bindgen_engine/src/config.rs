@@ -48,6 +48,9 @@ pub struct Config {
     /// List of blocklisted attribute names that are skipped during the code generation.
     #[builder(default = DEFAULT_BLOCKLIST_ATTRIBUTE_NAMES.iter().map(|&s| s.to_string()).collect())]
     pub(crate) blocklist_names: Vec<String>,
+    /// Flag that determines whether private attributes are considered while parsing the Python code.
+    #[builder(default = false)]
+    pub(crate) include_private: bool,
 
     /// Flag that determines whether to generate code for all dependencies of the target modules.
     /// The list of dependent modules is derived from the imports of the target modules.
@@ -80,9 +83,10 @@ impl Config {
         if
         // Skip always forbidden attribute names
         FORBIDDEN_FUNCTION_NAMES.contains(&attr_name.as_py()) ||
-        // Skip private attributes
-        attr_name.as_py().starts_with('_') ||
-        attr_module.iter().any(|segment| segment.as_py().starts_with('_')) ||
+        // Skip private attributes if `include_private` is disabled
+        (!self.include_private &&
+            (attr_name.as_py().starts_with('_') ||
+             attr_module.iter().any(|segment| segment.as_py().starts_with('_')))) ||
         // Skip blocklisted attributes
         self.blocklist_names.iter().any(|blocklist_match| {
             attr_name.as_py() == blocklist_match

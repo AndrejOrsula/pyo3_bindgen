@@ -374,6 +374,17 @@ impl Function {
             .iter()
             .map(|param| Ok(Ident::from_py(&format!("p_{}", param.name)).try_into()?))
             .collect::<Result<Vec<_>>>()?;
+        // Pre-process parameters that require it
+        let param_preprocessing: proc_macro2::TokenStream = self
+            .parameters
+            .iter()
+            .zip(param_idents.iter())
+            .map(|(param, param_ident)| {
+                param
+                    .annotation
+                    .preprocess_borrowed(param_ident, local_types)
+            })
+            .collect();
         let param_types: Vec<proc_macro2::TokenStream> = self
             .parameters
             .iter()
@@ -456,37 +467,16 @@ impl Function {
 
         // Function body (function dispatcher)
         let function_dispatcher = match &self.typ {
-            FunctionType::Function | FunctionType::Closure => {
-                let package = self.name.root().unwrap_or_else(|| unreachable!()).to_py();
-                let module_path = if self.name.len() > 2 {
-                    &self.name[1..self.name.len() - 1]
-                } else {
-                    &[]
-                }
-                .iter()
-                .map(|ident| ident.as_py().to_owned())
-                .collect_vec();
-                quote::quote! {
-                    py.import(::pyo3::intern!(py, #package))?#(.getattr(::pyo3::intern!(py, #module_path))?)*
-                }
-            }
+            FunctionType::Function | FunctionType::Closure => pyo3::Python::with_gil(|py| {
+                self.name
+                    .parent()
+                    .unwrap_or_else(|| unreachable!())
+                    .import_quote(py)
+            }),
             FunctionType::Method {
                 class_path,
                 typ: MethodType::ClassMethod | MethodType::StaticMethod | MethodType::Constructor,
-            } => {
-                let package = class_path.root().unwrap_or_else(|| unreachable!()).to_py();
-                let class_path = if class_path.len() > 1 {
-                    &class_path[1..]
-                } else {
-                    &[]
-                }
-                .iter()
-                .map(|ident| ident.as_py().to_owned())
-                .collect_vec();
-                quote::quote! {
-                    py.import(::pyo3::intern!(py, #package))?#(.getattr(::pyo3::intern!(py, #class_path))?)*
-                }
-            }
+            } => pyo3::Python::with_gil(|py| class_path.import_quote(py)),
             FunctionType::Method {
                 typ: MethodType::InstanceMethod | MethodType::Callable,
                 ..
@@ -650,6 +640,7 @@ impl Function {
         // Function body
         output.extend(quote::quote! {
             {
+                #param_preprocessing
                 ::pyo3::FromPyObject::extract(
                     #function_dispatcher.#call?
                 )

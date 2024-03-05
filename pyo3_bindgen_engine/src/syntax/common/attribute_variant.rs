@@ -50,7 +50,12 @@ impl AttributeVariant {
         let is_closure =
             attr_type_module.to_py().as_str() == "functools" && attr_type_name.as_py() == "partial";
         let is_type = ["typing", "types"].contains(&attr_type_module.to_py().as_str());
-        let is_external = attr_module != owner_name;
+
+        // Some decorators might make a class look external, but they tend to include "<locals>" in their name
+        let is_in_locals = attr.to_string().contains("<locals>");
+
+        // Determine if the attribute is imported
+        let is_external = !is_in_locals && (attr_module != owner_name);
         let is_imported = is_external && (is_submodule || is_class || is_function || is_method);
 
         Ok(if consider_import && is_imported {

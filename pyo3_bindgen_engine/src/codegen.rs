@@ -7,16 +7,34 @@ use rustc_hash::FxHashSet as HashSet;
 
 /// Engine for automatic generation of Rust FFI bindings to Python modules.
 ///
-/// # Example
+/// # Examples
+///
+/// Here is a simple example of how to use the `Codegen` engine to generate
+/// Rust FFI bindings for the full `os` and `sys` Python modules. With the
+/// default configuration, all submodules, classes, functions, and parameters
+/// will be recursively parsed and included in the generated bindings.
 ///
 /// ```no_run
-/// // use pyo3_bindgen::{Codegen, Config};
-/// use pyo3_bindgen_engine::{Codegen, Config};
-///
+/// # use pyo3_bindgen_engine::{Codegen, Config};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     Codegen::new(Config::default())?
 ///         .module_name("os")?
 ///         .module_name("sys")?
+///         .generate()?;
+///     Ok(())
+/// }
+/// ```
+///
+/// For more focused generation, paths to specific submodules can be provided.
+/// In the following example, only the `core` and `utils.io` submodules of the
+/// `other_module` module will be included in the generated bindings alongside
+/// their respective submodules, classes, functions, and parameters.
+///
+/// ```no_run
+/// # use pyo3_bindgen_engine::{Codegen, Config};
+/// fn main() -> Result<(), Box<dyn std::error::Error>> {
+///     Codegen::new(Config::default())?
+///         .module_names(&["other_module.core", "other_module.utils.io"])?
 ///         .generate()?;
 ///     Ok(())
 /// }
@@ -189,9 +207,15 @@ impl Codegen {
                     )
                 })
                 .try_for_each(|module| {
-                    Module::parse(&self.cfg, module).map(|module| {
-                        self.modules.push(module);
-                    })
+                    crate::io_utils::with_suppressed_python_output(
+                        module.py(),
+                        self.cfg.suppress_python_stdout,
+                        self.cfg.suppress_python_stderr,
+                        || {
+                            self.modules.push(Module::parse(&self.cfg, module)?);
+                            Ok(())
+                        },
+                    )
                 })?;
             Ok(())
         })
@@ -244,7 +268,6 @@ impl Codegen {
 
         fn merge_duplicate_submodules_recursive(input: &[Module]) -> Module {
             Module {
-                name: input[0].name.clone(),
                 prelude: input
                     .iter()
                     .fold(HashSet::default(), |mut prelude, module| {
@@ -309,7 +332,7 @@ impl Codegen {
                     })
                     .into_iter()
                     .collect(),
-                docstring: input[0].docstring.clone(),
+                ..input[0].clone()
             }
         }
 

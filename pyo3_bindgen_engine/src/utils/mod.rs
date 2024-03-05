@@ -1,5 +1,5 @@
 //! Various utilities.
 
 pub mod error;
-pub mod io;
+pub(crate) mod io;
 pub mod result;

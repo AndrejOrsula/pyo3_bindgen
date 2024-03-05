@@ -17,6 +17,7 @@ pub struct Module {
     pub functions: Vec<Function>,
     pub properties: Vec<Property>,
     pub docstring: Option<String>,
+    pub is_package: bool,
 }
 
 impl Module {
@@ -43,6 +44,7 @@ impl Module {
             functions: Vec::default(),
             properties: Vec::default(),
             docstring,
+            is_package: true,
         })
     }
 
@@ -59,12 +61,20 @@ impl Module {
             Vec::new()
         };
 
-        // Extract the list of all submodules in the module
-        let mut submodules_to_process = Self::extract_submodules(cfg, module)?;
+        // Determine if the module is a package that contains submodules
+        let is_package = module.hasattr(pyo3::intern!(py, "__path__"))?;
+
+        // Extract the list of all submodules for packages
+        let mut submodules_to_process = if is_package {
+            Self::extract_submodules(cfg, module)?
+        } else {
+            HashSet::default()
+        };
 
         // Initialize lists for all other members of the module
         let mut imports = Vec::new();
-        let mut classes = Vec::new();
+        let mut conflicting_imports = Vec::new();
+        let mut classes: Vec<Class> = Vec::new();
         let mut type_vars = Vec::new();
         let mut functions = Vec::new();
         let mut properties = Vec::new();
@@ -118,15 +128,13 @@ impl Module {
                                 .unwrap_or(attr_name.as_py().to_owned()),
                         ));
 
-                        // Make sure the import does not create a conflict with a submodule
-                        let does_import_conflict_with_submodule = submodules_to_process.contains(&attr_name);
-                        if does_import_conflict_with_submodule {
-                            eprintln!(
-                                "WARN: Import `{origin}` -> '{attr_name_full}' would conflict with a submodule of equal name. Bindings will not be generated.",
-                            );
+                        // Skip if the origin is the same as the target
+                        if origin == attr_name_full {
+                            return Ok(());
                         }
+
                         // Make sure the origin attribute is allowed (each segment of the path)
-                        let is_origin_attr_allowed = !does_import_conflict_with_submodule && (0..origin.len()).all(|i| {
+                        let is_origin_attr_allowed = (0..origin.len()).all(|i| {
                             let attr_name = &origin[i];
                             let attr_module = origin[..i].into();
                             let attr_type = if i == origin.len() - 1 {
@@ -136,9 +144,20 @@ impl Module {
                             };
                             cfg.is_attr_allowed(attr_name, &attr_module, attr_type)
                         });
+                        if !is_origin_attr_allowed {
+                            return Ok(());
+                        }
 
-                        if is_origin_attr_allowed {
-                            let import = Import::new(origin, attr_name_full);
+                        // Determine if the import overwrites a submodule
+                        let import_overwrites_submodule = submodules_to_process.contains(&attr_name);
+
+                        // Generate the import
+                        let import = Import::new(origin, attr_name_full);
+
+                        // Add the import to the appropriate list
+                        if import_overwrites_submodule {
+                            conflicting_imports.push(import);
+                        } else {
                             imports.push(import);
                         }
                     }
@@ -191,7 +210,71 @@ impl Module {
             submodules_to_process
                 .into_iter()
                 .filter_map(|submodule_name| {
-                    py.import(name.join(&submodule_name.into()).to_py().as_str())
+                    let full_submodule_name = name.join(&submodule_name.clone().into());
+
+                    // Handle submodules that are overwritten by imports separately
+                    if let Some(conflicting_import) = conflicting_imports
+                        .iter()
+                        .find(|import| import.target == full_submodule_name)
+                    {
+                        if let Ok(submodule) = py
+                            .import(full_submodule_name.to_py().as_str())
+                            .map_err(crate::PyBindgenError::from)
+                            .and_then(|attr| Ok(attr.downcast::<pyo3::types::PyModule>()?))
+                            .and_then(|module| Self::parse(cfg, module))
+                        {
+                            // It could be any attribute, so all of them need to be checked
+                            if let Some(mut import) = submodule
+                                .imports
+                                .into_iter()
+                                .find(|import| import.target == conflicting_import.origin)
+                            {
+                                import.target = conflicting_import.target.clone();
+                                imports.push(import);
+                            }
+                            if let Some(mut class) = submodule
+                                .classes
+                                .into_iter()
+                                .find(|class| class.name == conflicting_import.origin)
+                            {
+                                class.name = conflicting_import.target.clone();
+                                classes.push(class);
+                            }
+                            if let Some(mut type_var) = submodule
+                                .type_vars
+                                .into_iter()
+                                .find(|type_var| type_var.name == conflicting_import.origin)
+                            {
+                                type_var.name = conflicting_import.target.clone();
+                                type_vars.push(type_var);
+                            }
+                            if let Some(mut function) = submodule
+                                .functions
+                                .into_iter()
+                                .find(|function| function.name == conflicting_import.origin)
+                            {
+                                function.name = conflicting_import.target.clone();
+                                functions.push(function);
+                            }
+                            if let Some(mut property) = submodule
+                                .properties
+                                .into_iter()
+                                .find(|property| property.name == conflicting_import.origin)
+                            {
+                                property.name = conflicting_import.target.clone();
+                                properties.push(property);
+                            }
+                        }
+                        return None;
+                    }
+
+                    // Try to import both as a package and as a attribute of the current module
+                    py.import(full_submodule_name.to_py().as_str())
+                        .or_else(|_| {
+                            module
+                                .getattr(submodule_name.as_py())
+                                .and_then(|attr| Ok(attr.downcast::<pyo3::types::PyModule>()?))
+                        })
                         .ok()
                 })
                 .map(|submodule| Self::parse(cfg, submodule))
@@ -220,6 +303,7 @@ impl Module {
             functions,
             properties,
             docstring,
+            is_package,
         })
     }
 
@@ -383,18 +467,6 @@ impl Module {
         let py = module.py();
         let pkgutil = py.import(pyo3::intern!(py, "pkgutil"))?;
 
-        // Determine if the module is a package that contains submodules
-        let module_name = Path::from_py(module.name()?);
-        let is_pkg = module
-            .getattr(pyo3::intern!(py, "__package__"))
-            .map(|package| Path::from_py(&package.to_string()))
-            .is_ok_and(|package_name| package_name == module_name);
-
-        // If the module is not a package, return an empty set
-        if !is_pkg {
-            return Ok(HashSet::default());
-        }
-
         // Extract the paths of the module
         let module_paths = module
             .getattr(pyo3::intern!(py, "__path__"))?
@@ -404,6 +476,7 @@ impl Module {
             .collect_vec();
 
         // Extract the names of all submodules via `pkgutil.iter_modules`
+        let module_name = Path::from_py(module.name()?);
         pkgutil
             .call_method1(pyo3::intern!(py, "iter_modules"), (module_paths,))?
             .iter()?

@@ -297,6 +297,26 @@ impl std::str::FromStr for Type {
                 Self::PyList(Box::new(inner_type))
             }
             "Sequence" | "Iterable" | "Iterator" => Self::PyList(Box::new(Self::Unknown)),
+            iterable if iterable.starts_with("Iterable[") && iterable.ends_with(']') => {
+                let inner_type = Self::from_str(
+                    iterable
+                        .strip_prefix("Iterable[")
+                        .unwrap_or_else(|| unreachable!())
+                        .strip_suffix(']')
+                        .unwrap_or_else(|| unreachable!()),
+                )?;
+                Self::PyList(Box::new(inner_type))
+            }
+            iterator if iterator.starts_with("Iterator[") && iterator.ends_with(']') => {
+                let inner_type = Self::from_str(
+                    iterator
+                        .strip_prefix("Iterator[")
+                        .unwrap_or_else(|| unreachable!())
+                        .strip_suffix(']')
+                        .unwrap_or_else(|| unreachable!()),
+                )?;
+                Self::PyList(Box::new(inner_type))
+            }
             set if set.starts_with("set[") && set.ends_with(']') => {
                 let inner_type = Self::from_str(
                     set.strip_prefix("set[")
@@ -322,6 +342,7 @@ impl std::str::FromStr for Type {
                     .collect::<Result<_>>()?;
                 Self::PyTuple(inner_types)
             }
+            "tuple" => Self::PyTuple(vec![Self::Unknown]),
 
             // Additional types - std
             "ipaddress.IPv4Address" => Self::IpV4Addr,
@@ -435,6 +456,9 @@ impl std::str::FromStr for Type {
                     .strip_prefix("collections.")
                     .unwrap_or_else(|| unreachable!()),
             )?,
+
+            // Forbidden types
+            forbidden if crate::config::FORBIDDEN_TYPE_NAMES.contains(&forbidden) => Self::PyAny,
 
             // Other types, that might be known (custom types of modules)
             other => Self::Other(other.to_owned()),

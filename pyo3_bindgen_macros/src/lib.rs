@@ -8,17 +8,25 @@ mod parser;
 ///
 /// Panics if the bindings cannot be generated.
 ///
-/// # Example
+/// # Examples
+///
+/// Here is a simple example of how to use the macro to generate bindings for the `sys` module.
 ///
 /// ```ignore
 /// import_python!("sys");
 /// pub use sys::*;
+/// ```
 ///
-/// // The top-level package is always included in the generated bindings for consistency
+/// For consistency, the top-level package is always included in the generated bindings.
+///
+/// ```ignore
 /// import_python!("mod.submod.subsubmod");
 /// pub use mod::submod::subsubmod::*;
+/// ```
 ///
-/// // The actual name of the package is always used, regardless of how it is aliased
+/// Furthermore, the actual name of the package is always used regardless of how it is aliased.
+///
+/// ```ignore
 /// import_python!("os.path");
 /// pub use posixpath::*;
 /// ```
