@@ -92,7 +92,7 @@ Add `pyo3` as a dependency and `pyo3_bindgen` as a build dependency to your [`Ca
 pyo3 = { version = "0.20", features = ["auto-initialize"] }
 
 [build-dependencies]
-pyo3_bindgen = { version = "0.3" }
+pyo3_bindgen = { version = "0.4" }
 ```
 
 ### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script
@@ -142,7 +142,7 @@ Enable the `macros` feature of `pyo3_bindgen`.
 
 ```toml
 [build-dependencies]
-pyo3_bindgen = { version = "0.3", features = ["macros"] }
+pyo3_bindgen = { version = "0.4", features = ["macros"] }
 ```
 
 Then, you can call the `import_python!` macro anywhere in your crate.
@@ -157,7 +157,7 @@ pub use py_module::*;
 This project is in early development, and as such, the API of the generated bindings is not yet stable.
 
 - Not all Python types are mapped to their Rust equivalents yet. For this reason, some additional typecasting might be currently required when using the generated bindings (e.g. `let typed_value: py_module::MyClass = get_value()?.extract()?;`).
-- The binding generation is primarily designed to be used inside build scripts or via procedural macros. Therefore, the performance of the codegen process is [benchmarked](./pyo3_bindgen_engine/benches/bindgen.rs) to understand the potential impact on build times. Here are some preliminary results for version `0.3.0` with the default configuration (measured: parsing IO & codegen | not measured: compilation of the generated bindings, which takes much longer):
+- The binding generation is primarily designed to be used inside build scripts or via procedural macros. Therefore, the performance of the codegen process is [benchmarked](./pyo3_bindgen_engine/benches/bindgen.rs) to understand the potential impact on build times. Here are some preliminary results for version `0.3` with the default configuration (measured: parsing IO & codegen | not measured: compilation of the generated bindings, which takes much longer):
   - `sys`: 1.24 ms (0.66k total LoC)
   - `os`: 8.38 ms (3.88k total LoC)
   - `numpy`: 1.02 s (294k total LoC)

@@ -17,7 +17,7 @@
 //! pyo3 = { version = "0.20", features = ["auto-initialize"] }
 //!
 //! [build-dependencies]
-//! pyo3_bindgen = { version = "0.3" }
+//! pyo3_bindgen = { version = "0.4" }
 //! ```
 //!
 //! ### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script
@@ -67,7 +67,7 @@
 //!
 //! ```toml
 //! [build-dependencies]
-//! pyo3_bindgen = { version = "0.3", features = ["macros"] }
+//! pyo3_bindgen = { version = "0.4", features = ["macros"] }
 //! ```
 //!
 //! Then, you can call the `import_python!` macro anywhere in your crate.
