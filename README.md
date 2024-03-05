@@ -107,7 +107,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Generate Rust bindings to Python modules
     Codegen::new(Config::default())?
         .module_name("py_module")?
-        .module_names(&["other_module.core", "other_module.utils.io"])?
         .build(std::path::Path::new(&std::env::var("OUT_DIR")?).join("bindings.rs"))?;
     Ok(())
 }
@@ -132,7 +131,7 @@ Afterwards, run the `pyo3_bindgen` executable while passing the name of the targ
 
 ```bash
 # Pass `--help` to show the usage and available options
-pyo3_bindgen -m py_module other_module.core -o bindings.rs
+pyo3_bindgen -m py_module -o bindings.rs
 ```
 
 ### <a href="#-option-3-experimental-procedural-macros"><img src="https://www.svgrepo.com/show/269868/lab.svg" width="16" height="16"></a> Option 3 \[Experimental\]: Procedural macros
