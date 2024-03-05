@@ -567,7 +567,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "pyo3_bindgen_engine",
  "pyo3_bindgen_macros",
@@ -575,7 +575,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_cli"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -587,7 +587,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_engine"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "criterion",
  "indoc",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_macros"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "pyo3",
  "pyo3_bindgen_engine",

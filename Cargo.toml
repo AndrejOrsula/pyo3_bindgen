@@ -20,12 +20,12 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/AndrejOrsula/pyo3_bindgen"
 rust-version = "1.74"
-version = "0.3.0"
+version = "0.3.1"
 
 [workspace.dependencies]
-pyo3_bindgen = { path = "pyo3_bindgen", version = "0.3.0" }
-pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.3.0" }
-pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.3.0" }
+pyo3_bindgen = { path = "pyo3_bindgen", version = "0.3.1" }
+pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.3.1" }
+pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.3.1" }
 
 assert_cmd = { version = "2" }
 clap = { version = "4.5", features = ["derive"] }
