@@ -17,7 +17,7 @@ mod test_cli {
         assert.success().stdout(
             predicate::str::contains(format!("Usage: {BIN_NAME}"))
                 .and(predicate::str::contains("Options:"))
-                .and(predicate::str::contains("--module-name <MODULE_NAME>"))
+                .and(predicate::str::contains("--module-name <MODULE_NAMES>"))
                 .and(predicate::str::contains("--output <OUTPUT>")),
         );
     }
@@ -33,7 +33,7 @@ mod test_cli {
         // Assert
         assert.failure().stderr(
             predicate::str::contains("error: the following required arguments")
-                .and(predicate::str::contains("--module-name <MODULE_NAME>"))
+                .and(predicate::str::contains("--module-name <MODULE_NAMES>"))
                 .and(predicate::str::contains(format!("Usage: {BIN_NAME}"))),
         );
     }

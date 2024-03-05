@@ -19,13 +19,13 @@ keywords = ["bindgen", "ffi", "pyo3", "python"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/AndrejOrsula/pyo3_bindgen"
-rust-version = "1.70"
-version = "0.2.0"
+rust-version = "1.74"
+version = "0.3.0"
 
 [workspace.dependencies]
-pyo3_bindgen = { path = "pyo3_bindgen", version = "0.2.0" }
-pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.2.0" }
-pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.2.0" }
+pyo3_bindgen = { path = "pyo3_bindgen", version = "0.3.0" }
+pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.3.0" }
+pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.3.0" }
 
 assert_cmd = { version = "2" }
 clap = { version = "4.5", features = ["derive"] }
@@ -38,4 +38,7 @@ proc-macro2 = { version = "1" }
 pyo3 = { version = "0.20", default-features = false }
 pyo3-build-config = { version = "0.20", features = ["resolve-config"] }
 quote = { version = "1" }
+rustc-hash = { version = "1" }
 syn = { version = "2" }
+thiserror = { version = "1" }
+typed-builder = { version = "0.18" }

@@ -2,7 +2,7 @@
 name = "pyo3_bindgen_engine"
 authors.workspace = true
 categories.workspace = true
-description = "Engine behind automatic generation of Rust bindings to Python modules"
+description = "Engine for automatic generation of Rust bindings to Python modules"
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
@@ -16,7 +16,10 @@ itertools = { workspace = true }
 proc-macro2 = { workspace = true }
 pyo3 = { workspace = true }
 quote = { workspace = true }
+rustc-hash = { workspace = true }
 syn = { workspace = true }
+thiserror = { workspace = true }
+typed-builder = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
@@ -30,6 +33,9 @@ pyo3-build-config = { workspace = true }
 name = "pyo3_bindgen_engine"
 path = "src/lib.rs"
 crate-type = ["rlib"]
+
+[features]
+default = []
 
 [[bench]]
 name = "bindgen"

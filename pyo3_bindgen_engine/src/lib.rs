@@ -1,8 +1,19 @@
 //! Engine for automatic generation of Rust FFI bindings to Python modules.
 
-pub mod bindgen;
-pub mod build_utils;
-pub mod types;
+mod codegen;
+mod config;
+mod syntax;
+mod typing;
+mod utils;
 
-pub use bindgen::{generate_bindings, generate_bindings_for_module, generate_bindings_from_str};
-pub use build_utils::build_bindings;
+// Internal re-exports for convenience
+use utils::io as io_utils;
+use utils::result::Result;
+
+// Public API re-exports
+pub use codegen::Codegen;
+pub use config::Config;
+pub use utils::{error::PyBindgenError, result::PyBindgenResult};
+
+// Public re-export of PyO3 for convenience
+pub use pyo3;
