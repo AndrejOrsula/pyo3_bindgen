@@ -607,10 +607,8 @@ dependencies = [
 name = "pyo3_bindgen_macros"
 version = "0.3.0"
 dependencies = [
- "proc-macro2",
  "pyo3",
  "pyo3_bindgen_engine",
- "quote",
  "syn",
 ]
 
