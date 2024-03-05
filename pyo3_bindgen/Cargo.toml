@@ -23,3 +23,6 @@ macros = ["pyo3_bindgen_macros"]
 name = "pyo3_bindgen"
 path = "src/lib.rs"
 crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true
