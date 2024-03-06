@@ -14,7 +14,7 @@ use rustc_hash::FxHashSet as HashSet;
 /// default configuration, all submodules, classes, functions, and parameters
 /// will be recursively parsed and included in the generated bindings.
 ///
-/// ```no_run
+/// ```
 /// # use pyo3_bindgen_engine::{Codegen, Config};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     Codegen::new(Config::default())?
@@ -31,7 +31,7 @@ use rustc_hash::FxHashSet as HashSet;
 /// respective submodules, classes, functions, and parameters. No direct attributes
 /// or submodules of the `html` top-level module will be included.
 ///
-/// ```no_run
+/// ```
 /// # use pyo3_bindgen_engine::{Codegen, Config};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     Codegen::new(Config::default())?
