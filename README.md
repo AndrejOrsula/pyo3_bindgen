@@ -85,7 +85,9 @@ The workspace contains these packages:
 
 ## Instructions
 
-Add `pyo3` as a dependency and `pyo3_bindgen` as a build dependency to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest (`auto-initialize` feature of `pyo3` is optional and shown here for your convenience).
+### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script
+
+First, add `pyo3` as a dependency and `pyo3_bindgen` as a build dependency to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest (`auto-initialize` feature is optional and shown here for your convenience).
 
 ```toml
 [dependencies]
@@ -95,9 +97,7 @@ pyo3 = { version = "0.20", features = ["auto-initialize"] }
 pyo3_bindgen = { version = "0.4" }
 ```
 
-### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script
-
-Create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the `py_module` Python module.
+Then create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the `py_module` Python module.
 
 ```rs
 // build.rs
@@ -112,7 +112,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-Afterwards, include the generated bindings anywhere in your crate.
+Afterwards, you can include the generated bindings anywhere in your crate.
 
 ```rs
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
