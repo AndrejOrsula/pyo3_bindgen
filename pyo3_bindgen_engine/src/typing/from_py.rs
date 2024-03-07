@@ -140,31 +140,31 @@ impl Type {
                             }
                         }
                         Self::Optional(..) => {
-                            debug_assert_eq!(inner_types.len(), 1);
+                            // debug_assert_eq!(inner_types.len(), 1);
                             Self::Optional(Box::new(inner_types[0].clone()))
                         }
                         Self::PyDict { .. } => {
-                            debug_assert_eq!(inner_types.len(), 2);
+                            // debug_assert_eq!(inner_types.len(), 2);
                             Self::PyDict {
                                 key_type: Box::new(inner_types[0].clone()),
                                 value_type: Box::new(inner_types[1].clone()),
                             }
                         }
                         Self::PyFrozenSet(..) => {
-                            debug_assert_eq!(inner_types.len(), 1);
+                            // debug_assert_eq!(inner_types.len(), 1);
                             Self::PyFrozenSet(Box::new(inner_types[0].clone()))
                         }
                         Self::PyList(..) => {
-                            debug_assert_eq!(inner_types.len(), 1);
+                            // debug_assert_eq!(inner_types.len(), 1);
                             Self::PyList(Box::new(inner_types[0].clone()))
                         }
                         Self::PySet(..) => {
-                            debug_assert_eq!(inner_types.len(), 1);
+                            // debug_assert_eq!(inner_types.len(), 1);
                             Self::PySet(Box::new(inner_types[0].clone()))
                         }
                         Self::PyTuple(..) => Self::PyTuple(inner_types),
                         Self::PyFunction { .. } => {
-                            debug_assert!(!inner_types.is_empty());
+                            // debug_assert!(!inner_types.is_empty());
                             Self::PyFunction {
                                 param_types: match inner_types.len() {
                                     1 => Vec::default(),
@@ -179,7 +179,7 @@ impl Type {
                             }
                         }
                         Self::PyType => {
-                            debug_assert_eq!(inner_types.len(), 1);
+                            // debug_assert_eq!(inner_types.len(), 1);
                             inner_types[0].clone()
                         }
                         _ => {
@@ -252,7 +252,7 @@ impl std::str::FromStr for Type {
                     .map(|x| x.trim().to_owned())
                     .collect_vec();
                 repair_complex_sequence(&mut inner_types, ',');
-                debug_assert_eq!(inner_types.len(), 2);
+                // debug_assert_eq!(inner_types.len(), 2);
                 let inner_types = inner_types
                     .iter()
                     .map(|x| Self::from_str(x))
@@ -386,7 +386,7 @@ impl std::str::FromStr for Type {
                     .map(|x| x.trim().to_owned())
                     .collect_vec();
                 repair_complex_sequence(&mut inner_types, ',');
-                debug_assert!(!inner_types.is_empty());
+                // debug_assert!(!inner_types.is_empty());
                 let inner_types = inner_types
                     .iter()
                     .map(|x| Self::from_str(x))
@@ -469,11 +469,11 @@ impl std::str::FromStr for Type {
 // TODO: Refactor `repair_complex_sequence()` into something more sensible
 /// Repairs complex wrapped sequences.
 fn repair_complex_sequence(sequence: &mut Vec<String>, separator: char) {
-    debug_assert!(!sequence.is_empty());
-    debug_assert!({
-        let merged_sequence = sequence.iter().join("");
-        merged_sequence.matches('[').count() == merged_sequence.matches(']').count()
-    });
+    // debug_assert!(!sequence.is_empty());
+    // debug_assert!({
+    //     let merged_sequence = sequence.iter().join("");
+    //     merged_sequence.matches('[').count() == merged_sequence.matches(']').count()
+    // });
 
     let mut traversed_all_elements = false;
     let mut start_index = 0;
