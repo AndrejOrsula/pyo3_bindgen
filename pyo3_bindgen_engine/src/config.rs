@@ -1,15 +1,16 @@
 use crate::syntax::{Ident, Path};
 
 /// Array of forbidden attribute names that are reserved for internal use by derived traits
-pub const FORBIDDEN_FUNCTION_NAMES: [&str; 4] = ["get_type", "obj", "repr", "str"];
+pub const FORBIDDEN_FUNCTION_NAMES: [&str; 5] = ["get_type", "obj", "py", "repr", "str"];
 /// Array of forbidden type names
-pub const FORBIDDEN_TYPE_NAMES: [&str; 6] = [
+pub const FORBIDDEN_TYPE_NAMES: [&str; 7] = [
     "_collections._tuplegetter",
     "AsyncState",
     "getset_descriptor",
     "member_descriptor",
     "method_descriptor",
     "property",
+    "py",
 ];
 
 /// Default array of blocklisted attribute names
