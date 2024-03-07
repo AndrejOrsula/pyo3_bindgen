@@ -1,6 +1,6 @@
 use crate::{
     syntax::{Ident, Import, Module, Path},
-    Config, Result,
+    Config, PyBindgenError, Result,
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet as HashSet;
@@ -114,10 +114,11 @@ impl Codegen {
 
     /// Generate the Rust FFI bindings for all modules added to the engine.
     pub fn generate(mut self) -> Result<proc_macro2::TokenStream> {
-        assert!(
-            !self.modules.is_empty(),
-            "There are no modules for which to generate bindings"
-        );
+        if self.modules.is_empty() {
+            return Err(PyBindgenError::CodegenError(
+                "There are no modules for which to generate bindings".to_string(),
+            ));
+        }
 
         // Parse external modules (if enabled)
         if self.cfg.generate_dependencies {
