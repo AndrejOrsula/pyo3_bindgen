@@ -69,10 +69,10 @@ impl Function {
                     );
                     let annotation = match kind {
                         ParameterKind::VarPositional => Type::PyTuple(vec![Type::Unknown]),
-                        ParameterKind::VarKeyword => Type::PyDict {
+                        ParameterKind::VarKeyword => Type::Optional(Box::new(Type::PyDict {
                             key_type: Box::new(Type::Unknown),
                             value_type: Box::new(Type::Unknown),
-                        },
+                        })),
                         _ => {
                             let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
                             if annotation.is(param.getattr(pyo3::intern!(py, "empty"))?) {
@@ -215,10 +215,10 @@ impl Function {
                                 Parameter {
                                     name: Ident::from_rs("kwargs"),
                                     kind: ParameterKind::VarKeyword,
-                                    annotation: Type::PyDict {
+                                    annotation: Type::Optional(Box::new(Type::PyDict {
                                         key_type: Box::new(Type::Unknown),
                                         value_type: Box::new(Type::Unknown),
-                                    },
+                                    })),
                                     default: None,
                                 },
                             ];
@@ -273,10 +273,10 @@ impl Function {
                     Parameter {
                         name: Ident::from_rs("kwargs"),
                         kind: ParameterKind::VarKeyword,
-                        annotation: Type::PyDict {
+                        annotation: Type::Optional(Box::new(Type::PyDict {
                             key_type: Box::new(Type::Unknown),
                             value_type: Box::new(Type::Unknown),
-                        },
+                        })),
                         default: None,
                     },
                 ];
@@ -303,10 +303,10 @@ impl Function {
                     Parameter {
                         name: Ident::from_rs("kwargs"),
                         kind: ParameterKind::VarKeyword,
-                        annotation: Type::PyDict {
+                        annotation: Type::Optional(Box::new(Type::PyDict {
                             key_type: Box::new(Type::Unknown),
                             value_type: Box::new(Type::Unknown),
-                        },
+                        })),
                         default: None,
                     },
                 ],
