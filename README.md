@@ -104,7 +104,7 @@ Then create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scrip
 use pyo3_bindgen::{Codegen, Config};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Generate Rust bindings to Python modules
+    // Generate Rust bindings to Python module
     Codegen::new(Config::default())?
         .module_name("py_module")?
         .build(std::path::Path::new(&std::env::var("OUT_DIR")?).join("bindings.rs"))?;
@@ -138,10 +138,10 @@ pyo3_bindgen -m py_module -o bindings.rs
 
 > **Note:** This feature is experimental and will probably fail in many cases. It is recommended to use build scripts instead.
 
-Enable the `macros` feature of `pyo3_bindgen`.
+Add `pyo3_bindgen` as a dependency and enable the `macros` feature.
 
 ```toml
-[build-dependencies]
+[dependencies]
 pyo3_bindgen = { version = "0.4", features = ["macros"] }
 ```
 
