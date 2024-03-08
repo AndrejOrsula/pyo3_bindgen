@@ -173,13 +173,8 @@ impl Property {
 
         // Documentation
         if cfg.generate_docs {
-            if let Some(docstring) = &self.docstring {
-                // Trim the docstring and add a leading whitespace (looks better in the generated code)
-                let mut docstring = docstring.trim().trim_end_matches('/').to_owned();
-                docstring.insert(0, ' ');
-                // Replace all double quotes with single quotes
-                docstring = docstring.replace('"', "'");
-
+            if let Some(mut docstring) = self.docstring.clone() {
+                crate::utils::text::format_docstring(&mut docstring);
                 output.extend(quote::quote! {
                     #[doc = #docstring]
                 });
@@ -255,23 +250,20 @@ impl Property {
 
     pub fn generate_setter(
         &self,
-        _cfg: &Config,
+        cfg: &Config,
         scoped_function_idents: &[&Ident],
         local_types: &HashMap<Path, Path>,
     ) -> Result<proc_macro2::TokenStream> {
         let mut output = proc_macro2::TokenStream::new();
 
         // Documentation
-        if let Some(docstring) = &self.setter_docstring {
-            // Trim the docstring and add a leading whitespace (looks better in the generated code)
-            let mut docstring = docstring.trim().trim_end_matches('/').to_owned();
-            docstring.insert(0, ' ');
-            // Replace all double quotes with single quotes
-            docstring = docstring.replace('"', "'");
-
-            output.extend(quote::quote! {
-                #[doc = #docstring]
-            });
+        if cfg.generate_docs {
+            if let Some(mut docstring) = self.setter_docstring.clone() {
+                crate::utils::text::format_docstring(&mut docstring);
+                output.extend(quote::quote! {
+                    #[doc = #docstring]
+                });
+            }
         }
 
         // Function
