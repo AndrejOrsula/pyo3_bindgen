@@ -17,7 +17,7 @@ pyo3_bindgen_engine = { workspace = true }
 pyo3_bindgen_macros = { workspace = true, optional = true }
 
 [features]
-default = []
+default = ["macros"]
 macros = ["pyo3_bindgen_macros"]
 
 [lib]
