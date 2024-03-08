@@ -81,7 +81,7 @@ The workspace contains these packages:
 - **[pyo3_bindgen](pyo3_bindgen):** Public API for generation of bindings (in `build.rs` or via procedural macros)
 - **[pyo3_bindgen_cli](pyo3_bindgen_cli):** CLI tool for generation of bindings via `pyo3_bindgen` executable
 - **[pyo3_bindgen_engine](pyo3_bindgen_engine):** The underlying engine for generation of bindings
-- **[pyo3_bindgen_macros](pyo3_bindgen_macros):** \[Experimental\] Procedural macros for in-place generation
+- **[pyo3_bindgen_macros](pyo3_bindgen_macros):** Procedural macros for in-place generation
 
 ## Instructions
 
