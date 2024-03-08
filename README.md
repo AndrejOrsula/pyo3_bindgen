@@ -99,7 +99,7 @@ pyo3 = { version = "0.20", features = ["auto-initialize"] }
 
 Then, create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the selected Python modules. In this example, the bindings are simultaneously generated for the "os", "posixpath", and "sys" Python modules. At the end of the generation process, the Rust bindings are written to `${OUT_DIR}/bindings.rs`.
 
-> With this approach, you can also customize the generation process via [`pyo3_bindgen::Config`](https://docs.rs/pyo3_bindgen/latest/pyo3_bindgen/struct.Config.html) that can be passed to `Codegen::new` constructor, e.g. `Codegen::new(Config::builder().include_private(true).build())`.
+> With this approach, you can also customize the generation process via [`pyo3_bindgen::Config`](https://docs.rs/pyo3_bindgen/latest/pyo3_bindgen/struct.Config.html) that can be passed to the constructor, e.g. `Codegen::new(Config::builder().include_private(true).build())`.
 
 ```rs
 //! build.rs
