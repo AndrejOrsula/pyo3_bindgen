@@ -15,8 +15,15 @@ version.workspace = true
 pyo3_bindgen_engine = { workspace = true }
 syn = { workspace = true }
 
-[dev-dependencies]
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
 pyo3 = { workspace = true }
+
+[target.'cfg(not(unix))'.dev-dependencies]
+pyo3 = { workspace = true }
+
+[build-dependencies]
+pyo3-build-config = { workspace = true }
 
 [lib]
 proc-macro = true

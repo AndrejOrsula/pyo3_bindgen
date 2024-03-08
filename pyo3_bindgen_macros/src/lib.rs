@@ -1,6 +1,7 @@
 //! Procedural macros for automatic generation of Rust FFI bindings to Python modules.
 
 mod parser;
+mod utils;
 
 /// Procedural macro for generating Rust bindings to Python modules in-place.
 ///
@@ -12,7 +13,7 @@ mod parser;
 ///
 /// Here is a simple example of how to use the macro to generate bindings for the `sys` module.
 ///
-/// ```ignore
+/// ```
 /// # use pyo3_bindgen_macros::import_python;
 /// import_python!("sys");
 /// pub use sys::*;
@@ -20,7 +21,7 @@ mod parser;
 ///
 /// For consistency, the top-level package is always included in the generated bindings.
 ///
-/// ```ignore
+/// ```
 /// # use pyo3_bindgen_macros::import_python;
 /// import_python!("html.parser");
 /// pub use html::parser::*;
@@ -28,14 +29,23 @@ mod parser;
 ///
 /// Furthermore, the actual name of the package is always used regardless of how it is aliased.
 ///
-/// ```ignore
+/// ```
 /// # use pyo3_bindgen_macros::import_python;
 /// import_python!("os.path");
 /// pub use posixpath::*;
 /// ```
 #[proc_macro]
 pub fn import_python(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    // Parse the macro arguments
     let parser::Args { module_name } = syn::parse_macro_input!(input as parser::Args);
+
+    // On Unix systems, ensure that the symbols of the libpython shared library are loaded globally
+    #[cfg(unix)]
+    utils::try_load_libpython_symbols().unwrap_or_else(|err| {
+        eprintln!(
+            "Failed to load libpython symbols, code generation might not work as expected:\n{err}"
+        );
+    });
 
     // Generate the bindings
     pyo3_bindgen_engine::Codegen::default()

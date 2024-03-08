@@ -32,6 +32,7 @@ clap = { version = "4.5", features = ["derive"] }
 criterion = { version = "0.5" }
 indoc = { version = "2" }
 itertools = { version = "0.12" }
+libc = { version = "0.2" }
 predicates = { version = "3" }
 prettyplease = { version = "0.2" }
 proc-macro2 = { version = "1" }
