@@ -16,7 +16,7 @@
 //!
 //! ```toml
 //! [build-dependencies]
-//! pyo3_bindgen = { version ="0.4" }
+//! pyo3_bindgen = { version = "0.4" }
 //!
 //! [dependencies]
 //! pyo3 = { version = "0.20", features = ["auto-initialize"] }
@@ -66,7 +66,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! pyo3_bindgen = { version = "0.4"}
+//! pyo3_bindgen = { version = "0.4" }
 //! ```
 //!
 //! Subsequently, the `import_python!` macro can be used to generate Rust bindings for the selected Python modules anywhere in your crate. As demonstrated in the example below, Rust bindings are generated for the "math" Python module and can directly be used in the same scope. Similar to the previous approach, the generated bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
