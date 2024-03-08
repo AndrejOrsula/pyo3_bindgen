@@ -22,9 +22,9 @@ path = "math.rs"
 name = "os_sys"
 path = "os_sys.rs"
 
-[[example]]
-name = "pygal"
-path = "pygal.rs"
+# [[example]]
+# name = "pygal"
+# path = "pygal.rs"
 
 [[example]]
 name = "random"
