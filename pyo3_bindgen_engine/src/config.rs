@@ -79,7 +79,7 @@ impl Config {
         &self,
         attr_name: &Ident,
         attr_module: &Path,
-        attr_type: &pyo3::types::PyType,
+        _attr_type: &pyo3::types::PyType,
     ) -> bool {
         if
         // Skip always forbidden attribute names
@@ -92,8 +92,6 @@ impl Config {
         self.blocklist_names.iter().any(|blocklist_match| {
             attr_name.as_py() == blocklist_match
         }) ||
-        // Skip builtin functions
-        attr_type.is_subclass_of::<pyo3::types::PyCFunction>().unwrap_or(false) ||
         // Skip `__future__` attributes
         attr_module.iter().any(|segment| segment.as_py() == "__future__") ||
         // Skip `typing` attributes
