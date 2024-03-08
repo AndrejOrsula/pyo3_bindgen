@@ -46,7 +46,7 @@ if __name__ == "__main__":
 ```rs
 /// Returns answer to a question.
 pub fn answer_to<'py>(
-  py: ::pyo3::marker::Python<'py>,
+  py: ::pyo3::Python<'py>,
   question: &str,
 ) -> ::pyo3::PyResult<i64> {
   ... // Calls function via `pyo3`
