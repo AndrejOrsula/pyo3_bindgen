@@ -181,9 +181,13 @@ test_bindgen! {
                     &'py self,
                     py: ::pyo3::marker::Python<'py>,
                     p_my_arg1: &::std::collections::HashMap<::std::string::String, i64>,
-                    p_kwargs: impl ::pyo3::types::IntoPyDict,
+                    p_kwargs: ::std::option::Option<&'py ::pyo3::types::PyDict>,
                 ) -> ::pyo3::PyResult<&'py ::pyo3::types::PyAny> {
-                    let p_kwargs = ::pyo3::types::IntoPyDict::into_py_dict(p_kwargs, py);
+                    let p_kwargs = if let Some(p_kwargs) = p_kwargs {
+                        ::pyo3::types::IntoPyDict::into_py_dict(p_kwargs, py)
+                    } else {
+                        ::pyo3::types::PyDict::new(py)
+                    };
                     ::pyo3::FromPyObject::extract(self.0.call_method(
                         ::pyo3::intern!(py, "my_method"),
                         ::pyo3::types::PyTuple::new(py, [::pyo3::ToPyObject::to_object(&p_my_arg1, py)]),

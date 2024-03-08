@@ -280,6 +280,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "11157ac094ffbdde99aa67b23417ebdd801842852b500e395a45a9c0aac03e4a"
 
 [[package]]
+name = "examples"
+version = "0.4.0"
+dependencies = [
+ "pyo3",
+ "pyo3_bindgen",
+]
+
+[[package]]
 name = "float-cmp"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -567,15 +575,16 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
+ "pyo3",
  "pyo3_bindgen_engine",
  "pyo3_bindgen_macros",
 ]
 
 [[package]]
 name = "pyo3_bindgen_cli"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -587,7 +596,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_engine"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
  "criterion",
  "indoc",
@@ -605,9 +614,11 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_macros"
-version = "0.3.1"
+version = "0.4.0"
 dependencies = [
+ "libc",
  "pyo3",
+ "pyo3-build-config",
  "pyo3_bindgen_engine",
  "syn",
 ]

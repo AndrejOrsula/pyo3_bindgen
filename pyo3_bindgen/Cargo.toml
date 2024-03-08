@@ -12,14 +12,18 @@ rust-version.workspace = true
 version.workspace = true
 
 [dependencies]
+pyo3 = { workspace = true }
 pyo3_bindgen_engine = { workspace = true }
 pyo3_bindgen_macros = { workspace = true, optional = true }
 
 [features]
-default = []
+default = ["macros"]
 macros = ["pyo3_bindgen_macros"]
 
 [lib]
 name = "pyo3_bindgen"
 path = "src/lib.rs"
 crate-type = ["rlib"]
+
+[package.metadata.docs.rs]
+all-features = true

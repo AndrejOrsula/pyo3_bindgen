@@ -1,0 +1,31 @@
+[package]
+name = "examples"
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+version.workspace = true
+publish = false
+
+[dependencies]
+pyo3 = { workspace = true, features = ["auto-initialize"] }
+pyo3_bindgen = { workspace = true }
+
+[build-dependencies]
+pyo3_bindgen = { workspace = true }
+
+[[example]]
+name = "math"
+path = "math.rs"
+
+[[example]]
+name = "os_sys"
+path = "os_sys.rs"
+
+# [[example]]
+# name = "pygal"
+# path = "pygal.rs"
+
+[[example]]
+name = "random"
+path = "random.rs"

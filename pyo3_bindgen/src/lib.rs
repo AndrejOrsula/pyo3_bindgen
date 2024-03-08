@@ -10,75 +10,104 @@
 //!
 //! ## Instructions
 //!
-//! Add `pyo3` as a dependency and `pyo3_bindgen` as a build dependency to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest (`auto-initialize` feature of `pyo3` is optional and shown here for your convenience).
-//!
-//! ```toml
-//! [dependencies]
-//! pyo3 = { version = "0.20", features = ["auto-initialize"] }
-//!
-//! [build-dependencies]
-//! pyo3_bindgen = { version = "0.3" }
-//! ```
-//!
 //! ### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script
 //!
-//! Create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the `py_module` Python module.
+//! First, add `pyo3_bindgen` as a **build dependency** to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest. To actually use the generated bindings, you will also need to add `pyo3` as a regular dependency (or use the re-exported `pyo3_bindgen::pyo3` module).
+//!
+//! ```toml
+//! [build-dependencies]
+//! pyo3_bindgen = { version = "0.4" }
+//!
+//! [dependencies]
+//! pyo3 = { version = "0.20", features = ["auto-initialize"] }
+//! ```
+//!
+//! Then, create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the selected Python modules. In this example, the bindings are simultaneously generated for the "os", "posixpath", and "sys" Python modules. At the end of the generation process, the Rust bindings are written to `${OUT_DIR}/bindings.rs`.
+//!
+//! > With this approach, you can also customize the generation process via [`pyo3_bindgen::Config`](https://docs.rs/pyo3_bindgen/latest/pyo3_bindgen/struct.Config.html) that can be passed to `Codegen::new` constructor, e.g. `Codegen::new(Config::builder().include_private(true).build())`.
 //!
 //! ```no_run
-//! // build.rs
-//! use pyo3_bindgen::{Codegen, Config};
+//! //! build.rs
+//! use pyo3_bindgen::Codegen;
 //!
 //! fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // Generate Rust bindings to Python modules
-//!     Codegen::new(Config::default())?
-//!         .module_name("py_module")?
-//!         .build(std::path::Path::new(&std::env::var("OUT_DIR")?).join("bindings.rs"))?;
+//!     Codegen::default()
+//!         .module_names(["os", "posixpath", "sys"])?
+//!         .build(format!("{}/bindings.rs", std::env::var("OUT_DIR")?))?;
 //!     Ok(())
 //! }
 //! ```
 //!
-//! Afterwards, include the generated bindings anywhere in your crate.
+//! Afterwards, you can include the generated Rust code via the `include!` macro anywhere in your crate and use the generated bindings as regular Rust modules. However, the bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
 //!
 //! ```ignore
+//! //! src/main.rs
 //! include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
-//! pub use py_module::*;
+//!
+//! fn main() -> pyo3::PyResult<()> {
+//!     # pyo3::prepare_freethreaded_python();
+//!     pyo3::Python::with_gil(|py| {
+//!         // Get the path to the Python executable via "sys" Python module
+//!         let python_exe_path = sys::executable(py)?;
+//!         // Get the current working directory via "os" Python module
+//!         let current_dir = os::getcwd(py)?;
+//!         // Get the relative path to the Python executable via "posixpath" Python module
+//!         let relpath_to_python_exe = posixpath::relpath(py, python_exe_path, current_dir)?;
+//!
+//!         println!("Relative path to Python executable: '{relpath_to_python_exe}'");
+//!         Ok(())
+//!     })
+//! }
 //! ```
 //!
-//! ### <a href="#-option-2-cli-tool"><img src="https://www.svgrepo.com/show/353478/bash-icon.svg" width="16" height="16"></a> Option 2: CLI tool
+//! ### <a href="#-option-2-procedural-macros-experimental"><img src="https://www.svgrepo.com/show/269868/lab.svg" width="16" height="16"></a> Option 2: Procedural macros (experimental)
 //!
-//! Install the `pyo3_bindgen` executable with `cargo`.
+//! As an alternative to build scripts, you can use procedural macros to generate the bindings in-place. First, add `pyo3_bindgen_macros` as a **regular dependency** to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest.
+//!
+//! ```toml
+//! [dependencies]
+//! pyo3_bindgen = { version = "0.4" }
+//! ```
+//!
+//! Subsequently, the `import_python!` macro can be used to generate Rust bindings for the selected Python modules anywhere in your crate. As demonstrated in the example below, Rust bindings are generated for the "math" Python module and can directly be used in the same scope. Similar to the previous approach, the generated bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
+//!
+//! > As opposed to using build scripts, this approach does not offer the same level of customization via `pyo3_bindgen::Config`. Furthermore, the procedural macro is quite experimental and might not work in all cases.
+//!
+//! ```
+//! use pyo3_bindgen::import_python;
+//! import_python!("math");
+//!
+//! // Which Pi do you prefer?
+//! // a) 🐍 Pi from Python "math" module
+//! // b) 🦀 Pi from Rust standard library
+//! // c) 🥧 Pi from your favourite bakery
+//! # pyo3::prepare_freethreaded_python();
+//! pyo3::Python::with_gil(|py| {
+//!     let python_pi = math::pi(py).unwrap();
+//!     let rust_pi = std::f64::consts::PI;
+//!     assert_eq!(python_pi, rust_pi);
+//! })
+//! ```
+//!
+//! ### <a href="#-option-3-cli-tool"><img src="https://www.svgrepo.com/show/353478/bash-icon.svg" width="16" height="16"></a> Option 3: CLI tool
+//!
+//! For a quick start and testing purposes, you can use the `pyo3_bindgen` executable to generate and inspect bindings for the selected Python modules. The executable is available as a standalone package and can be installed via `cargo`.
 //!
 //! ```bash
 //! cargo install --locked pyo3_bindgen_cli
 //! ```
 //!
-//! Afterwards, run the `pyo3_bindgen` executable while passing the name of the target Python module.
+//! Afterwards, run the `pyo3_bindgen` executable to generate Rust bindings for the selected Python modules. The generated bindings are printed to STDOUT by default, but they can also be written to a file via the `-o` option (see `pyo3_bindgen --help` for more options).
 //!
 //! ```bash
-//! # Pass `--help` to show the usage and available options
-//! pyo3_bindgen -m py_module -o bindings.rs
-//! ```
-//!
-//! ### <a href="#-option-3-experimental-procedural-macros"><img src="https://www.svgrepo.com/show/269868/lab.svg" width="16" height="16"></a> Option 3 \[Experimental\]: Procedural macros
-//!
-//! > **Note:** This feature is experimental and will probably fail in many cases. It is recommended to use build scripts instead.
-//!
-//! Enable the `macros` feature of `pyo3_bindgen`.
-//!
-//! ```toml
-//! [build-dependencies]
-//! pyo3_bindgen = { version = "0.3", features = ["macros"] }
-//! ```
-//!
-//! Then, you can call the `import_python!` macro anywhere in your crate.
-//!
-//! ```ignore
-//! pyo3_bindgen::import_python!("py_module");
-//! pub use py_module::*;
+//! pyo3_bindgen -m os sys numpy -o bindings.rs
 //! ```
 
+// Public re-export of PyO3 for convenience
+pub use pyo3;
+
 // Public API re-exports from engine
-pub use pyo3_bindgen_engine::{pyo3, Codegen, Config, PyBindgenError, PyBindgenResult};
+pub use pyo3_bindgen_engine::{Codegen, Config, PyBindgenError, PyBindgenResult};
 
 // Public API re-exports from macros
 #[cfg(feature = "macros")]

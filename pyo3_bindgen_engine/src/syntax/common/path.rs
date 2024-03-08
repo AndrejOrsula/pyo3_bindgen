@@ -194,7 +194,7 @@ impl Path {
         }
     }
 
-    pub fn import_quote(&self, py: pyo3::marker::Python) -> proc_macro2::TokenStream {
+    pub fn import_quote(&self, py: pyo3::Python) -> proc_macro2::TokenStream {
         // Find the last package and import it via py.import, then get the rest of the path via getattr()
         let mut package_path = self.root().unwrap_or_else(|| unreachable!());
         for i in (1..self.len()).rev() {

@@ -70,6 +70,28 @@ impl Type {
                     let #ident = #ident.as_ref(py);
                 }
             }
+            Self::Optional(inner_type) => match inner_type.as_ref() {
+                Self::PyDict {
+                    key_type,
+                    value_type,
+                } if !key_type.is_hashable()
+                    || value_type
+                        .clone()
+                        .into_rs(local_types)
+                        .owned
+                        .to_string()
+                        .contains("PyAny") =>
+                {
+                    quote! {
+                        let #ident = if let Some(#ident) = #ident {
+                            ::pyo3::types::IntoPyDict::into_py_dict(#ident, py)
+                        } else {
+                            ::pyo3::types::PyDict::new(py)
+                        };
+                    }
+                }
+                _ => proc_macro2::TokenStream::new(),
+            },
             _ => proc_macro2::TokenStream::new(),
         }
     }

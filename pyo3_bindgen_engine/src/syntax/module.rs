@@ -333,13 +333,8 @@ impl Module {
 
         // Documentation
         if cfg.generate_docs {
-            if let Some(docstring) = &self.docstring {
-                // Trim the docstring and add a leading whitespace (looks better in the generated code)
-                let mut docstring = docstring.trim().trim_end_matches('/').to_owned();
-                docstring.insert(0, ' ');
-                // Replace all double quotes with single quotes
-                docstring = docstring.replace('"', "'");
-
+            if let Some(mut docstring) = self.docstring.clone() {
+                crate::utils::text::format_docstring(&mut docstring);
                 output.extend(quote::quote! {
                     #[doc = #docstring]
                 });

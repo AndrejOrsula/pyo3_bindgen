@@ -9,6 +9,10 @@ pub enum PyBindgenError {
     PyDowncastError,
     #[error(transparent)]
     SynError(#[from] syn::Error),
+    #[error("Failed to parse Python code: {0}")]
+    ParseError(String),
+    #[error("Failed to generate Rust code: {0}")]
+    CodegenError(String),
 }
 
 impl From<pyo3::PyDowncastError<'_>> for PyBindgenError {

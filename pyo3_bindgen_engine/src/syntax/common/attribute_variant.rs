@@ -41,6 +41,9 @@ impl AttributeVariant {
         let is_class = attr_type
             .is_subclass_of::<pyo3::types::PyType>()
             .unwrap_or(false);
+        let is_builtin_function = attr_type
+            .is_subclass_of::<pyo3::types::PyCFunction>()
+            .unwrap_or(false);
         let is_function = inspect
             .call_method1(pyo3::intern!(py, "isfunction"), (attr,))?
             .is_true()?;
@@ -64,7 +67,7 @@ impl AttributeVariant {
             AttributeVariant::Module
         } else if is_class {
             AttributeVariant::Class
-        } else if is_function {
+        } else if is_builtin_function || is_function {
             AttributeVariant::Function
         } else if is_method {
             AttributeVariant::Method

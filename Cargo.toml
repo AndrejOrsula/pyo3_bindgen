@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    # Examples of usage
+    "examples",
     # Public API
     "pyo3_bindgen",
     # CLI tool
@@ -7,6 +9,12 @@ members = [
     # The underlying engine
     "pyo3_bindgen_engine",
     # Procedural macros
+    "pyo3_bindgen_macros",
+]
+default-members = [
+    "pyo3_bindgen",
+    "pyo3_bindgen_cli",
+    "pyo3_bindgen_engine",
     "pyo3_bindgen_macros",
 ]
 resolver = "2"
@@ -20,18 +28,19 @@ license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/AndrejOrsula/pyo3_bindgen"
 rust-version = "1.74"
-version = "0.3.1"
+version = "0.4.0"
 
 [workspace.dependencies]
-pyo3_bindgen = { path = "pyo3_bindgen", version = "0.3.1" }
-pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.3.1" }
-pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.3.1" }
+pyo3_bindgen = { path = "pyo3_bindgen", version = "0.4.0" }
+pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.4.0" }
+pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.4.0" }
 
 assert_cmd = { version = "2" }
 clap = { version = "4.5", features = ["derive"] }
 criterion = { version = "0.5" }
 indoc = { version = "2" }
 itertools = { version = "0.12" }
+libc = { version = "0.2" }
 predicates = { version = "3" }
 prettyplease = { version = "0.2" }
 proc-macro2 = { version = "1" }

@@ -1,6 +1,6 @@
 use crate::{
     syntax::{Ident, Import, Module, Path},
-    Config, Result,
+    Config, PyBindgenError, Result,
 };
 use itertools::Itertools;
 use rustc_hash::FxHashSet as HashSet;
@@ -14,10 +14,10 @@ use rustc_hash::FxHashSet as HashSet;
 /// default configuration, all submodules, classes, functions, and parameters
 /// will be recursively parsed and included in the generated bindings.
 ///
-/// ```no_run
+/// ```
 /// # use pyo3_bindgen_engine::{Codegen, Config};
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     Codegen::new(Config::default())?
+///     Codegen::new(Config::default())
 ///         .module_name("os")?
 ///         .module_name("sys")?
 ///         .generate()?;
@@ -31,10 +31,10 @@ use rustc_hash::FxHashSet as HashSet;
 /// respective submodules, classes, functions, and parameters. No direct attributes
 /// or submodules of the `html` top-level module will be included.
 ///
-/// ```no_run
-/// # use pyo3_bindgen_engine::{Codegen, Config};
+/// ```
+/// # use pyo3_bindgen_engine::Codegen;
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
-///     Codegen::new(Config::default())?
+///     Codegen::default()
 ///         .module_names(&["html.entities", "html.parser"])?
 ///         .generate()?;
 ///     Ok(())
@@ -48,11 +48,12 @@ pub struct Codegen {
 
 impl Codegen {
     /// Create a new `Codegen` engine with the given configuration.
-    pub fn new(cfg: Config) -> Result<Self> {
-        Ok(Self {
+    #[must_use]
+    pub fn new(cfg: Config) -> Self {
+        Self {
             cfg,
             ..Default::default()
-        })
+        }
     }
 
     /// Add a Python module to the list of modules for which to generate bindings.
@@ -95,7 +96,11 @@ impl Codegen {
     }
 
     /// Add multiple Python modules to the list of modules for which to generate bindings.
-    pub fn modules(mut self, modules: &[&pyo3::types::PyModule]) -> Result<Self> {
+    pub fn modules<'py>(
+        mut self,
+        modules: impl AsRef<[&'py pyo3::types::PyModule]>,
+    ) -> Result<Self> {
+        let modules = modules.as_ref();
         self.modules.reserve(modules.len());
         for module in modules {
             self = self.module(module)?;
@@ -104,7 +109,8 @@ impl Codegen {
     }
 
     /// Add multiple Python modules by their names to the list of modules for which to generate bindings.
-    pub fn module_names(mut self, module_names: &[&str]) -> Result<Self> {
+    pub fn module_names<'a>(mut self, module_names: impl AsRef<[&'a str]>) -> Result<Self> {
+        let module_names = module_names.as_ref();
         self.modules.reserve(module_names.len());
         for module_name in module_names {
             self = self.module_name(module_name)?;
@@ -114,10 +120,11 @@ impl Codegen {
 
     /// Generate the Rust FFI bindings for all modules added to the engine.
     pub fn generate(mut self) -> Result<proc_macro2::TokenStream> {
-        assert!(
-            !self.modules.is_empty(),
-            "There are no modules for which to generate bindings"
-        );
+        if self.modules.is_empty() {
+            return Err(PyBindgenError::CodegenError(
+                "There are no modules for which to generate bindings".to_string(),
+            ));
+        }
 
         // Parse external modules (if enabled)
         if self.cfg.generate_dependencies {
