@@ -77,8 +77,11 @@
 //! pub use py_module::*;
 //! ```
 
+// Public re-export of PyO3 for convenience
+pub use pyo3;
+
 // Public API re-exports from engine
-pub use pyo3_bindgen_engine::{pyo3, Codegen, Config, PyBindgenError, PyBindgenResult};
+pub use pyo3_bindgen_engine::{Codegen, Config, PyBindgenError, PyBindgenResult};
 
 // Public API re-exports from macros
 #[cfg(feature = "macros")]

@@ -14,6 +14,3 @@ use utils::result::Result;
 pub use codegen::Codegen;
 pub use config::Config;
 pub use utils::{error::PyBindgenError, result::PyBindgenResult};
-
-// Public re-export of PyO3 for convenience
-pub use pyo3;
