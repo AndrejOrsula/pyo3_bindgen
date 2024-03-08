@@ -1,5 +1,7 @@
 [workspace]
 members = [
+    # Examples of usage
+    "examples",
     # Public API
     "pyo3_bindgen",
     # CLI tool
@@ -7,6 +9,12 @@ members = [
     # The underlying engine
     "pyo3_bindgen_engine",
     # Procedural macros
+    "pyo3_bindgen_macros",
+]
+default-members = [
+    "pyo3_bindgen",
+    "pyo3_bindgen_cli",
+    "pyo3_bindgen_engine",
     "pyo3_bindgen_macros",
 ]
 resolver = "2"
