@@ -1,15 +1,12 @@
 name: Dependabot automation
-on:
-  pull_request:
-  check_run:
-    types: [completed]
+on: pull_request
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  approve:
+  dependabot_automation:
     runs-on: ubuntu-latest
     if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request' }}
     steps:
@@ -18,23 +15,12 @@ jobs:
         uses: dependabot/fetch-metadata@v1
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Approve PR
+      - name: Approve the PR
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: gh pr review --approve "$PR_URL"
-
-  auto_merge:
-    runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'check_run' }}
-    steps:
-      - name: Fetch metadata
-        id: metadata
-        uses: dependabot/fetch-metadata@v1
-        with:
-          github-token: "${{ secrets.GITHUB_TOKEN }}"
-      - name: Enable PR auto-merge
-        if: steps.metadata.outputs.update-type == 'version-update:semver-patch'
+      - name: Enable auto-merge for the PR
         env:
           PR_URL: ${{github.event.pull_request.html_url}}
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
