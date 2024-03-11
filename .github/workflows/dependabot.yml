@@ -8,7 +8,10 @@ permissions:
 jobs:
   dependabot_automation:
     runs-on: ubuntu-latest
-    if: ${{ github.actor == 'dependabot[bot]' && github.event_name == 'pull_request' }}
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    env:
+      GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+      PR_URL: ${{github.event.pull_request.html_url}}
     steps:
       - name: Fetch metadata
         id: metadata
@@ -16,12 +19,7 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
       - name: Approve the PR
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: gh pr review --approve "$PR_URL"
+        continue-on-error: true
       - name: Enable auto-merge for the PR
-        env:
-          PR_URL: ${{github.event.pull_request.html_url}}
-          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
-        run: gh pr merge --auto --merge "$PR_URL"
+        run: gh pr merge --auto --squash "$PR_URL"
