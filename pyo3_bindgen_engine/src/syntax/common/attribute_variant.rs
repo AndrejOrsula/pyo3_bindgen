@@ -26,7 +26,7 @@ impl AttributeVariant {
         let inspect = py.import("inspect")?;
 
         // Get the name and module of the attribute type
-        let attr_type_name = Ident::from_py(attr_type.name().unwrap_or_default());
+        let attr_type_name = Ident::from_py(&attr_type.name().unwrap_or_default());
         let attr_type_module = Path::from_py(
             &attr_type
                 .getattr(pyo3::intern!(py, "__module__"))
