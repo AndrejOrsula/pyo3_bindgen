@@ -99,6 +99,7 @@ pyo3 = { version = "0.20", features = ["auto-initialize"] }
 
 Then, create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the selected Python modules. In this example, the bindings are simultaneously generated for the "os", "posixpath", and "sys" Python modules. At the end of the generation process, the Rust bindings are written to `${OUT_DIR}/bindings.rs`.
 
+> \[!TIP\]
 > With this approach, you can also customize the generation process via [`pyo3_bindgen::Config`](https://docs.rs/pyo3_bindgen/latest/pyo3_bindgen/struct.Config.html) that can be passed to the constructor, e.g. `Codegen::new(Config::builder().include_private(true).build())`.
 
 ```rs
@@ -145,6 +146,7 @@ pyo3_bindgen = { version = "0.4" }
 
 Subsequently, the `import_python!` macro can be used to generate Rust bindings for the selected Python modules anywhere in your crate. As demonstrated in the example below, Rust bindings are generated for the "math" Python module and can directly be used in the same scope. Similar to the previous approach, the generated bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
 
+> \[!NOTE\]
 > As opposed to using build scripts, this approach does not offer the same level of customization via `pyo3_bindgen::Config`. Furthermore, the procedural macro is quite experimental and might not work in all cases.
 
 ```rs
