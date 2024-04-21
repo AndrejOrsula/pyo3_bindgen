@@ -35,7 +35,7 @@ use rustc_hash::FxHashSet as HashSet;
 /// # use pyo3_bindgen_engine::Codegen;
 /// fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     Codegen::default()
-///         .module_names(&["html.entities", "html.parser"])?
+///         .module_names(["html.entities", "html.parser"])?
 ///         .generate()?;
 ///     Ok(())
 /// }
