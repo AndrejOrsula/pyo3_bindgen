@@ -465,10 +465,9 @@ impl Module {
         // Extract the paths of the module
         let module_paths = module
             .getattr(pyo3::intern!(py, "__path__"))?
-            .extract::<&pyo3::types::PyList>()?
-            .iter()
-            .map(|x| std::path::PathBuf::from(x.to_string()))
-            .collect_vec();
+            .iter()?
+            .map(|x| Ok(std::path::PathBuf::from(x?.to_string())))
+            .collect::<Result<Vec<_>>>()?;
 
         // Extract the names of all submodules via `pkgutil.iter_modules`
         let module_name = Path::from_py(module.name()?);
