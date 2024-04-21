@@ -94,7 +94,7 @@ First, add `pyo3_bindgen` as a **build dependency** to your [`Cargo.toml`](https
 pyo3_bindgen = { version = "0.4" }
 
 [dependencies]
-pyo3 = { version = "0.20", features = ["auto-initialize"] }
+pyo3 = { version = "0.21", features = ["auto-initialize"] }
 ```
 
 Then, create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the selected Python modules. In this example, the bindings are simultaneously generated for the "os", "posixpath", and "sys" Python modules. At the end of the generation process, the Rust bindings are written to `${OUT_DIR}/bindings.rs`.
