@@ -86,6 +86,11 @@ The workspace contains these packages:
 - **[pyo3_bindgen_engine](pyo3_bindgen_engine):** The underlying engine for generation of bindings
 - **[pyo3_bindgen_macros](pyo3_bindgen_macros):** Procedural macros for in-place generation
 
+Features of `pyo3_bindgen`:
+
+- **`macros` \[experimental\]:** Enables `import_python!` macro from `pyo3_bindgen_macros` crate
+- **`numpy` \[experimental\]:** Enables type mapping between Python [`numpy::ndarray`](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html) and Rust [`numpy::PyArray`](https://docs.rs/numpy/latest/numpy/array/struct.PyArray.html)
+
 ## Instructions
 
 ### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script

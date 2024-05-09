@@ -316,7 +316,9 @@ impl Type {
         }
 
         // Try to map the local types
-        if let Some(relative_path) = local_types.get(&Path::from_py(&type_name)) {
+        let type_name_without_delimiters =
+            type_name.split_once('[').map(|s| s.0).unwrap_or(&type_name);
+        if let Some(relative_path) = local_types.get(&Path::from_py(type_name_without_delimiters)) {
             let relative_path: syn::Path = relative_path.try_into().unwrap();
             return OutputType::new(
                 quote!(::pyo3::Bound<'py, #relative_path>),
@@ -331,9 +333,38 @@ impl Type {
         )
     }
 
-    fn try_map_external_type(_type_name: &str) -> Option<OutputType> {
-        // TODO: Handle types from other packages with Rust bindings here (e.g. NumPy)
-        None
+    fn try_map_external_type(type_name: &str) -> Option<OutputType> {
+        // TODO: Handle types from other packages with Rust bindings here
+        match type_name {
+            #[cfg(feature = "numpy")]
+            numpy_ndarray
+                if numpy_ndarray
+                    .split_once('[')
+                    .map(|s| s.0)
+                    .unwrap_or(numpy_ndarray)
+                    .split('.')
+                    .last()
+                    .unwrap_or(numpy_ndarray)
+                    .to_lowercase()
+                    == "ndarray" =>
+            {
+                Some(OutputType::new(
+                    quote!(
+                        ::pyo3::Bound<
+                            'py,
+                            ::numpy::PyArray<::pyo3::Py<::pyo3::types::PyAny>, ::numpy::IxDyn>,
+                        >
+                    ),
+                    quote!(
+                        &::pyo3::Bound<
+                            'py,
+                            ::numpy::PyArray<::pyo3::Py<::pyo3::types::PyAny>, ::numpy::IxDyn>,
+                        >
+                    ),
+                ))
+            }
+            _ => None,
+        }
     }
 }
 
