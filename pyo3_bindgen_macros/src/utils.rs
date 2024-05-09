@@ -1,3 +1,5 @@
+use pyo3::prelude::*;
+
 /// Ensure that the symbols of the libpython shared library are loaded globally.
 ///
 /// # Explanation
@@ -19,7 +21,7 @@ pub fn try_load_libpython_symbols() -> pyo3::PyResult<()> {
     pyo3::prepare_freethreaded_python();
     pyo3::Python::with_gil(|py| {
         let fn_get_config_var = py
-            .import(pyo3::intern!(py, "sysconfig"))?
+            .import_bound(pyo3::intern!(py, "sysconfig"))?
             .getattr(pyo3::intern!(py, "get_config_var"))?;
         let libpython_dir = fn_get_config_var.call1(("LIBDIR",))?.to_string();
         let libpython_so_name = fn_get_config_var.call1(("INSTSONAME",))?.to_string();

@@ -1,9 +1,10 @@
 use super::{
-    AttributeVariant, Class, Function, FunctionType, Ident, Import, Path, Property, PropertyOwner,
-    TypeVar,
+    AttributeVariant, Class, Function, FunctionImplementation, FunctionType, Ident, Import, Path,
+    Property, PropertyOwner, TypeVar,
 };
 use crate::{Config, Result};
 use itertools::Itertools;
+use pyo3::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -18,11 +19,12 @@ pub struct Module {
     pub properties: Vec<Property>,
     pub docstring: Option<String>,
     pub is_package: bool,
+    pub source_code: Option<String>,
 }
 
 impl Module {
     pub fn empty(py: pyo3::Python, name: Path) -> Result<Self> {
-        let module = py.import(name.to_py().as_str())?;
+        let module = py.import_bound(name.to_py().as_str())?;
 
         // Extract the docstring of the module
         let docstring = {
@@ -45,14 +47,15 @@ impl Module {
             properties: Vec::default(),
             docstring,
             is_package: true,
+            source_code: None,
         })
     }
 
-    pub fn parse(cfg: &Config, module: &pyo3::types::PyModule) -> Result<Self> {
+    pub fn parse(cfg: &Config, module: &pyo3::Bound<pyo3::types::PyModule>) -> Result<Self> {
         let py = module.py();
 
         // Extract the name of the module
-        let name = Path::from_py(module.name()?);
+        let name = Path::from_py(&module.name().unwrap().to_string());
 
         // Extract the index of the module as prelude (if enabled)
         let prelude = if cfg.generate_preludes {
@@ -97,7 +100,7 @@ impl Module {
                     let attr_module = Path::from_py(
                         &attr
                         .getattr(pyo3::intern!(py, "__module__"))
-                        .map(std::string::ToString::to_string)
+                        .map(|a| a.to_string())
                         .unwrap_or_default(),
                     );
                     let attr_type = attr.get_type();
@@ -117,14 +120,14 @@ impl Module {
             // Iterate over the remaining attributes and parse them
             .try_for_each(|(attr, attr_name, attr_module, attr_type)| {
                 let attr_name_full = name.join(&attr_name.clone().into());
-                match AttributeVariant::determine(py, attr, attr_type, &attr_module, &name, true)
+                match AttributeVariant::determine(py, &attr, &attr_type, &attr_module, &name, true)
                     ?
                 {
                     AttributeVariant::Import => {
                         let origin = attr_module.join(&Path::from_py(
                             &attr
                                 .getattr(pyo3::intern!(py, "__name__"))
-                                .map(std::string::ToString::to_string)
+                                .map(|a| a.to_string())
                                 .unwrap_or(attr_name.as_py().to_owned()),
                         ));
 
@@ -138,11 +141,11 @@ impl Module {
                             let attr_name = &origin[i];
                             let attr_module = origin[..i].into();
                             let attr_type = if i == origin.len() - 1 {
-                                attr_type
+                                attr_type.clone()
                             } else {
-                                py.get_type::<pyo3::types::PyModule>()
+                                py.get_type_bound::<pyo3::types::PyModule>()
                             };
-                            cfg.is_attr_allowed(attr_name, &attr_module, attr_type)
+                            cfg.is_attr_allowed(attr_name, &attr_module, &attr_type)
                         });
                         if !is_origin_attr_allowed {
                             return Ok(());
@@ -178,7 +181,7 @@ impl Module {
                     }
                     AttributeVariant::Function => {
                         let function =
-                            Function::parse(cfg, attr, attr_name_full, FunctionType::Function)
+                            Function::parse(cfg, &attr, attr_name_full, FunctionType::Function)
                                 ?;
                         functions.push(function);
                     }
@@ -187,14 +190,14 @@ impl Module {
                     }
                     AttributeVariant::Closure => {
                         let function =
-                            Function::parse(cfg, attr, attr_name_full, FunctionType::Closure)
+                            Function::parse(cfg, &attr, attr_name_full, FunctionType::Closure)
                                 ?;
                         functions.push(function);
                     }
                     AttributeVariant::Property => {
                         let property = Property::parse(
                             cfg,
-                            attr,
+                            &attr,
                             attr_name_full,
                             PropertyOwner::Module,
                         )
@@ -218,10 +221,14 @@ impl Module {
                         .find(|import| import.target == full_submodule_name)
                     {
                         if let Ok(submodule) = py
-                            .import(full_submodule_name.to_py().as_str())
+                            .import_bound(full_submodule_name.to_py().as_str())
                             .map_err(crate::PyBindgenError::from)
-                            .and_then(|attr| Ok(attr.downcast::<pyo3::types::PyModule>()?))
-                            .and_then(|module| Self::parse(cfg, module))
+                            .map(|attr| {
+                                <pyo3::Bound<'_, PyAny> as Clone>::clone(&attr)
+                                    .downcast_into::<pyo3::types::PyModule>()
+                                    .unwrap()
+                            })
+                            .and_then(|module| Self::parse(cfg, &module))
                         {
                             // It could be any attribute, so all of them need to be checked
                             if let Some(mut import) = submodule
@@ -269,15 +276,15 @@ impl Module {
                     }
 
                     // Try to import both as a package and as a attribute of the current module
-                    py.import(full_submodule_name.to_py().as_str())
+                    py.import_bound(full_submodule_name.to_py().as_str())
                         .or_else(|_| {
                             module
                                 .getattr(submodule_name.as_py())
-                                .and_then(|attr| Ok(attr.downcast::<pyo3::types::PyModule>()?))
+                                .and_then(|attr| Ok(attr.downcast_into::<pyo3::types::PyModule>()?))
                         })
                         .ok()
                 })
-                .map(|submodule| Self::parse(cfg, submodule))
+                .map(|submodule| Self::parse(cfg, &submodule))
                 .collect::<Result<_>>()?
         } else {
             Vec::default()
@@ -304,6 +311,7 @@ impl Module {
             properties,
             docstring,
             is_package,
+            source_code: None,
         })
     }
 
@@ -369,7 +377,7 @@ impl Module {
                             {
                                 let mut path = Path::from_py(stripped_path);
                                 // Overwrite the first segment with the target name to support aliasing
-                                path[0] = import.target.name().to_owned();
+                                import.target.name().clone_into(&mut path[0]);
                                 path
                             } else {
                                 import.target.name().to_owned().into()
@@ -424,7 +432,17 @@ impl Module {
             module_content.extend(
                 self.functions
                     .iter()
-                    .map(|function| function.generate(cfg, &scoped_function_idents, &local_types))
+                    .map(|function| {
+                        function
+                            .generate(cfg, &scoped_function_idents, &local_types)
+                            .map(|def| {
+                                if let FunctionImplementation::Function(impl_fn) = def {
+                                    impl_fn
+                                } else {
+                                    unreachable!("Methods in modules are not possible")
+                                }
+                            })
+                    })
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }
@@ -433,7 +451,17 @@ impl Module {
             module_content.extend(
                 self.properties
                     .iter()
-                    .map(|property| property.generate(cfg, &scoped_function_idents, &local_types))
+                    .map(|property| {
+                        property
+                            .generate(cfg, &scoped_function_idents, &local_types)
+                            .map(|def| {
+                                if let FunctionImplementation::Function(impl_fn) = def {
+                                    impl_fn
+                                } else {
+                                    unreachable!("Methods in modules are not possible")
+                                }
+                            })
+                    })
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }
@@ -447,10 +475,39 @@ impl Module {
             );
         }
 
+        // Embed the source code if the module was parsed directly from source code
+        let embed_source_code_fn = if let Some(source_code) = &self.source_code {
+            let module_name = self.name.to_rs();
+            let file_name = format!("{module_name}/__init__.py");
+            quote::quote! {
+                /// Embed the Python source code of the module into the Python interpreter
+                /// in order to enable the use of the generated Rust bindings.
+                pub fn pyo3_embed_python_source_code<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<()> {
+                    const SOURCE_CODE: &str = #source_code;
+                    pyo3::types::PyAnyMethods::set_item(
+                        &pyo3::types::PyAnyMethods::getattr(
+                            py.import_bound(pyo3::intern!(py, "sys"))?.as_any(),
+                            pyo3::intern!(py, "modules"),
+                        )?,
+                        #module_name,
+                        pyo3::types::PyModule::from_code_bound(
+                            py,
+                            SOURCE_CODE,
+                            #file_name,
+                            #module_name,
+                        )?,
+                    )
+                }
+            }
+        } else {
+            proc_macro2::TokenStream::new()
+        };
+
         // Finalize the module with its content
         let module_ident: syn::Ident = self.name.name().try_into()?;
         output.extend(quote::quote! {
             pub mod #module_ident {
+                #embed_source_code_fn
                 #module_content
             }
         });
@@ -458,20 +515,22 @@ impl Module {
         Ok(output)
     }
 
-    fn extract_submodules(cfg: &Config, module: &pyo3::types::PyModule) -> Result<HashSet<Ident>> {
+    fn extract_submodules(
+        cfg: &Config,
+        module: &pyo3::Bound<pyo3::types::PyModule>,
+    ) -> Result<HashSet<Ident>> {
         let py = module.py();
-        let pkgutil = py.import(pyo3::intern!(py, "pkgutil"))?;
+        let pkgutil = py.import_bound(pyo3::intern!(py, "pkgutil"))?;
 
         // Extract the paths of the module
         let module_paths = module
             .getattr(pyo3::intern!(py, "__path__"))?
-            .extract::<&pyo3::types::PyList>()?
-            .iter()
-            .map(|x| std::path::PathBuf::from(x.to_string()))
-            .collect_vec();
+            .iter()?
+            .map(|x| Ok(std::path::PathBuf::from(x?.to_string())))
+            .collect::<Result<Vec<_>>>()?;
 
         // Extract the names of all submodules via `pkgutil.iter_modules`
-        let module_name = Path::from_py(module.name()?);
+        let module_name = Path::from_py(&module.name().unwrap().to_string());
         pkgutil
             .call_method1(pyo3::intern!(py, "iter_modules"), (module_paths,))?
             .iter()?
@@ -486,7 +545,7 @@ impl Module {
                     cfg.is_attr_allowed(
                         submodule_name,
                         &module_name,
-                        py.get_type::<pyo3::types::PyModule>(),
+                        &py.get_type_bound::<pyo3::types::PyModule>(),
                     )
                 })
             })
@@ -495,7 +554,7 @@ impl Module {
 
     fn extract_prelude(
         cfg: &Config,
-        module: &pyo3::types::PyModule,
+        module: &pyo3::Bound<pyo3::types::PyModule>,
         module_name: &Path,
     ) -> Vec<Ident> {
         // Extract the index (__all__) of the module if it exists
@@ -533,7 +592,7 @@ impl Module {
                         let attr_module = Path::from_py(
                             &attr
                                 .getattr(pyo3::intern!(module.py(), "__module__"))
-                                .map(std::string::ToString::to_string)
+                                .map(|a| a.to_string())
                                 .unwrap_or_default(),
                         );
                         attr_module.starts_with(&root_module)
@@ -549,7 +608,7 @@ impl Module {
         index_attr_names.retain(|attr_name| {
             if let Ok(attr) = module.getattr(attr_name.as_py()) {
                 let attr_type = attr.get_type();
-                cfg.is_attr_allowed(attr_name, module_name, attr_type)
+                cfg.is_attr_allowed(attr_name, module_name, &attr_type)
             } else {
                 false
             }

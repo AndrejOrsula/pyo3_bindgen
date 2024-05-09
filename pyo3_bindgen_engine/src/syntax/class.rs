@@ -1,8 +1,10 @@
 use super::{
-    AttributeVariant, Function, FunctionType, Ident, MethodType, Path, Property, PropertyOwner,
+    AttributeVariant, Function, FunctionImplementation, FunctionType, Ident, MethodType, Path,
+    Property, PropertyOwner, TraitMethod,
 };
 use crate::{Config, Result};
 use itertools::Itertools;
+use pyo3::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -15,7 +17,11 @@ pub struct Class {
 }
 
 impl Class {
-    pub fn parse(cfg: &Config, class: &pyo3::types::PyType, name: Path) -> Result<Self> {
+    pub fn parse(
+        cfg: &Config,
+        class: &pyo3::Bound<pyo3::types::PyType>,
+        name: Path,
+    ) -> Result<Self> {
         let py = class.py();
 
         // Initialize lists for all members of the class
@@ -40,7 +46,7 @@ impl Class {
                     let attr_module = Path::from_py(
                         &attr
                         .getattr(pyo3::intern!(py, "__module__"))
-                        .map(std::string::ToString::to_string)
+                        .map(|a|a.to_string())
                         .unwrap_or_default(),
                     );
                     let attr_type = attr.get_type();
@@ -61,7 +67,7 @@ impl Class {
             // Iterate over the remaining attributes and parse them
             .try_for_each(|(attr, attr_name, attr_module, attr_type)| {
                 let attr_name_full = name.join(&attr_name.clone().into());
-                match AttributeVariant::determine(py, attr, attr_type, &attr_module, &name, false)
+                match AttributeVariant::determine(py, &attr, &attr_type, &attr_module, &name, false)
                     ?
                 {
                     AttributeVariant::Import => {
@@ -83,7 +89,7 @@ impl Class {
                     AttributeVariant::Function | AttributeVariant::Method => {
                         let method = Function::parse(
                             cfg,
-                            attr,
+                            &attr,
                             attr_name_full,
                             FunctionType::Method {
                                 class_path: name.clone(),
@@ -106,7 +112,7 @@ impl Class {
                     AttributeVariant::Property => {
                         let property = Property::parse(
                             cfg,
-                            attr,
+                            &attr,
                             attr_name_full,
                             PropertyOwner::Class,
                         )
@@ -189,8 +195,11 @@ impl Class {
         let object_name = self.name.to_py();
         output.extend(quote::quote! {
             ::pyo3::pyobject_native_type_named!(#struct_ident);
-            ::pyo3::pyobject_native_type_info!(#struct_ident, ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type), ::std::option::Option::Some(#object_name));
-            ::pyo3::pyobject_native_type_extract!(#struct_ident);
+            ::pyo3::pyobject_native_type_info!(
+                #struct_ident,
+                ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type),
+                ::std::option::Option::Some(#object_name)
+            );
         });
 
         // Get the names of all methods to avoid name clashes
@@ -200,15 +209,26 @@ impl Class {
             .map(|method| method.name.name())
             .collect::<Vec<_>>();
 
-        // Generate the struct implementation block
+        // Generate the struct implementation blocks
         let mut struct_impl = proc_macro2::TokenStream::new();
+        let mut method_defs = proc_macro2::TokenStream::new();
+        let mut method_impls = proc_macro2::TokenStream::new();
         // Methods
-        struct_impl.extend(
-            self.methods
-                .iter()
-                .map(|method| method.generate(cfg, &scoped_function_idents, local_types))
-                .collect::<Result<proc_macro2::TokenStream>>()?,
-        );
+        self.methods
+            .iter()
+            .map(|method| method.generate(cfg, &scoped_function_idents, local_types))
+            .try_for_each(|def| {
+                match def? {
+                    FunctionImplementation::Function(impl_fn) => {
+                        struct_impl.extend(impl_fn);
+                    }
+                    FunctionImplementation::Method(TraitMethod { trait_fn, impl_fn }) => {
+                        method_defs.extend(trait_fn);
+                        method_impls.extend(impl_fn);
+                    }
+                }
+                Result::Ok(())
+            })?;
         // Properties
         {
             let mut scoped_function_idents_extra = Vec::with_capacity(2);
@@ -235,19 +255,47 @@ impl Class {
                 scoped_function_idents_extra.push(Ident::from_py("call"));
             }
             scoped_function_idents.extend(scoped_function_idents_extra.iter());
-            struct_impl.extend(
-                self.properties
-                    .iter()
-                    .map(|property| property.generate(cfg, &scoped_function_idents, local_types))
-                    .collect::<Result<proc_macro2::TokenStream>>()?,
-            );
+            self.properties
+                .iter()
+                .map(|property| property.generate(cfg, &scoped_function_idents, local_types))
+                .try_for_each(|def| {
+                    match def? {
+                        FunctionImplementation::Function(impl_fn) => {
+                            struct_impl.extend(impl_fn);
+                        }
+                        FunctionImplementation::Method(TraitMethod { trait_fn, impl_fn }) => {
+                            method_defs.extend(trait_fn);
+                            method_impls.extend(impl_fn);
+                        }
+                    }
+                    Result::Ok(())
+                })?;
         }
 
-        // Finalize the implementation block of the struct
+        // Add the implementation block for the struct
         output.extend(quote::quote! {
             #[automatically_derived]
             impl #struct_ident {
                 #struct_impl
+            }
+        });
+
+        // Add the trait and implementation block for bounded struct
+        let trait_ident: syn::Ident =
+            Ident::from_py(&format!("{struct_ident}Methods")).try_into()?;
+        let struct_ident_str = struct_ident.to_string();
+        output.extend(quote::quote! {
+            /// These methods are defined for the `Bound<'py, T>` smart pointer, so to use
+            /// method call syntax these methods are separated into a trait, because stable
+            /// Rust does not yet support `arbitrary_self_types`.
+            #[doc(alias = #struct_ident_str)]
+            #[automatically_derived]
+            pub trait #trait_ident {
+                #method_defs
+            }
+            #[automatically_derived]
+            impl #trait_ident for ::pyo3::Bound<'_, #struct_ident> {
+                #method_impls
             }
         });
 

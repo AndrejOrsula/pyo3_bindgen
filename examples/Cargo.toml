@@ -9,7 +9,7 @@ publish = false
 
 [dependencies]
 pyo3 = { workspace = true, features = ["auto-initialize"] }
-pyo3_bindgen = { workspace = true }
+pyo3_bindgen = { workspace = true, features = ["macros"] }
 
 [build-dependencies]
 pyo3_bindgen = { workspace = true }

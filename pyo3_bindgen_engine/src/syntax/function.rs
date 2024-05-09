@@ -1,7 +1,8 @@
-use super::{Ident, Path};
+use super::{FunctionImplementation, Ident, Path, TraitMethod};
 use crate::{typing::Type, Config, Result};
 use itertools::Itertools;
-use pyo3::{types::IntoPyDict, ToPyObject};
+use proc_macro2::TokenStream;
+use pyo3::{prelude::*, types::IntoPyDict, ToPyObject};
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -33,7 +34,7 @@ pub enum MethodType {
 impl Function {
     pub fn parse(
         _cfg: &Config,
-        function: &pyo3::types::PyAny,
+        function: &pyo3::Bound<pyo3::types::PyAny>,
         name: Path,
         mut typ: FunctionType,
     ) -> Result<Self> {
@@ -51,7 +52,7 @@ impl Function {
 
         // Extract the signature of the function
         if let Ok(function_signature) = py
-            .import(pyo3::intern!(py, "inspect"))?
+            .import_bound(pyo3::intern!(py, "inspect"))?
             .call_method1(pyo3::intern!(py, "signature"), (function,))
         {
             // Extract the parameters of the function
@@ -75,7 +76,7 @@ impl Function {
                         })),
                         _ => {
                             let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
-                            if annotation.is(param.getattr(pyo3::intern!(py, "empty"))?) {
+                            if annotation.is(&param.getattr(pyo3::intern!(py, "empty"))?) {
                                 Type::Unknown
                             } else {
                                 annotation.try_into()?
@@ -85,7 +86,7 @@ impl Function {
 
                     let default = {
                         let default = param.getattr(pyo3::intern!(py, "default"))?;
-                        if default.is(param.getattr(pyo3::intern!(py, "empty"))?) {
+                        if default.is(&param.getattr(pyo3::intern!(py, "empty"))?) {
                             None
                         } else {
                             Some(default.to_object(py))
@@ -108,7 +109,7 @@ impl Function {
             let return_annotation = {
                 let return_annotation =
                     function_signature.getattr(pyo3::intern!(py, "return_annotation"))?;
-                if return_annotation.is(function_signature.getattr(pyo3::intern!(py, "empty"))?) {
+                if return_annotation.is(&function_signature.getattr(pyo3::intern!(py, "empty"))?) {
                     Type::Unknown
                 } else {
                     return_annotation.try_into()?
@@ -123,7 +124,7 @@ impl Function {
                 } if *method_typ == MethodType::Unknown => {
                     // Get the class object from its class path
                     let class = py
-                        .import(
+                        .import_bound(
                             class_path
                                 .root()
                                 .unwrap_or_else(|| unreachable!())
@@ -143,15 +144,15 @@ impl Function {
                             .getattr(pyo3::intern!(py, "__dict__"))?
                             .get_item(name.name().as_py())
                     }) {
-                        let locals = [("obj", static_fn_obj)].into_py_dict(py);
+                        let locals = [("obj", static_fn_obj)].into_py_dict_bound(py);
                         let method_type = if py
-                            .eval("isinstance(obj, classmethod)", None, Some(locals))?
-                            .is_true()?
+                            .eval_bound("isinstance(obj, classmethod)", None, Some(&locals))?
+                            .is_truthy()?
                         {
                             MethodType::ClassMethod
                         } else if py
-                            .eval("isinstance(obj, staticmethod)", None, Some(locals))?
-                            .is_true()?
+                            .eval_bound("isinstance(obj, staticmethod)", None, Some(&locals))?
+                            .is_truthy()?
                         {
                             MethodType::StaticMethod
                         } else {
@@ -321,14 +322,14 @@ impl Function {
         cfg: &Config,
         scoped_function_idents: &[&Ident],
         local_types: &HashMap<Path, Path>,
-    ) -> Result<proc_macro2::TokenStream> {
-        let mut output = proc_macro2::TokenStream::new();
+    ) -> Result<FunctionImplementation> {
+        let mut impl_fn = proc_macro2::TokenStream::new();
 
         // Documentation
         if cfg.generate_docs {
             if let Some(mut docstring) = self.docstring.clone() {
                 crate::utils::text::format_docstring(&mut docstring);
-                output.extend(quote::quote! {
+                impl_fn.extend(quote::quote! {
                     #[doc = #docstring]
                 });
             }
@@ -339,7 +340,7 @@ impl Function {
             let name = self.name.name();
             if let Ok(ident) = name.try_into() {
                 if crate::config::FORBIDDEN_FUNCTION_NAMES.contains(&name.as_py()) {
-                    return Ok(proc_macro2::TokenStream::new());
+                    return Ok(FunctionImplementation::empty_function());
                 } else {
                     ident
                 }
@@ -360,7 +361,7 @@ impl Function {
                         "WARN: Function '{}' is an invalid Rust ident for a function name. Renaming failed. Bindings will not be generated.",
                         self.name
                     );
-                    return Ok(proc_macro2::TokenStream::new());
+                    return Ok(FunctionImplementation::empty_function());
                 }
             }
         };
@@ -386,15 +387,14 @@ impl Function {
             .map(|param| Result::Ok(param.annotation.clone().into_rs_borrowed(local_types)))
             .collect::<Result<Vec<_>>>()?;
         let return_type = self.return_annotation.clone().into_rs_owned(local_types);
-        output.extend(match &self.typ {
+        let fn_contract = match &self.typ {
             FunctionType::Method {
                 typ: MethodType::InstanceMethod,
                 ..
             } => {
                 quote::quote! {
-                    pub fn #function_ident<'py>(
+                    fn #function_ident<'py>(
                         &'py self,
-                        py: ::pyo3::marker::Python<'py>,
                         #(#param_idents: #param_types),*
                     ) -> ::pyo3::PyResult<#return_type>
                 }
@@ -418,9 +418,8 @@ impl Function {
                 }
                 .try_into()?;
                 quote::quote! {
-                    pub fn #call_fn_ident<'py>(
+                    fn #call_fn_ident<'py>(
                         &'py self,
-                        py: ::pyo3::marker::Python<'py>,
                         #(#param_idents: #param_types),*
                     ) -> ::pyo3::PyResult<#return_type>
                 }
@@ -447,7 +446,7 @@ impl Function {
                     pub fn #new_fn_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                         #(#param_idents: #param_types),*
-                    ) -> ::pyo3::PyResult<&'py Self>
+                    ) -> ::pyo3::PyResult<::pyo3::Bound<'py, Self>>
                 }
             }
             _ => {
@@ -458,7 +457,19 @@ impl Function {
                     ) -> ::pyo3::PyResult<#return_type>
                 }
             }
-        });
+        };
+        impl_fn.extend(fn_contract.clone());
+
+        // If the function is a method with `self` as a parameter, extract the Python marker from `self`
+        let maybe_extract_py = match &self.typ {
+            FunctionType::Method {
+                typ: MethodType::InstanceMethod | MethodType::Callable,
+                ..
+            } => quote::quote! {
+                let py = self.py();
+            },
+            _ => TokenStream::new(),
+        };
 
         // Function body (function dispatcher)
         let function_dispatcher = match &self.typ {
@@ -477,7 +488,7 @@ impl Function {
                 ..
             } => {
                 quote::quote! {
-                    self.0
+                    self
                 }
             }
             FunctionType::Method {
@@ -488,7 +499,7 @@ impl Function {
                     "WARN: Method '{}' has an unknown type. Bindings will not be generated.",
                     self.name
                 );
-                return Ok(proc_macro2::TokenStream::new());
+                return Ok(FunctionImplementation::empty_method());
             }
         };
 
@@ -519,13 +530,12 @@ impl Function {
                 }
             } else {
                 let n_args_fixed = positional_args_idents.len();
-                // TODO: The reference here might be incorrect (&#positional_args_idents could cause double reference) - check
                 quote::quote! {
                     {
-                        let mut __internal__args = Vec::with_capacity(#n_args_fixed + #var_positional_args_ident.len());
+                        let mut __internal__args = Vec::with_capacity(#n_args_fixed + ::pyo3::types::PyTupleMethods::len(#var_positional_args_ident));
                         __internal__args.extend([#(::pyo3::ToPyObject::to_object(&#positional_args_idents, py),)*]);
-                        __internal__args.extend(#var_positional_args_ident.iter().map(|__internal__arg| ::pyo3::ToPyObject::to_object(__internal__arg, py)));
-                        ::pyo3::types::PyTuple::new(
+                        __internal__args.extend(::pyo3::types::PyTupleMethods::iter(#var_positional_args_ident).map(|__internal__arg| ::pyo3::ToPyObject::to_object(&__internal__arg, py)));
+                        ::pyo3::types::PyTuple::new_bound(
                             py,
                             __internal__args,
                         )
@@ -537,9 +547,8 @@ impl Function {
                 ()
             }
         } else {
-            // TODO: The reference here might be incorrect (&#positional_args_idents could cause double reference) - check
             quote::quote! {
-                ::pyo3::types::PyTuple::new(
+                ::pyo3::types::PyTuple::new_bound(
                     py,
                     [#(::pyo3::ToPyObject::to_object(&#positional_args_idents, py),)*],
                 )
@@ -575,7 +584,7 @@ impl Function {
                     {
                         let __internal__kwargs = #var_keyword_args_ident;
                         #(
-                            __internal__kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
+                            ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
                         )*
                         __internal__kwargs
                     }
@@ -583,14 +592,14 @@ impl Function {
             }
         } else if keyword_args_idents.is_empty() {
             quote::quote! {
-                ::pyo3::types::PyDict::new(py)
+                ::pyo3::types::PyDict::new_bound(py)
             }
         } else {
             quote::quote! {
                 {
-                    let __internal__kwargs = ::pyo3::types::PyDict::new(py);
+                    let __internal__kwargs = ::pyo3::types::PyDict::new_bound(py);
                     #(
-                        __internal__kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
+                        ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
                     )*
                     __internal__kwargs
                 }
@@ -604,45 +613,55 @@ impl Function {
         {
             if has_keyword_args {
                 quote::quote! {
-                    call(#positional_args, Some(#keyword_args))
+                    ::pyo3::types::PyAnyMethods::call(#function_dispatcher.as_any(), #positional_args, Some(&#keyword_args))
                 }
             } else if has_positional_args {
                 quote::quote! {
-                    call1(#positional_args)
+                    ::pyo3::types::PyAnyMethods::call1(#function_dispatcher.as_any(), #positional_args)
                 }
             } else {
                 quote::quote! {
-                    call0()
+                    ::pyo3::types::PyAnyMethods::call0(#function_dispatcher.as_any())
                 }
             }
         } else {
             let method_name = self.name.name().as_py();
             if has_keyword_args {
                 quote::quote! {
-                    call_method(::pyo3::intern!(py, #method_name), #positional_args, Some(#keyword_args))
+                    ::pyo3::types::PyAnyMethods::call_method(#function_dispatcher.as_any(), ::pyo3::intern!(py, #method_name), #positional_args, Some(&#keyword_args))
                 }
             } else if has_positional_args {
                 quote::quote! {
-                    call_method1(::pyo3::intern!(py, #method_name), #positional_args)
+                    ::pyo3::types::PyAnyMethods::call_method1(#function_dispatcher.as_any(), ::pyo3::intern!(py, #method_name), #positional_args)
                 }
             } else {
                 quote::quote! {
-                    call_method0(::pyo3::intern!(py, #method_name))
+                    ::pyo3::types::PyAnyMethods::call_method0(#function_dispatcher.as_any(), ::pyo3::intern!(py, #method_name))
                 }
             }
         };
 
         // Function body
-        output.extend(quote::quote! {
+        impl_fn.extend(quote::quote! {
             {
+                #maybe_extract_py
                 #param_preprocessing
-                ::pyo3::FromPyObject::extract(
-                    #function_dispatcher.#call?
+                ::pyo3::types::PyAnyMethods::extract(
+                    &#call?
                 )
             }
         });
 
-        Ok(output)
+        Ok(match &self.typ {
+            FunctionType::Method {
+                typ: MethodType::InstanceMethod | MethodType::Callable,
+                ..
+            } => FunctionImplementation::Method(TraitMethod {
+                trait_fn: quote::quote! { #fn_contract ; },
+                impl_fn,
+            }),
+            _ => FunctionImplementation::Function(impl_fn),
+        })
     }
 }
 

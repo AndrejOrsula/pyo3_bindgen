@@ -74,6 +74,9 @@ This project is intended to simplify the integration or transition of existing P
 
 On its own, the generated Rust code does not provide any performance benefits over using the Python code. However, it can be used as a starting point for further optimization if you decide to rewrite performance-critical parts of your codebase in pure Rust.
 
+> \[!NOTE\]
+> Version `0.5` of `pyo3_bindgen` adapts the new `pyo3::Bound<'py, T>` smart pointer that was introduced in `pyo3` version `0.21`. Use version `0.4` of `pyo3_bindgen` if you require the old "GIL Refs" API.
+
 ## Overview
 
 The workspace contains these packages:
@@ -83,6 +86,11 @@ The workspace contains these packages:
 - **[pyo3_bindgen_engine](pyo3_bindgen_engine):** The underlying engine for generation of bindings
 - **[pyo3_bindgen_macros](pyo3_bindgen_macros):** Procedural macros for in-place generation
 
+Features of `pyo3_bindgen`:
+
+- **`macros` \[experimental\]:** Enables `import_python!` macro from `pyo3_bindgen_macros` crate
+- **`numpy` \[experimental\]:** Enables type mapping between Python [`numpy::ndarray`](https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html) and Rust [`numpy::PyArray`](https://docs.rs/numpy/latest/numpy/array/struct.PyArray.html)
+
 ## Instructions
 
 ### <a href="#-option-1-build-script"><img src="https://rustacean.net/assets/rustacean-flat-noshadow.svg" width="16" height="16"></a> Option 1: Build script
@@ -91,14 +99,15 @@ First, add `pyo3_bindgen` as a **build dependency** to your [`Cargo.toml`](https
 
 ```toml
 [build-dependencies]
-pyo3_bindgen = { version = "0.4" }
+pyo3_bindgen = { version = "0.5" }
 
 [dependencies]
-pyo3 = { version = "0.20", features = ["auto-initialize"] }
+pyo3 = { version = "0.21", features = ["auto-initialize"] }
 ```
 
 Then, create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the selected Python modules. In this example, the bindings are simultaneously generated for the "os", "posixpath", and "sys" Python modules. At the end of the generation process, the Rust bindings are written to `${OUT_DIR}/bindings.rs`.
 
+> \[!TIP\]
 > With this approach, you can also customize the generation process via [`pyo3_bindgen::Config`](https://docs.rs/pyo3_bindgen/latest/pyo3_bindgen/struct.Config.html) that can be passed to the constructor, e.g. `Codegen::new(Config::builder().include_private(true).build())`.
 
 ```rs
@@ -136,15 +145,16 @@ fn main() -> pyo3::PyResult<()> {
 
 ### <a href="#-option-2-procedural-macros-experimental"><img src="https://www.svgrepo.com/show/269868/lab.svg" width="16" height="16"></a> Option 2: Procedural macros (experimental)
 
-As an alternative to build scripts, you can use procedural macros to generate the bindings in-place. First, add `pyo3_bindgen_macros` as a **regular dependency** to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest.
+As an alternative to build scripts, you can use procedural macros to generate the bindings in-place. First, add `pyo3_bindgen_macros` as a **regular dependency** to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest and enable the `macros` feature.
 
 ```toml
 [dependencies]
-pyo3_bindgen = { version = "0.4" }
+pyo3_bindgen = { version = "0.5", features = ["macros"] }
 ```
 
 Subsequently, the `import_python!` macro can be used to generate Rust bindings for the selected Python modules anywhere in your crate. As demonstrated in the example below, Rust bindings are generated for the "math" Python module and can directly be used in the same scope. Similar to the previous approach, the generated bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
 
+> \[!NOTE\]
 > As opposed to using build scripts, this approach does not offer the same level of customization via `pyo3_bindgen::Config`. Furthermore, the procedural macro is quite experimental and might not work in all cases.
 
 ```rs

@@ -1,4 +1,5 @@
 use crate::Result;
+use pyo3::prelude::*;
 
 pub fn with_suppressed_python_output<T>(
     py: pyo3::Python,
@@ -11,7 +12,7 @@ pub fn with_suppressed_python_output<T>(
         return f();
     }
 
-    let sys = py.import(pyo3::intern!(py, "sys"))?;
+    let sys = py.import_bound(pyo3::intern!(py, "sys"))?;
     let stdout_ident = pyo3::intern!(py, "stdout");
     let stderr_ident = pyo3::intern!(py, "stderr");
 
@@ -20,12 +21,12 @@ pub fn with_suppressed_python_output<T>(
     let original_stderr = sys.getattr(stderr_ident)?;
 
     // Suppress the output
-    let supressed_output = py.eval(r"lambda: type('SupressedOutput', (), {'write': lambda self, x: None, 'flush': lambda self: None})", None, None)?;
+    let supressed_output = py.eval_bound(r"lambda: type('SupressedOutput', (), {'write': lambda self, x: None, 'flush': lambda self: None})", None, None)?;
     if suppress_stdout {
-        sys.setattr(stdout_ident, supressed_output)?;
+        sys.setattr(stdout_ident, &supressed_output)?;
     }
     if suppress_stderr {
-        sys.setattr(stderr_ident, supressed_output)?;
+        sys.setattr(stderr_ident, &supressed_output)?;
     }
 
     // Run the function

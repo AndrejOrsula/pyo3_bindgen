@@ -13,6 +13,8 @@ pub enum PyBindgenError {
     ParseError(String),
     #[error("Failed to generate Rust code: {0}")]
     CodegenError(String),
+    #[error(transparent)]
+    Infallible(#[from] std::convert::Infallible),
 }
 
 impl From<pyo3::PyDowncastError<'_>> for PyBindgenError {

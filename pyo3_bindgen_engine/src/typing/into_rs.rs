@@ -34,13 +34,13 @@ impl Type {
                     .contains("PyAny") =>
             {
                 quote! {
-                    let #ident = ::pyo3::types::IntoPyDict::into_py_dict(#ident, py);
+                    let #ident = ::pyo3::types::IntoPyDict::into_py_dict_bound(#ident, py);
                 }
             }
             Self::PyTuple(inner_types) if inner_types.len() < 2 => {
                 quote! {
                     let #ident = ::pyo3::IntoPy::<::pyo3::Py<::pyo3::types::PyTuple>>::into_py(#ident, py);
-                    let #ident = #ident.as_ref(py);
+                    let #ident = #ident.bind(py);
                 }
             }
             Self::PyAny
@@ -51,14 +51,14 @@ impl Type {
             | Self::PyEllipsis => {
                 quote! {
                     let #ident = ::pyo3::IntoPy::<::pyo3::Py<::pyo3::types::PyAny>>::into_py(#ident, py);
-                    let #ident = #ident.as_ref(py);
+                    let #ident = #ident.bind(py);
                 }
             }
             #[cfg(not(all(not(Py_LIMITED_API), not(PyPy))))]
             Self::PyFunction { .. } => {
                 quote! {
                     let #ident = ::pyo3::IntoPy::<::pyo3::Py<::pyo3::types::PyAny>>::into_py(#ident, py);
-                    let #ident = #ident.as_ref(py);
+                    let #ident = #ident.bind(py);
                 }
             }
             Self::Other(type_name)
@@ -67,7 +67,7 @@ impl Type {
             {
                 quote! {
                     let #ident = ::pyo3::IntoPy::<::pyo3::Py<::pyo3::types::PyAny>>::into_py(#ident, py);
-                    let #ident = #ident.as_ref(py);
+                    let #ident = #ident.bind(py);
                 }
             }
             Self::Optional(inner_type) => match inner_type.as_ref() {
@@ -84,9 +84,9 @@ impl Type {
                 {
                     quote! {
                         let #ident = if let Some(#ident) = #ident {
-                            ::pyo3::types::IntoPyDict::into_py_dict(#ident, py)
+                            ::pyo3::types::IntoPyDict::into_py_dict_bound(#ident, py)
                         } else {
-                            ::pyo3::types::PyDict::new(py)
+                            ::pyo3::types::PyDict::new_bound(py)
                         };
                     }
                 }
@@ -99,7 +99,7 @@ impl Type {
     fn into_rs(self, local_types: &HashMap<Path, Path>) -> OutputType {
         match self {
             Self::PyAny | Self::Unknown => OutputType::new(
-                quote!(&'py ::pyo3::types::PyAny),
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
                 quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
             ),
             Self::Other(..) => self.map_type(local_types),
@@ -119,14 +119,14 @@ impl Type {
             Self::Union(_inner_types) => {
                 // TODO: Support Rust enums where possible | alternatively, overload functions for each variant
                 OutputType::new(
-                    quote!(&'py ::pyo3::types::PyAny),
+                    quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
                     quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
                 )
             }
             Self::PyNone => {
                 // TODO: Determine if PyNone is even possible
                 OutputType::new(
-                    quote!(&'py ::pyo3::types::PyAny),
+                    quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
                     quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
                 )
             }
@@ -145,7 +145,7 @@ impl Type {
                     )
                 } else {
                     OutputType::new(
-                        quote!(&'py ::pyo3::types::PyDict),
+                        quote!(::pyo3::Bound<'py, ::pyo3::types::PyDict>),
                         quote!(impl ::pyo3::types::IntoPyDict),
                     )
                 }
@@ -158,7 +158,10 @@ impl Type {
                         quote!(&::std::collections::HashSet<#inner_type>),
                     )
                 } else {
-                    OutputType::new_identical(quote!(&'py ::pyo3::types::PyFrozenSet))
+                    OutputType::new(
+                        quote!(::pyo3::Bound<'py, ::pyo3::types::PyFrozenSet>),
+                        quote!(&::pyo3::Bound<'py, ::pyo3::types::PyFrozenSet>),
+                    )
                 }
             }
             Self::PyList(inner_type) => {
@@ -173,13 +176,16 @@ impl Type {
                         quote!(&::std::collections::HashSet<#inner_type>),
                     )
                 } else {
-                    OutputType::new_identical(quote!(&'py ::pyo3::types::PySet))
+                    OutputType::new(
+                        quote!(::pyo3::Bound<'py, ::pyo3::types::PySet>),
+                        quote!(&::pyo3::Bound<'py, ::pyo3::types::PySet>),
+                    )
                 }
             }
             Self::PyTuple(inner_types) => {
                 if inner_types.len() < 2 {
                     OutputType::new(
-                        quote!(&'py ::pyo3::types::PyTuple),
+                        quote!(::pyo3::Bound<'py, ::pyo3::types::PyTuple>),
                         quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyTuple>>),
                     )
                 } else if inner_types.len() == 2
@@ -200,58 +206,101 @@ impl Type {
             Self::IpV6Addr => OutputType::new_identical(quote!(::std::net::IpV6Addr)),
             Self::Path => OutputType::new(quote!(::std::path::PathBuf), quote!(&::std::path::Path)),
             // TODO: Map `PySlice` to `std::ops::Range` if possible
-            Self::PySlice => OutputType::new_identical(quote!(&'py ::pyo3::types::PySlice)),
+            Self::PySlice => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PySlice>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PySlice>),
+            ),
 
             // Additional types - num-complex
             // TODO: Support conversion of `PyComplex` to `num_complex::Complex` if enabled via `num-complex` feature
-            Self::PyComplex => OutputType::new_identical(quote!(&'py ::pyo3::types::PyComplex)),
+            Self::PyComplex => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyComplex>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyComplex>),
+            ),
 
             // Additional types - datetime
             #[cfg(not(Py_LIMITED_API))]
-            Self::PyDate => OutputType::new_identical(quote!(&'py ::pyo3::types::PyDate)),
+            Self::PyDate => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyDate>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyDate>),
+            ),
             #[cfg(not(Py_LIMITED_API))]
-            Self::PyDateTime => OutputType::new_identical(quote!(&'py ::pyo3::types::PyDateTime)),
+            Self::PyDateTime => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyDateTime>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyDateTime>),
+            ),
             Self::PyDelta => {
                 // The trait `ToPyObject` is not implemented for `Duration`, so we can't use it here yet
                 // OutputType::new_identical(quote!(::std::time::Duration))
                 OutputType::new(
-                    quote!(&'py ::pyo3::types::PyAny),
+                    quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
                     quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
                 )
             }
             #[cfg(not(Py_LIMITED_API))]
-            Self::PyTime => OutputType::new_identical(quote!(&'py ::pyo3::types::PyTime)),
+            Self::PyTime => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyTime>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyTime>),
+            ),
             #[cfg(not(Py_LIMITED_API))]
-            Self::PyTzInfo => OutputType::new_identical(quote!(&'py ::pyo3::types::PyTzInfo)),
+            Self::PyTzInfo => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyTzInfo>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyTzInfo>),
+            ),
 
             // Python-specific types
-            Self::PyCapsule => OutputType::new_identical(quote!(&'py ::pyo3::types::PyCapsule)),
-            Self::PyCFunction => OutputType::new_identical(quote!(&'py ::pyo3::types::PyCFunction)),
+            Self::PyCapsule => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyCapsule>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyCapsule>),
+            ),
+            Self::PyCFunction => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyCFunction>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyCFunction>),
+            ),
             #[cfg(not(Py_LIMITED_API))]
-            Self::PyCode => OutputType::new_identical(quote!(&'py ::pyo3::types::PyCode)),
+            Self::PyCode => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyCode>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyCode>),
+            ),
             Self::PyEllipsis => {
                 // TODO: Determine if PyEllipsis is even possible
                 OutputType::new(
-                    quote!(&'py ::pyo3::types::PyAny),
+                    quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
                     quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
                 )
             }
             #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
-            Self::PyFrame => OutputType::new_identical(quote!(&'py ::pyo3::types::PyFrame)),
+            Self::PyFrame => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyFrame>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyFrame>),
+            ),
             #[cfg(all(not(Py_LIMITED_API), not(PyPy)))]
-            Self::PyFunction { .. } => {
-                OutputType::new_identical(quote!(&'py ::pyo3::types::PyFunction))
-            }
+            Self::PyFunction { .. } => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyFunction>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyFunction>),
+            ),
             #[cfg(not(all(not(Py_LIMITED_API), not(PyPy))))]
             Self::PyFunction { .. } => OutputType::new(
-                quote!(&'py ::pyo3::types::PyAny),
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
                 quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
             ),
-            Self::PyModule => OutputType::new_identical(quote!(&'py ::pyo3::types::PyModule)),
+            Self::PyModule => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyModule>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyModule>),
+            ),
             #[cfg(not(PyPy))]
-            Self::PySuper => OutputType::new_identical(quote!(&'py ::pyo3::types::PySuper)),
-            Self::PyTraceback => OutputType::new_identical(quote!(&'py ::pyo3::types::PyTraceback)),
-            Self::PyType => OutputType::new_identical(quote!(&'py ::pyo3::types::PyType)),
+            Self::PySuper => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PySuper>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PySuper>),
+            ),
+            Self::PyTraceback => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyTraceback>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyTraceback>),
+            ),
+            Self::PyType => OutputType::new(
+                quote!(::pyo3::Bound<'py, ::pyo3::types::PyType>),
+                quote!(&::pyo3::Bound<'py, ::pyo3::types::PyType>),
+            ),
         }
     }
 
@@ -267,21 +316,55 @@ impl Type {
         }
 
         // Try to map the local types
-        if let Some(relative_path) = local_types.get(&Path::from_py(&type_name)) {
+        let type_name_without_delimiters =
+            type_name.split_once('[').map(|s| s.0).unwrap_or(&type_name);
+        if let Some(relative_path) = local_types.get(&Path::from_py(type_name_without_delimiters)) {
             let relative_path: syn::Path = relative_path.try_into().unwrap();
-            return OutputType::new_identical(quote!(&'py #relative_path));
+            return OutputType::new(
+                quote!(::pyo3::Bound<'py, #relative_path>),
+                quote!(&::pyo3::Bound<'py, #relative_path>),
+            );
         }
 
         // Unhandled types
         OutputType::new(
-            quote!(&'py ::pyo3::types::PyAny),
+            quote!(::pyo3::Bound<'py, ::pyo3::types::PyAny>),
             quote!(impl ::pyo3::IntoPy<::pyo3::Py<::pyo3::types::PyAny>>),
         )
     }
 
-    fn try_map_external_type(_type_name: &str) -> Option<OutputType> {
-        // TODO: Handle types from other packages with Rust bindings here (e.g. NumPy)
-        None
+    fn try_map_external_type(type_name: &str) -> Option<OutputType> {
+        // TODO: Handle types from other packages with Rust bindings here
+        match type_name {
+            #[cfg(feature = "numpy")]
+            numpy_ndarray
+                if numpy_ndarray
+                    .split_once('[')
+                    .map(|s| s.0)
+                    .unwrap_or(numpy_ndarray)
+                    .split('.')
+                    .last()
+                    .unwrap_or(numpy_ndarray)
+                    .to_lowercase()
+                    == "ndarray" =>
+            {
+                Some(OutputType::new(
+                    quote!(
+                        ::pyo3::Bound<
+                            'py,
+                            ::numpy::PyArray<::pyo3::Py<::pyo3::types::PyAny>, ::numpy::IxDyn>,
+                        >
+                    ),
+                    quote!(
+                        &::pyo3::Bound<
+                            'py,
+                            ::numpy::PyArray<::pyo3::Py<::pyo3::types::PyAny>, ::numpy::IxDyn>,
+                        >
+                    ),
+                ))
+            }
+            _ => None,
+        }
     }
 }
 
@@ -292,10 +375,10 @@ struct OutputType {
 }
 
 impl OutputType {
-    fn new(own: proc_macro2::TokenStream, bor: proc_macro2::TokenStream) -> Self {
+    fn new(owned: proc_macro2::TokenStream, borrowed: proc_macro2::TokenStream) -> Self {
         Self {
-            owned: Rc::new(own),
-            borrowed: Rc::new(bor),
+            owned: Rc::new(owned),
+            borrowed: Rc::new(borrowed),
         }
     }
 

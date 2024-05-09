@@ -16,10 +16,10 @@
 //!
 //! ```toml
 //! [build-dependencies]
-//! pyo3_bindgen = { version = "0.4" }
+//! pyo3_bindgen = { version = "0.5" }
 //!
 //! [dependencies]
-//! pyo3 = { version = "0.20", features = ["auto-initialize"] }
+//! pyo3 = { version = "0.21", features = ["auto-initialize"] }
 //! ```
 //!
 //! Then, create a [`build.rs`](https://doc.rust-lang.org/cargo/reference/build-scripts.html) script in the root of your crate that generates bindings to the selected Python modules. In this example, the bindings are simultaneously generated for the "os", "posixpath", and "sys" Python modules. At the end of the generation process, the Rust bindings are written to `${OUT_DIR}/bindings.rs`.
@@ -62,18 +62,18 @@
 //!
 //! ### <a href="#-option-2-procedural-macros-experimental"><img src="https://www.svgrepo.com/show/269868/lab.svg" width="16" height="16"></a> Option 2: Procedural macros (experimental)
 //!
-//! As an alternative to build scripts, you can use procedural macros to generate the bindings in-place. First, add `pyo3_bindgen_macros` as a **regular dependency** to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest.
+//! As an alternative to build scripts, you can use procedural macros to generate the bindings in-place. First, add `pyo3_bindgen_macros` as a **regular dependency** to your [`Cargo.toml`](https://doc.rust-lang.org/cargo/reference/manifest.html) manifest and enable the `macros` feature.
 //!
 //! ```toml
 //! [dependencies]
-//! pyo3_bindgen = { version = "0.4" }
+//! pyo3_bindgen = { version = "0.5", features = ["macros"] }
 //! ```
 //!
 //! Subsequently, the `import_python!` macro can be used to generate Rust bindings for the selected Python modules anywhere in your crate. As demonstrated in the example below, Rust bindings are generated for the "math" Python module and can directly be used in the same scope. Similar to the previous approach, the generated bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
 //!
 //! > As opposed to using build scripts, this approach does not offer the same level of customization via `pyo3_bindgen::Config`. Furthermore, the procedural macro is quite experimental and might not work in all cases.
 //!
-//! ```
+//! ```ignore
 //! use pyo3_bindgen::import_python;
 //! import_python!("math");
 //!

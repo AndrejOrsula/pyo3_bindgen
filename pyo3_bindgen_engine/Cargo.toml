@@ -29,13 +29,9 @@ prettyplease = { workspace = true }
 [build-dependencies]
 pyo3-build-config = { workspace = true }
 
-[lib]
-name = "pyo3_bindgen_engine"
-path = "src/lib.rs"
-crate-type = ["rlib"]
-
 [features]
 default = []
+numpy = []
 
 [[bench]]
 name = "bindgen"
