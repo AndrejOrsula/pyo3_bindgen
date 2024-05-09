@@ -282,7 +282,7 @@ checksum = "a47c1c47d2f5964e29c61246e81db715514cd532db6b5116a25ea3c03d6780a2"
 
 [[package]]
 name = "examples"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "pyo3",
  "pyo3_bindgen",
@@ -582,7 +582,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "pyo3",
  "pyo3_bindgen_engine",
@@ -591,7 +591,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_cli"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "assert_cmd",
  "clap",
@@ -603,7 +603,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_engine"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "criterion",
  "indoc",
@@ -621,7 +621,7 @@ dependencies = [
 
 [[package]]
 name = "pyo3_bindgen_macros"
-version = "0.4.1"
+version = "0.5.0"
 dependencies = [
  "libc",
  "pyo3",

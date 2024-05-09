@@ -74,6 +74,9 @@ This project is intended to simplify the integration or transition of existing P
 
 On its own, the generated Rust code does not provide any performance benefits over using the Python code. However, it can be used as a starting point for further optimization if you decide to rewrite performance-critical parts of your codebase in pure Rust.
 
+> \[!NOTE\]
+> Version `0.5` of `pyo3_bindgen` adapts the new `pyo3::Bound<'py, T>` smart pointer that was introduced in `pyo3` version `0.21`. Use version `0.4` of `pyo3_bindgen` if you require the old "GIL Refs" API.
+
 ## Overview
 
 The workspace contains these packages:
@@ -91,7 +94,7 @@ First, add `pyo3_bindgen` as a **build dependency** to your [`Cargo.toml`](https
 
 ```toml
 [build-dependencies]
-pyo3_bindgen = { version = "0.4" }
+pyo3_bindgen = { version = "0.5" }
 
 [dependencies]
 pyo3 = { version = "0.21", features = ["auto-initialize"] }
@@ -141,7 +144,7 @@ As an alternative to build scripts, you can use procedural macros to generate th
 
 ```toml
 [dependencies]
-pyo3_bindgen = { version = "0.4" }
+pyo3_bindgen = { version = "0.5" }
 ```
 
 Subsequently, the `import_python!` macro can be used to generate Rust bindings for the selected Python modules anywhere in your crate. As demonstrated in the example below, Rust bindings are generated for the "math" Python module and can directly be used in the same scope. Similar to the previous approach, the generated bindings must be used within the `pyo3::Python::with_gil` closure to ensure that Python [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) is held.
