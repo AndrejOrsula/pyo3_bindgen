@@ -160,7 +160,6 @@ test_bindgen! {
             ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type),
             ::std::option::Option::Some("mod_bindgen_class.MyClass")
         );
-        ::pyo3::pyobject_native_type_extract!(MyClass);
         #[automatically_derived]
         impl MyClass {
             /// My docstring for __init__
