@@ -1,4 +1,4 @@
-use super::{Ident, Path};
+use super::{FunctionImplementation, Ident, Path, TraitMethod};
 use crate::{typing::Type, Config, Result};
 use pyo3::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
@@ -151,18 +151,46 @@ impl Property {
         cfg: &Config,
         scoped_function_idents: &[&Ident],
         local_types: &HashMap<Path, Path>,
-    ) -> Result<proc_macro2::TokenStream> {
-        let mut output = proc_macro2::TokenStream::new();
+    ) -> Result<FunctionImplementation> {
+        Ok(match self.owner {
+            PropertyOwner::Module => {
+                let mut functions = proc_macro2::TokenStream::new();
 
-        // Getter
-        output.extend(self.generate_getter(cfg, scoped_function_idents, local_types)?);
+                // Getter
+                let impl_fn = self
+                    .generate_getter(cfg, scoped_function_idents, local_types)?
+                    .impl_fn;
+                functions.extend(quote::quote! { pub #impl_fn });
 
-        // Setter (if mutable)
-        if self.is_mutable {
-            output.extend(self.generate_setter(cfg, scoped_function_idents, local_types)?);
-        }
+                // Setter (if mutable)
+                if self.is_mutable {
+                    let impl_fn = self
+                        .generate_setter(cfg, scoped_function_idents, local_types)?
+                        .impl_fn;
+                    functions.extend(quote::quote! { pub #impl_fn });
+                }
 
-        Ok(output)
+                FunctionImplementation::Function(functions)
+            }
+            PropertyOwner::Class => {
+                let mut trait_fn = proc_macro2::TokenStream::new();
+                let mut impl_fn = proc_macro2::TokenStream::new();
+
+                // Getter
+                let getter = self.generate_getter(cfg, scoped_function_idents, local_types)?;
+                trait_fn.extend(getter.trait_fn);
+                impl_fn.extend(getter.impl_fn);
+
+                // Setter (if mutable)
+                if self.is_mutable {
+                    let setter = self.generate_setter(cfg, scoped_function_idents, local_types)?;
+                    trait_fn.extend(setter.trait_fn);
+                    impl_fn.extend(setter.impl_fn);
+                }
+
+                FunctionImplementation::Method(TraitMethod { trait_fn, impl_fn })
+            }
+        })
     }
 
     pub fn generate_getter(
@@ -170,14 +198,15 @@ impl Property {
         cfg: &Config,
         scoped_function_idents: &[&Ident],
         local_types: &HashMap<Path, Path>,
-    ) -> Result<proc_macro2::TokenStream> {
-        let mut output = proc_macro2::TokenStream::new();
+    ) -> Result<TraitMethod> {
+        let mut trait_fn = proc_macro2::TokenStream::new();
+        let mut impl_fn = proc_macro2::TokenStream::new();
 
         // Documentation
         if cfg.generate_docs {
             if let Some(mut docstring) = self.docstring.clone() {
                 crate::utils::text::format_docstring(&mut docstring);
-                output.extend(quote::quote! {
+                impl_fn.extend(quote::quote! {
                     #[doc = #docstring]
                 });
             }
@@ -194,7 +223,7 @@ impl Property {
                     if scoped_function_idents.contains(&&getter_name)
                         || crate::config::FORBIDDEN_FUNCTION_NAMES.contains(&getter_name.as_py())
                     {
-                        return Ok(proc_macro2::TokenStream::new());
+                        return Ok(TraitMethod::empty());
                     } else {
                         getter_name.try_into()?
                     }
@@ -206,7 +235,7 @@ impl Property {
                 if scoped_function_idents.contains(&&getter_name)
                     || crate::config::FORBIDDEN_FUNCTION_NAMES.contains(&getter_name.as_py())
                 {
-                    return Ok(proc_macro2::TokenStream::new());
+                    return Ok(TraitMethod::empty());
                 } else {
                     getter_name.try_into()?
                 }
@@ -222,32 +251,37 @@ impl Property {
                         .unwrap_or_else(|| unreachable!())
                         .import_quote(py)
                 });
-                output.extend(quote::quote! {
-                    pub fn #function_ident<'py>(
+                impl_fn.extend(quote::quote! {
+                    fn #function_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                     ) -> ::pyo3::PyResult<#param_type> {
-                        use ::pyo3::types::PyAnyMethods;
-                        #import.getattr(::pyo3::intern!(py, #param_name))?.extract()
+                        ::pyo3::types::PyAnyMethods::extract(
+                            &::pyo3::types::PyAnyMethods::getattr(#import.as_any(), ::pyo3::intern!(py, #param_name))?
+                        )
                     }
                 });
             }
             PropertyOwner::Class => {
                 let param_name = self.name.name().as_py();
 
-                output.extend(quote::quote! {
-                    pub fn #function_ident<'py>(
-                        slf: &::pyo3::Bound<'py, Self>,
-                        py: ::pyo3::marker::Python<'py>,
+                trait_fn.extend(quote::quote! {
+                    fn #function_ident<'py>(
+                        &'py self,
+                    ) -> ::pyo3::PyResult<#param_type>;
+                });
+                impl_fn.extend(quote::quote! {
+                    fn #function_ident<'py>(
+                        &'py self,
                     ) -> ::pyo3::PyResult<#param_type> {
-                        use ::pyo3::types::PyAnyMethods;
-                        slf.getattr(::pyo3::intern!(py, #param_name))?
-                        .extract()
+                        ::pyo3::types::PyAnyMethods::extract(
+                            &::pyo3::types::PyAnyMethods::getattr(self.as_any(), ::pyo3::intern!(self.py(), #param_name))?
+                        )
                     }
                 });
             }
         }
 
-        Ok(output)
+        Ok(TraitMethod { trait_fn, impl_fn })
     }
 
     pub fn generate_setter(
@@ -255,14 +289,15 @@ impl Property {
         cfg: &Config,
         scoped_function_idents: &[&Ident],
         local_types: &HashMap<Path, Path>,
-    ) -> Result<proc_macro2::TokenStream> {
-        let mut output = proc_macro2::TokenStream::new();
+    ) -> Result<TraitMethod> {
+        let mut trait_fn = proc_macro2::TokenStream::new();
+        let mut impl_fn = proc_macro2::TokenStream::new();
 
         // Documentation
         if cfg.generate_docs {
             if let Some(mut docstring) = self.setter_docstring.clone() {
                 crate::utils::text::format_docstring(&mut docstring);
-                output.extend(quote::quote! {
+                impl_fn.extend(quote::quote! {
                     #[doc = #docstring]
                 });
             }
@@ -274,7 +309,7 @@ impl Property {
             if scoped_function_idents.contains(&&setter_name)
                 || crate::config::FORBIDDEN_FUNCTION_NAMES.contains(&setter_name.as_py())
             {
-                return Ok(proc_macro2::TokenStream::new());
+                return Ok(TraitMethod::empty());
             } else {
                 setter_name.try_into()?
             }
@@ -293,32 +328,36 @@ impl Property {
                         .unwrap_or_else(|| unreachable!())
                         .import_quote(py)
                 });
-                output.extend(quote::quote! {
-                    pub fn #function_ident<'py>(
+                impl_fn.extend(quote::quote! {
+                    fn #function_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                         p_value: #param_type,
                     ) -> ::pyo3::PyResult<()> {
-                        use ::pyo3::types::PyAnyMethods;
                         #param_preprocessing
-                        #import.setattr(::pyo3::intern!(py, #param_name), p_value)
+                        ::pyo3::types::PyAnyMethods::setattr(#import.as_any(), ::pyo3::intern!(py, #param_name), p_value)
                     }
                 });
             }
             PropertyOwner::Class => {
-                output.extend(quote::quote! {
-                    pub fn #function_ident<'py>(
-                        slf: &::pyo3::Bound<'py, Self>,
-                        py: ::pyo3::marker::Python<'py>,
+                trait_fn.extend(quote::quote! {
+                    fn #function_ident<'py>(
+                        &'py self,
+                        p_value: #param_type,
+                    ) -> ::pyo3::PyResult<()>;
+                });
+                impl_fn.extend(quote::quote! {
+                    fn #function_ident<'py>(
+                        &'py self,
                         p_value: #param_type,
                     ) -> ::pyo3::PyResult<()> {
-                        use ::pyo3::types::PyAnyMethods;
+                        let py = self.py();
                         #param_preprocessing
-                        slf.setattr(::pyo3::intern!(py, #param_name), p_value)
+                        ::pyo3::types::PyAnyMethods::setattr(self.as_any(), ::pyo3::intern!(py, #param_name), p_value)
                     }
                 });
             }
         }
 
-        Ok(output)
+        Ok(TraitMethod { trait_fn, impl_fn })
     }
 }

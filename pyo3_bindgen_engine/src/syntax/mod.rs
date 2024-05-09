@@ -7,7 +7,7 @@ pub(crate) mod property;
 pub(crate) mod type_var;
 
 pub use class::Class;
-pub use common::{AttributeVariant, Ident, Path};
+pub use common::{AttributeVariant, FunctionImplementation, Ident, Path, TraitMethod};
 pub use function::{Function, FunctionType, MethodType};
 pub use import::Import;
 pub use module::Module;

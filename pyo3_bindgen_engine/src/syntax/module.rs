@@ -1,6 +1,6 @@
 use super::{
-    AttributeVariant, Class, Function, FunctionType, Ident, Import, Path, Property, PropertyOwner,
-    TypeVar,
+    AttributeVariant, Class, Function, FunctionImplementation, FunctionType, Ident, Import, Path,
+    Property, PropertyOwner, TypeVar,
 };
 use crate::{Config, Result};
 use itertools::Itertools;
@@ -429,7 +429,17 @@ impl Module {
             module_content.extend(
                 self.functions
                     .iter()
-                    .map(|function| function.generate(cfg, &scoped_function_idents, &local_types))
+                    .map(|function| {
+                        function
+                            .generate(cfg, &scoped_function_idents, &local_types)
+                            .map(|def| {
+                                if let FunctionImplementation::Function(impl_fn) = def {
+                                    impl_fn
+                                } else {
+                                    unreachable!("Methods in modules are not possible")
+                                }
+                            })
+                    })
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }
@@ -438,7 +448,17 @@ impl Module {
             module_content.extend(
                 self.properties
                     .iter()
-                    .map(|property| property.generate(cfg, &scoped_function_idents, &local_types))
+                    .map(|property| {
+                        property
+                            .generate(cfg, &scoped_function_idents, &local_types)
+                            .map(|def| {
+                                if let FunctionImplementation::Function(impl_fn) = def {
+                                    impl_fn
+                                } else {
+                                    unreachable!("Methods in modules are not possible")
+                                }
+                            })
+                    })
                     .collect::<Result<proc_macro2::TokenStream>>()?,
             );
         }

@@ -218,9 +218,12 @@ impl Path {
             .collect_vec();
 
         // Generate the import code
-        quote::quote! {
-            py.import_bound(::pyo3::intern!(py, #package_path))?#(.getattr(::pyo3::intern!(py, #remaining_path))?)*
-        }
+        remaining_path.into_iter().fold(
+            quote::quote! { py.import_bound(::pyo3::intern!(py, #package_path))? },
+            |acc, ident| {
+                quote::quote! { ::pyo3::types::PyAnyMethods::getattr(#acc.as_any(), ::pyo3::intern!(py, #ident))? }
+            },
+        )
     }
 }
 
