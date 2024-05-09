@@ -1,17 +1,19 @@
 use super::Type;
 use crate::{PyBindgenError, Result};
 use itertools::Itertools;
+use pyo3::prelude::*;
 use std::str::FromStr;
 
-impl TryFrom<&pyo3::types::PyAny> for Type {
+impl TryFrom<pyo3::Bound<'_, pyo3::types::PyAny>> for Type {
     type Error = PyBindgenError;
-    fn try_from(value: &pyo3::types::PyAny) -> Result<Self> {
+    fn try_from(value: pyo3::Bound<pyo3::types::PyAny>) -> Result<Self> {
         match value {
             // None -> Unknown type
             none if none.is_none() => Ok(Self::Unknown),
             // Handle PyType
             t if t.is_instance_of::<pyo3::types::PyType>() => {
-                Self::try_from(t.downcast::<pyo3::types::PyType>()?)
+                let x = t.downcast_into::<pyo3::types::PyType>().unwrap();
+                Self::try_from(x)
             }
             // Handle typing
             typing
@@ -26,7 +28,12 @@ impl TryFrom<&pyo3::types::PyAny> for Type {
             // Handle everything else as string
             _ => {
                 if value.is_instance_of::<pyo3::types::PyString>() {
-                    Self::from_str(value.downcast::<pyo3::types::PyString>()?.to_str()?)
+                    Self::from_str(
+                        value
+                            .downcast::<pyo3::types::PyString>()
+                            .unwrap()
+                            .to_str()?,
+                    )
                 } else {
                     Self::from_str(&value.to_string())
                 }
@@ -35,9 +42,9 @@ impl TryFrom<&pyo3::types::PyAny> for Type {
     }
 }
 
-impl TryFrom<&pyo3::types::PyType> for Type {
+impl TryFrom<pyo3::Bound<'_, pyo3::types::PyType>> for Type {
     type Error = PyBindgenError;
-    fn try_from(value: &pyo3::types::PyType) -> Result<Self> {
+    fn try_from(value: pyo3::Bound<pyo3::types::PyType>) -> Result<Self> {
         Ok(match value {
             // Primitives
             t if t.is_subclass_of::<pyo3::types::PyBool>()? => Self::PyBool,
@@ -104,7 +111,7 @@ impl TryFrom<&pyo3::types::PyType> for Type {
 }
 
 impl Type {
-    fn from_typing(value: &pyo3::types::PyAny) -> Result<Self> {
+    fn from_typing(value: pyo3::Bound<pyo3::types::PyAny>) -> Result<Self> {
         let py = value.py();
         debug_assert_eq!(
             value
@@ -117,9 +124,12 @@ impl Type {
         if let Ok(wrapping_type) = value.getattr(pyo3::intern!(py, "__origin__")) {
             let wrapping_type = Self::try_from(wrapping_type)?;
             Ok(
-                if let Ok(inner_types) = value
-                    .getattr(pyo3::intern!(py, "__args__"))
-                    .and_then(|inner_types| Ok(inner_types.downcast::<pyo3::types::PyTuple>()?))
+                if let Ok(inner_types) =
+                    value
+                        .getattr(pyo3::intern!(py, "__args__"))
+                        .and_then(|inner_types| {
+                            Ok(inner_types.downcast_into::<pyo3::types::PyTuple>()?)
+                        })
                 {
                     let inner_types = inner_types
                         .iter()

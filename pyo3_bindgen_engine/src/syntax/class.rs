@@ -3,6 +3,7 @@ use super::{
 };
 use crate::{Config, Result};
 use itertools::Itertools;
+use pyo3::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -15,7 +16,11 @@ pub struct Class {
 }
 
 impl Class {
-    pub fn parse(cfg: &Config, class: &pyo3::types::PyType, name: Path) -> Result<Self> {
+    pub fn parse(
+        cfg: &Config,
+        class: &pyo3::Bound<pyo3::types::PyType>,
+        name: Path,
+    ) -> Result<Self> {
         let py = class.py();
 
         // Initialize lists for all members of the class
@@ -40,7 +45,7 @@ impl Class {
                     let attr_module = Path::from_py(
                         &attr
                         .getattr(pyo3::intern!(py, "__module__"))
-                        .map(std::string::ToString::to_string)
+                        .map(|a|a.to_string())
                         .unwrap_or_default(),
                     );
                     let attr_type = attr.get_type();
@@ -61,7 +66,7 @@ impl Class {
             // Iterate over the remaining attributes and parse them
             .try_for_each(|(attr, attr_name, attr_module, attr_type)| {
                 let attr_name_full = name.join(&attr_name.clone().into());
-                match AttributeVariant::determine(py, attr, attr_type, &attr_module, &name, false)
+                match AttributeVariant::determine(py, &attr, &attr_type, &attr_module, &name, false)
                     ?
                 {
                     AttributeVariant::Import => {
@@ -83,7 +88,7 @@ impl Class {
                     AttributeVariant::Function | AttributeVariant::Method => {
                         let method = Function::parse(
                             cfg,
-                            attr,
+                            &attr,
                             attr_name_full,
                             FunctionType::Method {
                                 class_path: name.clone(),
@@ -106,7 +111,7 @@ impl Class {
                     AttributeVariant::Property => {
                         let property = Property::parse(
                             cfg,
-                            attr,
+                            &attr,
                             attr_name_full,
                             PropertyOwner::Class,
                         )
@@ -189,7 +194,12 @@ impl Class {
         let object_name = self.name.to_py();
         output.extend(quote::quote! {
             ::pyo3::pyobject_native_type_named!(#struct_ident);
-            ::pyo3::pyobject_native_type_info!(#struct_ident, ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type), ::std::option::Option::Some(#object_name));
+            ::pyo3::pyobject_native_type_info!(
+                #struct_ident,
+                ::pyo3::pyobject_native_static_type_object!(::pyo3::ffi::PyBaseObject_Type),
+                ::std::option::Option::Some(#object_name)
+            );
+            // TODO: PRobably not necessary
             ::pyo3::pyobject_native_type_extract!(#struct_ident);
         });
 

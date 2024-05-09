@@ -2,6 +2,7 @@ use crate::{
     syntax::{Ident, Path},
     Result,
 };
+use pyo3::prelude::*;
 
 pub enum AttributeVariant {
     Import,
@@ -17,20 +18,20 @@ pub enum AttributeVariant {
 impl AttributeVariant {
     pub fn determine(
         py: pyo3::prelude::Python,
-        attr: &pyo3::prelude::PyAny,
-        attr_type: &pyo3::types::PyType,
+        attr: &pyo3::Bound<pyo3::prelude::PyAny>,
+        attr_type: &pyo3::Bound<pyo3::types::PyType>,
         attr_module: &Path,
         owner_name: &Path,
         consider_import: bool,
     ) -> Result<Self> {
-        let inspect = py.import("inspect")?;
+        let inspect = py.import_bound("inspect")?;
 
         // Get the name and module of the attribute type
         let attr_type_name = Ident::from_py(&attr_type.name().unwrap_or_default());
         let attr_type_module = Path::from_py(
             &attr_type
                 .getattr(pyo3::intern!(py, "__module__"))
-                .map(std::string::ToString::to_string)
+                .map(|a| a.to_string())
                 .unwrap_or_default(),
         );
 
@@ -46,10 +47,10 @@ impl AttributeVariant {
             .unwrap_or(false);
         let is_function = inspect
             .call_method1(pyo3::intern!(py, "isfunction"), (attr,))?
-            .is_true()?;
+            .is_truthy()?;
         let is_method = inspect
             .call_method1(pyo3::intern!(py, "ismethod"), (attr,))?
-            .is_true()?;
+            .is_truthy()?;
         let is_closure =
             attr_type_module.to_py().as_str() == "functools" && attr_type_name.as_py() == "partial";
         let is_type = ["typing", "types"].contains(&attr_type_module.to_py().as_str());

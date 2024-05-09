@@ -1,5 +1,6 @@
 use super::{Ident, Path};
 use crate::{typing::Type, Config, Result};
+use pyo3::prelude::*;
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -22,7 +23,7 @@ pub enum PropertyOwner {
 impl Property {
     pub fn parse(
         _cfg: &Config,
-        property: &pyo3::types::PyAny,
+        property: &pyo3::Bound<pyo3::types::PyAny>,
         name: Path,
         owner: PropertyOwner,
     ) -> Result<Self> {
@@ -35,27 +36,28 @@ impl Property {
         let mut docstring = None;
 
         // Determine the mutability and type of the property
-        let (is_mutable, annotation, setter_annotation, mut setter_docstring);
+        let (is_mutable, annotation, setter_annotation);
+        let mut setter_docstring = None;
         match owner {
             PropertyOwner::Module => {
                 is_mutable = true;
                 annotation = Type::try_from(typ)?;
                 setter_annotation = annotation.clone();
-                setter_docstring = docstring.clone();
+                docstring.clone_from(&setter_docstring);
             }
             PropertyOwner::Class => {
                 let signature = py
-                    .import(pyo3::intern!(py, "inspect"))?
+                    .import_bound(pyo3::intern!(py, "inspect"))?
                     .getattr(pyo3::intern!(py, "signature"))?;
 
                 if let Ok(getter) = property.getattr(pyo3::intern!(py, "fget")) {
                     // Extract the annotation from the return of the function (if available)
-                    if let Ok(function_signature) = signature.call1((getter,)) {
+                    if let Ok(function_signature) = signature.call1((&getter,)) {
                         annotation = {
                             let return_annotation = function_signature
                                 .getattr(pyo3::intern!(py, "return_annotation"))?;
                             if return_annotation
-                                .is(function_signature.getattr(pyo3::intern!(py, "empty"))?)
+                                .is(&function_signature.getattr(pyo3::intern!(py, "empty"))?)
                             {
                                 Type::Unknown
                             } else {
@@ -87,7 +89,7 @@ impl Property {
                         is_mutable = true;
 
                         // Extract the annotation from the parameter of the function (if available)
-                        if let Ok(function_signature) = signature.call1((setter,)) {
+                        if let Ok(function_signature) = signature.call1((&setter,)) {
                             setter_annotation = {
                                 let param = function_signature
                                     .getattr(pyo3::intern!(py, "parameters"))?
@@ -96,7 +98,7 @@ impl Property {
                                     .nth(1)
                                     .unwrap()?;
                                 let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
-                                if annotation.is(param.getattr(pyo3::intern!(py, "empty"))?) {
+                                if annotation.is(&param.getattr(pyo3::intern!(py, "empty"))?) {
                                     Type::Unknown
                                 } else {
                                     annotation.try_into()?
@@ -118,10 +120,10 @@ impl Property {
 
                         if docstring.is_none() {
                             // Update the getter docstring to match setter docstring if it is still empty
-                            docstring = setter_docstring.clone();
+                            docstring.clone_from(&setter_docstring);
                         } else if setter_docstring.is_none() {
                             // Otherwise, update the setter docstring to match the getter docstring if it is still empty
-                            setter_docstring = docstring.clone();
+                            setter_docstring.clone_from(&docstring);
                         }
                     }
                     _ => {
@@ -224,9 +226,8 @@ impl Property {
                     pub fn #function_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                     ) -> ::pyo3::PyResult<#param_type> {
-                        ::pyo3::FromPyObject::extract(
-                            #import.getattr(::pyo3::intern!(py, #param_name))?
-                        )
+                        use ::pyo3::types::PyAnyMethods;
+                        #import.getattr(::pyo3::intern!(py, #param_name))?.extract()
                     }
                 });
             }
@@ -235,10 +236,11 @@ impl Property {
 
                 output.extend(quote::quote! {
                     pub fn #function_ident<'py>(
-                        &'py self,
+                        slf: &::pyo3::Bound<'py, Self>,
                         py: ::pyo3::marker::Python<'py>,
                     ) -> ::pyo3::PyResult<#param_type> {
-                        self.0.getattr(::pyo3::intern!(py, #param_name))?
+                        use ::pyo3::types::PyAnyMethods;
+                        slf.getattr(::pyo3::intern!(py, #param_name))?
                         .extract()
                     }
                 });
@@ -296,6 +298,7 @@ impl Property {
                         py: ::pyo3::marker::Python<'py>,
                         p_value: #param_type,
                     ) -> ::pyo3::PyResult<()> {
+                        use ::pyo3::types::PyAnyMethods;
                         #param_preprocessing
                         #import.setattr(::pyo3::intern!(py, #param_name), p_value)
                     }
@@ -304,12 +307,13 @@ impl Property {
             PropertyOwner::Class => {
                 output.extend(quote::quote! {
                     pub fn #function_ident<'py>(
-                        &'py self,
+                        slf: &::pyo3::Bound<'py, Self>,
                         py: ::pyo3::marker::Python<'py>,
                         p_value: #param_type,
                     ) -> ::pyo3::PyResult<()> {
+                        use ::pyo3::types::PyAnyMethods;
                         #param_preprocessing
-                        self.0.setattr(::pyo3::intern!(py, #param_name), p_value)
+                        slf.setattr(::pyo3::intern!(py, #param_name), p_value)
                     }
                 });
             }

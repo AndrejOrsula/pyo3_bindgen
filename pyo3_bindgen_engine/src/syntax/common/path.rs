@@ -199,7 +199,7 @@ impl Path {
         let mut package_path = self.root().unwrap_or_else(|| unreachable!());
         for i in (1..self.len()).rev() {
             let module_name = Self::from(&self[..i]);
-            if py.import(module_name.to_py().as_str()).is_ok() {
+            if py.import_bound(module_name.to_py().as_str()).is_ok() {
                 package_path = module_name;
                 break;
             }
@@ -219,7 +219,7 @@ impl Path {
 
         // Generate the import code
         quote::quote! {
-            py.import(::pyo3::intern!(py, #package_path))?#(.getattr(::pyo3::intern!(py, #remaining_path))?)*
+            py.import_bound(::pyo3::intern!(py, #package_path))?#(.getattr(::pyo3::intern!(py, #remaining_path))?)*
         }
     }
 }

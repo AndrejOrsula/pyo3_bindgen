@@ -3,6 +3,7 @@ use crate::{
     Config, PyBindgenError, Result,
 };
 use itertools::Itertools;
+use pyo3::prelude::*;
 use rustc_hash::FxHashSet as HashSet;
 
 /// Engine for automatic generation of Rust FFI bindings to Python modules.
@@ -57,7 +58,7 @@ impl Codegen {
     }
 
     /// Add a Python module to the list of modules for which to generate bindings.
-    pub fn module(mut self, module: &pyo3::types::PyModule) -> Result<Self> {
+    pub fn module(mut self, module: &pyo3::Bound<pyo3::types::PyModule>) -> Result<Self> {
         crate::io_utils::with_suppressed_python_output(
             module.py(),
             self.cfg.suppress_python_stdout,
@@ -75,8 +76,8 @@ impl Codegen {
         #[cfg(not(PyPy))]
         pyo3::prepare_freethreaded_python();
         pyo3::Python::with_gil(|py| {
-            let module = py.import(module_name)?;
-            self.module(module)
+            let module = py.import_bound(module_name)?;
+            self.module(&module)
         })
     }
 
@@ -85,20 +86,20 @@ impl Codegen {
         #[cfg(not(PyPy))]
         pyo3::prepare_freethreaded_python();
         pyo3::Python::with_gil(|py| {
-            let module = pyo3::types::PyModule::from_code(
+            let module = pyo3::types::PyModule::from_code_bound(
                 py,
                 source_code,
                 &format!("{new_module_name}/__init__.py"),
                 new_module_name,
             )?;
-            self.module(module)
+            self.module(&module)
         })
     }
 
     /// Add multiple Python modules to the list of modules for which to generate bindings.
     pub fn modules<'py>(
         mut self,
-        modules: impl AsRef<[&'py pyo3::types::PyModule]>,
+        modules: impl AsRef<[pyo3::Bound<'py, pyo3::types::PyModule>]>,
     ) -> Result<Self> {
         let modules = modules.as_ref();
         self.modules.reserve(modules.len());
@@ -178,7 +179,7 @@ impl Codegen {
                 // Get the last valid module within the path of the import
                 .map(|import| {
                     let mut last_module = py
-                        .import(
+                        .import_bound(
                             import
                                 .root()
                                 .unwrap_or_else(|| unreachable!())
@@ -188,7 +189,7 @@ impl Codegen {
                         .unwrap();
                     for path in &import[1..] {
                         if let Ok(attr) = last_module.getattr(path.as_py()) {
-                            if let Ok(module) = attr.extract::<&pyo3::types::PyModule>() {
+                            if let Ok(module) = attr.downcast_into::<pyo3::types::PyModule>() {
                                 last_module = module;
                             } else {
                                 break;
@@ -204,14 +205,14 @@ impl Codegen {
                 // Filter attributes based on various configurable conditions
                 .filter(|module| {
                     self.cfg.is_attr_allowed(
-                        &Ident::from_py(module.name().unwrap()),
+                        &Ident::from_py(&module.name().unwrap().to_string()),
                         &Path::from_py(
                             &module
                                 .getattr(pyo3::intern!(py, "__module__"))
-                                .map(std::string::ToString::to_string)
+                                .map(|a| a.to_string())
                                 .unwrap_or_default(),
                         ),
-                        py.get_type::<pyo3::types::PyModule>(),
+                        &py.get_type_bound::<pyo3::types::PyModule>(),
                     )
                 })
                 .try_for_each(|module| {
@@ -220,7 +221,7 @@ impl Codegen {
                         self.cfg.suppress_python_stdout,
                         self.cfg.suppress_python_stderr,
                         || {
-                            self.modules.push(Module::parse(&self.cfg, module)?);
+                            self.modules.push(Module::parse(&self.cfg, &module)?);
                             Ok(())
                         },
                     )

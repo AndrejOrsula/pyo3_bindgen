@@ -79,7 +79,7 @@ impl Config {
         &self,
         attr_name: &Ident,
         attr_module: &Path,
-        _attr_type: &pyo3::types::PyType,
+        _attr_type: &pyo3::Bound<pyo3::types::PyType>,
     ) -> bool {
         if
         // Skip always forbidden attribute names

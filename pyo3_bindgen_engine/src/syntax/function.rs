@@ -1,7 +1,7 @@
 use super::{Ident, Path};
 use crate::{typing::Type, Config, Result};
 use itertools::Itertools;
-use pyo3::{types::IntoPyDict, ToPyObject};
+use pyo3::{prelude::*, types::IntoPyDict, ToPyObject};
 use rustc_hash::FxHashMap as HashMap;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -33,7 +33,7 @@ pub enum MethodType {
 impl Function {
     pub fn parse(
         _cfg: &Config,
-        function: &pyo3::types::PyAny,
+        function: &pyo3::Bound<pyo3::types::PyAny>,
         name: Path,
         mut typ: FunctionType,
     ) -> Result<Self> {
@@ -51,7 +51,7 @@ impl Function {
 
         // Extract the signature of the function
         if let Ok(function_signature) = py
-            .import(pyo3::intern!(py, "inspect"))?
+            .import_bound(pyo3::intern!(py, "inspect"))?
             .call_method1(pyo3::intern!(py, "signature"), (function,))
         {
             // Extract the parameters of the function
@@ -75,7 +75,7 @@ impl Function {
                         })),
                         _ => {
                             let annotation = param.getattr(pyo3::intern!(py, "annotation"))?;
-                            if annotation.is(param.getattr(pyo3::intern!(py, "empty"))?) {
+                            if annotation.is(&param.getattr(pyo3::intern!(py, "empty"))?) {
                                 Type::Unknown
                             } else {
                                 annotation.try_into()?
@@ -85,7 +85,7 @@ impl Function {
 
                     let default = {
                         let default = param.getattr(pyo3::intern!(py, "default"))?;
-                        if default.is(param.getattr(pyo3::intern!(py, "empty"))?) {
+                        if default.is(&param.getattr(pyo3::intern!(py, "empty"))?) {
                             None
                         } else {
                             Some(default.to_object(py))
@@ -108,7 +108,7 @@ impl Function {
             let return_annotation = {
                 let return_annotation =
                     function_signature.getattr(pyo3::intern!(py, "return_annotation"))?;
-                if return_annotation.is(function_signature.getattr(pyo3::intern!(py, "empty"))?) {
+                if return_annotation.is(&function_signature.getattr(pyo3::intern!(py, "empty"))?) {
                     Type::Unknown
                 } else {
                     return_annotation.try_into()?
@@ -123,7 +123,7 @@ impl Function {
                 } if *method_typ == MethodType::Unknown => {
                     // Get the class object from its class path
                     let class = py
-                        .import(
+                        .import_bound(
                             class_path
                                 .root()
                                 .unwrap_or_else(|| unreachable!())
@@ -143,15 +143,15 @@ impl Function {
                             .getattr(pyo3::intern!(py, "__dict__"))?
                             .get_item(name.name().as_py())
                     }) {
-                        let locals = [("obj", static_fn_obj)].into_py_dict(py);
+                        let locals = [("obj", static_fn_obj)].into_py_dict_bound(py);
                         let method_type = if py
-                            .eval("isinstance(obj, classmethod)", None, Some(locals))?
-                            .is_true()?
+                            .eval_bound("isinstance(obj, classmethod)", None, Some(&locals))?
+                            .is_truthy()?
                         {
                             MethodType::ClassMethod
                         } else if py
-                            .eval("isinstance(obj, staticmethod)", None, Some(locals))?
-                            .is_true()?
+                            .eval_bound("isinstance(obj, staticmethod)", None, Some(&locals))?
+                            .is_truthy()?
                         {
                             MethodType::StaticMethod
                         } else {
@@ -393,7 +393,7 @@ impl Function {
             } => {
                 quote::quote! {
                     pub fn #function_ident<'py>(
-                        &'py self,
+                        slf: &::pyo3::Bound<'py, Self>,
                         py: ::pyo3::marker::Python<'py>,
                         #(#param_idents: #param_types),*
                     ) -> ::pyo3::PyResult<#return_type>
@@ -419,7 +419,7 @@ impl Function {
                 .try_into()?;
                 quote::quote! {
                     pub fn #call_fn_ident<'py>(
-                        &'py self,
+                        slf: &::pyo3::Bound<'py, Self>,
                         py: ::pyo3::marker::Python<'py>,
                         #(#param_idents: #param_types),*
                     ) -> ::pyo3::PyResult<#return_type>
@@ -447,7 +447,7 @@ impl Function {
                     pub fn #new_fn_ident<'py>(
                         py: ::pyo3::marker::Python<'py>,
                         #(#param_idents: #param_types),*
-                    ) -> ::pyo3::PyResult<&'py Self>
+                    ) -> ::pyo3::PyResult<::pyo3::Bound<'py, Self>>
                 }
             }
             _ => {
@@ -477,7 +477,7 @@ impl Function {
                 ..
             } => {
                 quote::quote! {
-                    self.0
+                    slf
                 }
             }
             FunctionType::Method {
@@ -519,13 +519,12 @@ impl Function {
                 }
             } else {
                 let n_args_fixed = positional_args_idents.len();
-                // TODO: The reference here might be incorrect (&#positional_args_idents could cause double reference) - check
                 quote::quote! {
                     {
-                        let mut __internal__args = Vec::with_capacity(#n_args_fixed + #var_positional_args_ident.len());
+                        let mut __internal__args = Vec::with_capacity(#n_args_fixed + #var_positional_args_ident.len()?);
                         __internal__args.extend([#(::pyo3::ToPyObject::to_object(&#positional_args_idents, py),)*]);
-                        __internal__args.extend(#var_positional_args_ident.iter().map(|__internal__arg| ::pyo3::ToPyObject::to_object(__internal__arg, py)));
-                        ::pyo3::types::PyTuple::new(
+                        __internal__args.extend(#var_positional_args_ident.iter().as_ref().map(|__internal__arg| ::pyo3::ToPyObject::to_object(__internal__arg, py)));
+                        ::pyo3::types::PyTuple::new_bound(
                             py,
                             __internal__args,
                         )
@@ -537,9 +536,8 @@ impl Function {
                 ()
             }
         } else {
-            // TODO: The reference here might be incorrect (&#positional_args_idents could cause double reference) - check
             quote::quote! {
-                ::pyo3::types::PyTuple::new(
+                ::pyo3::types::PyTuple::new_bound(
                     py,
                     [#(::pyo3::ToPyObject::to_object(&#positional_args_idents, py),)*],
                 )
@@ -583,12 +581,12 @@ impl Function {
             }
         } else if keyword_args_idents.is_empty() {
             quote::quote! {
-                ::pyo3::types::PyDict::new(py)
+                ::pyo3::types::PyDict::new_bound(py)
             }
         } else {
             quote::quote! {
                 {
-                    let __internal__kwargs = ::pyo3::types::PyDict::new(py);
+                    let __internal__kwargs = ::pyo3::types::PyDict::new_bound(py);
                     #(
                         __internal__kwargs.set_item(::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
                     )*
@@ -604,7 +602,7 @@ impl Function {
         {
             if has_keyword_args {
                 quote::quote! {
-                    call(#positional_args, Some(#keyword_args))
+                    call(#positional_args, Some(&#keyword_args))
                 }
             } else if has_positional_args {
                 quote::quote! {
@@ -619,7 +617,7 @@ impl Function {
             let method_name = self.name.name().as_py();
             if has_keyword_args {
                 quote::quote! {
-                    call_method(::pyo3::intern!(py, #method_name), #positional_args, Some(#keyword_args))
+                    call_method(::pyo3::intern!(py, #method_name), #positional_args, Some(&#keyword_args))
                 }
             } else if has_positional_args {
                 quote::quote! {
@@ -635,10 +633,9 @@ impl Function {
         // Function body
         output.extend(quote::quote! {
             {
+                use ::pyo3::types::PyAnyMethods;
                 #param_preprocessing
-                ::pyo3::FromPyObject::extract(
-                    #function_dispatcher.#call?
-                )
+                #function_dispatcher.#call?.extract()
             }
         });
 
