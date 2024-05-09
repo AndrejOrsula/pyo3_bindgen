@@ -51,6 +51,8 @@ test_bindgen! {
         unused
     )]
     pub mod mod_bindgen_property {
+        /// Embed the Python source code of the module into the Python interpreter
+        /// in order to enable the use of the generated Rust bindings.
         pub fn pyo3_embed_python_source_code<'py>(
             py: ::pyo3::marker::Python<'py>,
         ) -> ::pyo3::PyResult<()> {
@@ -111,6 +113,8 @@ test_bindgen! {
         unused
     )]
     pub mod mod_bindgen_function {
+        /// Embed the Python source code of the module into the Python interpreter
+        /// in order to enable the use of the generated Rust bindings.
         pub fn pyo3_embed_python_source_code<'py>(
             py: ::pyo3::marker::Python<'py>,
         ) -> ::pyo3::PyResult<()> {
@@ -187,6 +191,8 @@ test_bindgen! {
         unused
     )]
     pub mod mod_bindgen_class {
+        /// Embed the Python source code of the module into the Python interpreter
+        /// in order to enable the use of the generated Rust bindings.
         pub fn pyo3_embed_python_source_code<'py>(
             py: ::pyo3::marker::Python<'py>,
         ) -> ::pyo3::PyResult<()> {

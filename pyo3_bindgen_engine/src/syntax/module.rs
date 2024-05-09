@@ -480,6 +480,8 @@ impl Module {
             let module_name = self.name.to_rs();
             let file_name = format!("{module_name}/__init__.py");
             quote::quote! {
+                /// Embed the Python source code of the module into the Python interpreter
+                /// in order to enable the use of the generated Rust bindings.
                 pub fn pyo3_embed_python_source_code<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<()> {
                     const SOURCE_CODE: &str = #source_code;
                     pyo3::types::PyAnyMethods::set_item(
