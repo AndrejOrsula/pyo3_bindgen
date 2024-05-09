@@ -73,7 +73,7 @@
 //!
 //! > As opposed to using build scripts, this approach does not offer the same level of customization via `pyo3_bindgen::Config`. Furthermore, the procedural macro is quite experimental and might not work in all cases.
 //!
-//! ```
+//! ```ignore
 //! use pyo3_bindgen::import_python;
 //! import_python!("math");
 //!

@@ -19,6 +19,7 @@ pub struct Module {
     pub properties: Vec<Property>,
     pub docstring: Option<String>,
     pub is_package: bool,
+    pub source_code: Option<String>,
 }
 
 impl Module {
@@ -46,6 +47,7 @@ impl Module {
             properties: Vec::default(),
             docstring,
             is_package: true,
+            source_code: None,
         })
     }
 
@@ -309,6 +311,7 @@ impl Module {
             properties,
             docstring,
             is_package,
+            source_code: None,
         })
     }
 
@@ -472,10 +475,37 @@ impl Module {
             );
         }
 
+        // Embed the source code if the module was parsed directly from source code
+        let embed_source_code_fn = if let Some(source_code) = &self.source_code {
+            let module_name = self.name.to_rs();
+            let file_name = format!("{module_name}/__init__.py");
+            quote::quote! {
+                pub fn pyo3_embed_python_source_code<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<()> {
+                    const SOURCE_CODE: &str = #source_code;
+                    pyo3::types::PyAnyMethods::set_item(
+                        &pyo3::types::PyAnyMethods::getattr(
+                            py.import_bound(pyo3::intern!(py, "sys"))?.as_any(),
+                            pyo3::intern!(py, "modules"),
+                        )?,
+                        #module_name,
+                        pyo3::types::PyModule::from_code_bound(
+                            py,
+                            SOURCE_CODE,
+                            #file_name,
+                            #module_name,
+                        )?,
+                    )
+                }
+            }
+        } else {
+            proc_macro2::TokenStream::new()
+        };
+
         // Finalize the module with its content
         let module_ident: syn::Ident = self.name.name().try_into()?;
         output.extend(quote::quote! {
             pub mod #module_ident {
+                #embed_source_code_fn
                 #module_content
             }
         });

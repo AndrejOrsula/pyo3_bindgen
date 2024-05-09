@@ -51,6 +51,24 @@ test_bindgen! {
         unused
     )]
     pub mod mod_bindgen_property {
+        pub fn pyo3_embed_python_source_code<'py>(
+            py: ::pyo3::marker::Python<'py>,
+        ) -> ::pyo3::PyResult<()> {
+            const SOURCE_CODE: &str = "my_property: float = 0.42\n";
+            pyo3::types::PyAnyMethods::set_item(
+                &pyo3::types::PyAnyMethods::getattr(
+                    py.import_bound(pyo3::intern!(py, "sys"))?.as_any(),
+                    pyo3::intern!(py, "modules"),
+                )?,
+                "mod_bindgen_property",
+                pyo3::types::PyModule::from_code_bound(
+                    py,
+                    SOURCE_CODE,
+                    "mod_bindgen_property/__init__.py",
+                    "mod_bindgen_property",
+                )?,
+            )
+        }
         pub fn my_property<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<f64> {
             ::pyo3::types::PyAnyMethods::extract(
                 &::pyo3::types::PyAnyMethods::getattr(
@@ -93,6 +111,24 @@ test_bindgen! {
         unused
     )]
     pub mod mod_bindgen_function {
+        pub fn pyo3_embed_python_source_code<'py>(
+            py: ::pyo3::marker::Python<'py>,
+        ) -> ::pyo3::PyResult<()> {
+            const SOURCE_CODE: &str = "def my_function(my_arg1: str) -> int:\n    \"\"\"My docstring for `my_function`\"\"\"\n    ...\n";
+            pyo3::types::PyAnyMethods::set_item(
+                &pyo3::types::PyAnyMethods::getattr(
+                    py.import_bound(pyo3::intern!(py, "sys"))?.as_any(),
+                    pyo3::intern!(py, "modules"),
+                )?,
+                "mod_bindgen_function",
+                pyo3::types::PyModule::from_code_bound(
+                    py,
+                    SOURCE_CODE,
+                    "mod_bindgen_function/__init__.py",
+                    "mod_bindgen_function",
+                )?,
+            )
+        }
         /// My docstring for `my_function`
         pub fn my_function<'py>(
             py: ::pyo3::marker::Python<'py>,
@@ -151,6 +187,24 @@ test_bindgen! {
         unused
     )]
     pub mod mod_bindgen_class {
+        pub fn pyo3_embed_python_source_code<'py>(
+            py: ::pyo3::marker::Python<'py>,
+        ) -> ::pyo3::PyResult<()> {
+            const SOURCE_CODE: &str = "from typing import Dict, Optional\nclass MyClass:\n    \"\"\"My docstring for `MyClass`\"\"\"\n    def __init__(self, my_arg1: str, my_arg2: Optional[int] = None):\n        \"\"\"My docstring for __init__\"\"\"\n        ...\n    def my_method(self, my_arg1: Dict[str, int], **kwargs):\n        \"\"\"My docstring for `my_method`\"\"\"\n        ...\n    @property\n    def my_property(self) -> int:\n        ...\n    @my_property.setter\n    def my_property(self, value: int):\n        ...\n\ndef my_function_with_class_param(my_arg1: MyClass):\n    ...\n\ndef my_function_with_class_return() -> MyClass:\n    ...\n";
+            pyo3::types::PyAnyMethods::set_item(
+                &pyo3::types::PyAnyMethods::getattr(
+                    py.import_bound(pyo3::intern!(py, "sys"))?.as_any(),
+                    pyo3::intern!(py, "modules"),
+                )?,
+                "mod_bindgen_class",
+                pyo3::types::PyModule::from_code_bound(
+                    py,
+                    SOURCE_CODE,
+                    "mod_bindgen_class/__init__.py",
+                    "mod_bindgen_class",
+                )?,
+            )
+        }
         /// My docstring for `MyClass`
         #[repr(transparent)]
         pub struct MyClass(::pyo3::PyAny);
