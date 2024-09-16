@@ -379,8 +379,7 @@ impl Function {
                 let bind = param
                     .annotation
                     .preprocess_borrowed(param_ident, local_types);
-
-                if param.default.is_some() {
+                if param.default.is_some() && !matches!(param.annotation, Type::Optional(_)) {
                     let option_ident = quote::format_ident!("optional_{}", param_ident);
                     quote::quote! {
                         let #option_ident = #param_ident.is_some();
@@ -396,15 +395,16 @@ impl Function {
             .iter()
             .map(|param| {
                 let local_type = param.annotation.clone().into_rs_borrowed(local_types);
-                let res = if param.default.is_some() {
-                    quote::quote! {
-                        Option<#local_type>
-                    }
-                } else {
-                    local_type
-                };
-                Result::Ok(res)}
-            )
+                let res =
+                    if param.default.is_some() && !matches!(param.annotation, Type::Optional(_)) {
+                        quote::quote! {
+                            Option<#local_type>
+                        }
+                    } else {
+                        local_type
+                    };
+                Result::Ok(res)
+            })
             .collect::<Result<Vec<_>>>()?;
         let return_type = self.return_annotation.clone().into_rs_owned(local_types);
         let fn_contract = match &self.typ {
@@ -604,12 +604,13 @@ impl Function {
                     #var_keyword_args_ident
                 }
             } else {
+                //TODO::
                 //let option_ident: syn::Ident = Ident::from_py(&format!("optional_{}", param.name)).try_into().unwrap();
                 quote::quote! {
                     {
                         let __internal__kwargs = #var_keyword_args_ident;
                         #(
-                            if format_ident!("optional{}", keyword_args_idents) {
+                            if #keyword_args_idents_optional {
                                 ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
                             };
                         )*
