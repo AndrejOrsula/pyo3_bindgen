@@ -26,7 +26,7 @@ fn main() -> pyo3::PyResult<()> {
         // Get the current working directory via "os" Python module
         let current_dir = os::getcwd(py)?;
         // Get the relative path to the Python executable via "posixpath" Python module
-        let relpath_to_python_exe = posixpath::relpath(py, python_exe_path, current_dir)?;
+        let relpath_to_python_exe = posixpath::relpath(py, python_exe_path, Some(current_dir))?;
 
         println!("Relative path to Python executable: '{relpath_to_python_exe}'");
         Ok(())

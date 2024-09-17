@@ -376,15 +376,35 @@ impl Function {
             .iter()
             .zip(param_idents.iter())
             .map(|(param, param_ident)| {
-                param
+                let bind = param
                     .annotation
-                    .preprocess_borrowed(param_ident, local_types)
+                    .preprocess_borrowed(param_ident, local_types);
+                if param.default.is_some() && !matches!(param.annotation, Type::Optional(_)) {
+                    let option_ident = quote::format_ident!("optional_{}", param_ident);
+                    quote::quote! {
+                        let #option_ident = #param_ident.is_some();
+                        #bind
+                    }
+                } else {
+                    bind
+                }
             })
             .collect();
         let param_types: Vec<proc_macro2::TokenStream> = self
             .parameters
             .iter()
-            .map(|param| Result::Ok(param.annotation.clone().into_rs_borrowed(local_types)))
+            .map(|param| {
+                let local_type = param.annotation.clone().into_rs_borrowed(local_types);
+                let res =
+                    if param.default.is_some() && !matches!(param.annotation, Type::Optional(_)) {
+                        quote::quote! {
+                            Option<#local_type>
+                        }
+                    } else {
+                        local_type
+                    };
+                Result::Ok(res)
+            })
             .collect::<Result<Vec<_>>>()?;
         let return_type = self.return_annotation.clone().into_rs_owned(local_types);
         let fn_contract = match &self.typ {
@@ -568,6 +588,10 @@ impl Function {
             .iter()
             .map(|param| Ok(Ident::from_py(&format!("p_{}", param.name)).try_into()?))
             .collect::<Result<_>>()?;
+        let keyword_args_idents_optional: Vec<syn::Ident> = keyword_args_idents
+            .iter()
+            .map(|param| quote::format_ident!("optional_{}", param))
+            .collect::<_>();
         let var_keyword_args_ident: Option<syn::Ident> = self
             .parameters
             .iter()
@@ -580,11 +604,15 @@ impl Function {
                     #var_keyword_args_ident
                 }
             } else {
+                //TODO::
+                //let option_ident: syn::Ident = Ident::from_py(&format!("optional_{}", param.name)).try_into().unwrap();
                 quote::quote! {
                     {
                         let __internal__kwargs = #var_keyword_args_ident;
                         #(
-                            ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
+                            if #keyword_args_idents_optional {
+                                ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
+                            };
                         )*
                         __internal__kwargs
                     }
@@ -599,7 +627,9 @@ impl Function {
                 {
                     let __internal__kwargs = ::pyo3::types::PyDict::new_bound(py);
                     #(
-                        ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
+                        if #keyword_args_idents_optional {
+                            ::pyo3::types::PyDictMethods::set_item(&__internal__kwargs, ::pyo3::intern!(py, #keyword_args_names), #keyword_args_idents);
+                        };
                     )*
                     __internal__kwargs
                 }
