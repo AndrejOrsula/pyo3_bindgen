@@ -1,3 +1,4 @@
+#[cfg(unix)]
 use pyo3::prelude::*;
 
 /// Ensure that the symbols of the libpython shared library are loaded globally.

@@ -504,7 +504,13 @@ impl Module {
         };
 
         // Finalize the module with its content
-        let module_ident: syn::Ident = self.name.name().try_into()?;
+        let module_ident: syn::Ident = self.name.name().try_into().map_err(|err| {
+            crate::PyBindgenError::CodegenError(format!(
+                "Failed to convert module name `{}` to identifier: {}",
+                self.name.name(),
+                err
+            ))
+        })?;
         output.extend(quote::quote! {
             pub mod #module_ident {
                 #embed_source_code_fn
