@@ -10,7 +10,6 @@ target/
 **/.pytest_cache/
 **/*.pcd
 **/*.py[cod]
-**/*.pyc
 **/*$py.class
 
 ## Shared Objects
@@ -19,6 +18,9 @@ target/
 ## Virtual environments
 .env/
 .venv/
+
+## Agent scratch
+.superpowers/
 
 ## VS Code
 .vscode/*

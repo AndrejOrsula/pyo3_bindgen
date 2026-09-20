@@ -1,0 +1,50 @@
+{
+  "modules": [
+    {
+      "name": "mymod",
+      "is_package": false,
+      "classes": [
+        {
+          "name": "mymod.MyClass",
+          "base_classes": [],
+          "methods": [
+            {
+              "name": "mymod.MyClass.__init__",
+              "kind": {
+                "Method": {
+                  "method_type": "Constructor"
+                }
+              },
+              "params": [
+                {
+                  "name": "self",
+                  "kind": "PositionalOrKeyword",
+                  "annotation": "",
+                  "has_default": false
+                }
+              ],
+              "return_type": "",
+              "docstring": null
+            }
+          ]
+        }
+      ],
+      "functions": [
+        {
+          "name": "mymod.greet",
+          "kind": "Function",
+          "params": [
+            {
+              "name": "name",
+              "kind": "PositionalOrKeyword",
+              "annotation": "str",
+              "has_default": false
+            }
+          ],
+          "return_type": "str",
+          "docstring": null
+        }
+      ]
+    }
+  ]
+}

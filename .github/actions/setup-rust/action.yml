@@ -1,0 +1,156 @@
+name: Setup Rust toolchain
+description: Install the requested Rust toolchain and select its rustup proxies
+
+inputs:
+  toolchain:
+    description: Rust toolchain name or channel passed to rustup
+    required: true
+  targets:
+    description: Optional rustup targets to install
+    required: false
+    default: ""
+  components:
+    description: Optional rustup components to install
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Prefer rustup-managed Rust proxies
+      shell: bash
+      run: |
+        set -euo pipefail
+        cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+        [[ "${cargo_home}" == /* ]] || {
+          printf 'CARGO_HOME must be absolute: %s\n' "${cargo_home}" >&2
+          exit 1
+        }
+        rustup_bin="${cargo_home}/bin"
+        export PATH="${rustup_bin}:${PATH}"
+        printf '%s\n' "${rustup_bin}" >> "${GITHUB_PATH}"
+
+    - name: Install selected Rust toolchain
+      uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+      with:
+        toolchain: ${{ inputs.toolchain }}
+        targets: ${{ inputs.targets }}
+        components: ${{ inputs.components }}
+
+    - name: Repair missing rustup proxies
+      shell: bash
+      run: |
+        set -euo pipefail
+        cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+        [[ "${cargo_home}" == /* ]] || {
+          printf 'CARGO_HOME must be absolute: %s\n' "${cargo_home}" >&2
+          exit 1
+        }
+        rustup_bin="${cargo_home}/bin"
+        export PATH="${rustup_bin}:${PATH}"
+        rustup_path="$(type -P rustup || true)"
+        [[ -n "${rustup_path}" && -x "${rustup_path}" ]] || {
+          printf 'rustup executable is unavailable on PATH: %s\n' "${rustup_path}" >&2
+          exit 1
+        }
+        mkdir -p "${rustup_bin}"
+        ensure_proxy() {
+          local source="$1"
+          local destination="$2"
+          if [[ -e "${destination}" || -L "${destination}" ]]; then
+            [[ -x "${destination}" ]] || {
+              printf 'rustup proxy is not executable: %s\n' "${destination}" >&2
+              return 1
+            }
+            return 0
+          fi
+          if ! ln -s "${source}" "${destination}" 2>/dev/null; then
+            if [[ ! -e "${destination}" && ! -L "${destination}" ]]; then
+              ln "${source}" "${destination}" 2>/dev/null || {
+                [[ -e "${destination}" || -L "${destination}" ]] || {
+                  printf 'unable to create rustup proxy: %s\n' "${destination}" >&2
+                  return 1
+                }
+              }
+            fi
+          fi
+          [[ -x "${destination}" ]] || {
+            printf 'rustup proxy is not executable: %s\n' "${destination}" >&2
+            return 1
+          }
+        }
+        ensure_proxy "${rustup_path}" "${rustup_bin}/rustup"
+        for proxy in rustc rustdoc cargo rust-lldb rust-gdb rust-gdbgui rls cargo-clippy clippy-driver cargo-miri rust-analyzer rustfmt cargo-fmt; do
+          proxy_path="${rustup_bin}/${proxy}"
+          ensure_proxy "${rustup_bin}/rustup" "${proxy_path}"
+        done
+
+    - name: Verify selected Rust toolchain
+      shell: bash
+      env:
+        RUST_TOOLCHAIN: ${{ inputs.toolchain }}
+      run: |
+        set -euo pipefail
+        cargo_home="${CARGO_HOME:-$HOME/.cargo}"
+        [[ "${cargo_home}" == /* ]] || {
+          printf 'CARGO_HOME must be absolute: %s\n' "${cargo_home}" >&2
+          exit 1
+        }
+        rustup_bin="${cargo_home}/bin"
+        export PATH="${rustup_bin}:${PATH}"
+        for proxy in cargo rustc rustup; do
+          if [[ ! -x "${rustup_bin}/${proxy}" ]]; then
+            printf 'missing rustup proxy: %s\n' "${rustup_bin}/${proxy}" >&2
+            exit 1
+          fi
+        done
+        [[ -n "${RUST_TOOLCHAIN}" && "${RUST_TOOLCHAIN}" != *[[:space:]]* ]] || {
+          printf 'invalid Rust toolchain input: %s\n' "${RUST_TOOLCHAIN}" >&2
+          exit 1
+        }
+        export RUSTUP_TOOLCHAIN="${RUST_TOOLCHAIN}"
+
+        actual_cargo="$(type -P cargo)"
+        actual_rustc="$(type -P rustc)"
+        actual_rustup="$(type -P rustup)"
+        [[ "${actual_cargo}" == "${rustup_bin}/cargo" ]] || {
+          printf 'cargo did not resolve through the rustup proxy: %s\n' "${actual_cargo}" >&2
+          exit 1
+        }
+        [[ "${actual_rustc}" == "${rustup_bin}/rustc" ]] || {
+          printf 'rustc did not resolve through the rustup proxy: %s\n' "${actual_rustc}" >&2
+          exit 1
+        }
+        [[ "${actual_rustup}" == "${rustup_bin}/rustup" ]] || {
+          printf 'rustup did not resolve through CARGO_HOME: %s\n' "${actual_rustup}" >&2
+          exit 1
+        }
+
+        selected_cargo="$(rustup which cargo --toolchain "${RUST_TOOLCHAIN}")"
+        selected_rustc="$(rustup which rustc --toolchain "${RUST_TOOLCHAIN}")"
+        [[ -x "${selected_cargo}" ]] || {
+          printf 'rustup selected Cargo is not executable: %s\n' "${selected_cargo}" >&2
+          exit 1
+        }
+        [[ -x "${selected_rustc}" ]] || {
+          printf 'rustup selected rustc is not executable: %s\n' "${selected_rustc}" >&2
+          exit 1
+        }
+        selected_cargo_version="$(rustup run "${RUST_TOOLCHAIN}" cargo --version)"
+        selected_rustc_version="$(rustup run "${RUST_TOOLCHAIN}" rustc --version)"
+        proxy_cargo_version="$(cargo --version)"
+        proxy_rustc_version="$(rustc --version)"
+        [[ "${proxy_cargo_version}" == "${selected_cargo_version}" ]] || {
+          printf 'cargo proxy selected the wrong toolchain: %s != %s\n' \
+            "${proxy_cargo_version}" "${selected_cargo_version}" >&2
+          exit 1
+        }
+        [[ "${proxy_rustc_version}" == "${selected_rustc_version}" ]] || {
+          printf 'rustc proxy selected the wrong toolchain: %s != %s\n' \
+            "${proxy_rustc_version}" "${selected_rustc_version}" >&2
+          exit 1
+        }
+        printf 'Rust toolchain: %s\nCargo: %s (%s)\nrustc: %s (%s)\n' \
+          "${RUST_TOOLCHAIN}" "${actual_cargo}" "${selected_cargo_version}" \
+          "${actual_rustc}" "${selected_rustc_version}"
+        printf 'RUSTUP_TOOLCHAIN=%s\n' "${RUST_TOOLCHAIN}" >> "${GITHUB_ENV}"

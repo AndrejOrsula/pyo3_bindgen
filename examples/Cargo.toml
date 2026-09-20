@@ -1,5 +1,5 @@
 [package]
-name = "examples"
+name = "pyo3_bindgen_examples"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -22,10 +22,9 @@ path = "math.rs"
 name = "os_sys"
 path = "os_sys.rs"
 
-# [[example]]
-# name = "pygal"
-# path = "pygal.rs"
-
 [[example]]
 name = "random"
 path = "random.rs"
+
+[lints]
+workspace = true

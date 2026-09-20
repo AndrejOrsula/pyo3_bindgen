@@ -1,0 +1,55 @@
+[package]
+name = "pyo3_bindgen_cli"
+authors.workspace = true
+categories.workspace = true
+description = "CLI tool for automatic generation of Rust bindings to Python modules"
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+clap = { workspace = true }
+pyo3_bindgen = { workspace = true }
+serde = { workspace = true }
+serde_ignored = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+unicode-normalization = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = { workspace = true }
+
+[target.'cfg(windows)'.dependencies]
+# Exactly the features this crate imports. Declaring more would silently satisfy a dependency's
+# missing declaration through feature unification, hiding a crate that cannot build on its own.
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+] }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+jsonschema = { workspace = true }
+predicates = { workspace = true }
+# The publication-guarantee tests inject write failures. Requesting the feature here keeps it out
+# of the binary this crate publishes while still enabling it whenever these tests are built.
+pyo3_bindgen = { workspace = true, features = ["internal-test-hooks"] }
+
+[features]
+default = []
+numpy = ["pyo3_bindgen/numpy"]
+num-complex = ["pyo3_bindgen/num-complex"]
+
+[[bin]]
+name = "pyo3_bindgen"
+path = "src/main.rs"
+doc = false
+
+[lints]
+workspace = true

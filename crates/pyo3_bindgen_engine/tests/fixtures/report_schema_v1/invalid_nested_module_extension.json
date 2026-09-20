@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "generator": {
+    "name": "fixture",
+    "version": "0.0.0",
+    "pyo3_version": null
+  },
+  "python": null,
+  "modules": [
+    {
+      "name": "fixture",
+      "input_kind": "external_ir",
+      "input_hash": "fnv1a64:0000000000000000",
+      "source_hash": null,
+      "enums": [],
+      "counts": {
+        "imports": 0,
+        "submodules": 0,
+        "enums": 0,
+        "classes": 0,
+        "type_vars": 0,
+        "functions": 0,
+        "properties": 0
+      },
+      "nested_typo": "reject"
+    }
+  ],
+  "diagnostics": [],
+  "outputs": []
+}

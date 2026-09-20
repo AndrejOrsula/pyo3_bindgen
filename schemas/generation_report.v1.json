@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AndrejOrsula/pyo3_bindgen/schemas/generation_report.v1.json",
+  "title": "pyo3_bindgen generation report v1",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "generator", "python", "modules", "diagnostics", "outputs"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "operation_id": { "type": "string", "pattern": "^(op-v1:fnv1a64:[0-9a-f]{16}|unavailable)$" },
+    "complete": { "type": "boolean" },
+    "generator": { "$ref": "#/$defs/generator" },
+    "python": {
+      "oneOf": [
+        { "type": "null" },
+        { "$ref": "#/$defs/python" }
+      ]
+    },
+    "modules": { "type": "array", "items": { "$ref": "#/$defs/module" } },
+    "diagnostics": { "type": "array", "items": { "$ref": "#/$defs/diagnostic" } },
+    "outputs": { "type": "array", "items": { "$ref": "#/$defs/output" } }
+  },
+  "$defs": {
+    "nullable_string": { "type": ["string", "null"] },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "pyo3_version"],
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "pyo3_version": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "python": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["implementation", "version", "executable"],
+      "properties": {
+        "implementation": { "type": "string" },
+        "version": { "type": "string" },
+        "executable": { "$ref": "#/$defs/nullable_string" }
+      }
+    },
+    "counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["imports", "submodules", "enums", "classes", "type_vars", "functions", "properties"],
+      "properties": {
+        "imports": { "type": "integer", "minimum": 0 },
+        "submodules": { "type": "integer", "minimum": 0 },
+        "enums": { "type": "integer", "minimum": 0 },
+        "classes": { "type": "integer", "minimum": 0 },
+        "type_vars": { "type": "integer", "minimum": 0 },
+        "functions": { "type": "integer", "minimum": 0 },
+        "properties": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "enum_variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python_name", "rust_name", "value_repr"],
+      "properties": {
+        "python_name": { "type": "string" },
+        "rust_name": { "type": "string" },
+        "value_repr": { "type": "string" }
+      }
+    },
+    "enum_alias": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["python_name", "rust_name", "target_python_name", "target_rust_name", "value_repr"],
+      "properties": {
+        "python_name": { "type": "string" },
+        "rust_name": { "type": "string" },
+        "target_python_name": { "type": "string" },
+        "target_rust_name": { "type": "string" },
+        "value_repr": { "type": "string" }
+      }
+    },
+    "enum": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind", "variants", "aliases"],
+      "properties": {
+        "name": { "type": "string" },
+        "kind": { "type": "string" },
+        "variants": { "type": "array", "items": { "$ref": "#/$defs/enum_variant" } },
+        "aliases": { "type": "array", "items": { "$ref": "#/$defs/enum_alias" } }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "input_kind", "input_hash", "source_hash", "enums", "counts"],
+      "properties": {
+        "name": { "type": "string" },
+        "input_kind": { "type": "string" },
+        "input_hash": { "type": "string" },
+        "source_hash": { "$ref": "#/$defs/nullable_string" },
+        "enums": { "type": "array", "items": { "$ref": "#/$defs/enum" } },
+        "counts": { "$ref": "#/$defs/counts" }
+      }
+    },
+    "diagnostic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["severity", "code", "path", "message"],
+      "properties": {
+        "severity": { "enum": ["info", "warning", "error"] },
+        "code": { "type": "string" },
+        "path": { "$ref": "#/$defs/nullable_string" },
+        "message": { "type": "string" }
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "path", "hash", "bytes"],
+      "properties": {
+        "kind": { "type": "string" },
+        "path": { "$ref": "#/$defs/nullable_string" },
+        "hash": { "type": "string", "pattern": "^fnv1a64:[0-9a-f]{16}$" },
+        "bytes": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

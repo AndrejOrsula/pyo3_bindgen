@@ -20,7 +20,7 @@
 include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
 
 fn main() -> pyo3::PyResult<()> {
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
         // Get the path to the Python executable via "sys" Python module
         let python_exe_path = sys::executable(py)?;
         // Get the current working directory via "os" Python module

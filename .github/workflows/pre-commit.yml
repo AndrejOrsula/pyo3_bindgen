@@ -3,9 +3,14 @@ name: pre-commit
 on:
   push:
     branches:
+      - dev
       - main
+      - ci/**
   pull_request:
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 concurrency:
   group: "${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}"
@@ -13,20 +18,21 @@ concurrency:
 
 env:
   PYTHON_VERSION: "3.10"
-  SKIP: cargo-fmt,cargo-update,cargo-clippy,cargo-check,cargo-test,cargo-test-doc,cargo-doc,cargo-miri-test,cargo-miri-run,cargo-deny-check
+  SKIP: cargo-fmt,cargo-clippy,cargo-check,cargo-test,cargo-test-doc,cargo-doc,cargo-deny-check
 
 jobs:
   pre-commit:
-    runs-on: ubuntu-latest
+    if: ${{ github.repository != 'SpaceRL/pyo3_bindgen_private' || github.event.repository.private != true || github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ${{ github.repository == 'SpaceRL/pyo3_bindgen_private' && github.event.repository.private == true && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted", "Linux", "X64"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-
-      ## Run pre-commit and try to apply fixes
+      - name: Install pre-commit
+        run: python -m pip install "pre-commit==4.6.0"
       - name: Run pre-commit
-        uses: pre-commit/action@v3.0.1
-      - name: Apply fixes from pre-commit
-        uses: pre-commit-ci/lite-action@v1.1.0
-        if: always()
+        run: pre-commit run --all-files --show-diff-on-failure

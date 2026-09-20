@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "generator": {
+    "name": "fixture",
+    "version": "0.0.0",
+    "pyo3_version": null
+  },
+  "python": null,
+  "modules": [],
+  "diagnostics": [],
+  "outputs": [],
+  "future_field": {
+    "producer": "fixture",
+    "revision": 2
+  }
+}

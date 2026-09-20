@@ -1,0 +1,362 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AndrejOrsula/pyo3_bindgen/schemas/schema_ir.v1.json",
+  "title": "pyo3_bindgen external IR envelope v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "schema"],
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "schema": {
+      "$ref": "#/$defs/SchemaIr"
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true,
+      "default": {}
+    }
+  },
+  "$defs": {
+    "SchemaIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modules"],
+      "properties": {
+        "modules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ModuleIr"
+          }
+        }
+      }
+    },
+    "ModuleIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "is_package"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "docstring": {
+          "type": ["string", "null"],
+          "default": null
+        },
+        "is_package": {
+          "type": "boolean"
+        },
+        "classes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ClassIr"
+          },
+          "default": []
+        },
+        "enums": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnumIr"
+          },
+          "default": []
+        },
+        "functions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FunctionIr"
+          },
+          "default": []
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PropertyIr"
+          },
+          "default": []
+        },
+        "submodules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ModuleIr"
+          },
+          "default": []
+        },
+        "prelude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "imports": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ImportIr"
+          },
+          "default": []
+        },
+        "type_vars": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      }
+    },
+    "ClassIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "base_classes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "docstring": {
+          "type": ["string", "null"],
+          "default": null
+        },
+        "methods": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/FunctionIr"
+          },
+          "default": []
+        },
+        "properties": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/PropertyIr"
+          },
+          "default": []
+        }
+      }
+    },
+    "FunctionIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/FunctionKindIr"
+        },
+        "params": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ParameterIr"
+          },
+          "default": []
+        },
+        "return_type": {
+          "type": "string",
+          "default": ""
+        },
+        "docstring": {
+          "type": ["string", "null"],
+          "default": null
+        }
+      }
+    },
+    "FunctionKindIr": {
+      "oneOf": [
+        {
+          "const": "Function"
+        },
+        {
+          "const": "Closure"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["Method"],
+          "properties": {
+            "Method": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["method_type"],
+              "properties": {
+                "method_type": {
+                  "$ref": "#/$defs/MethodKindIr"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "MethodKindIr": {
+      "enum": [
+        "Instance",
+        "Class",
+        "Static",
+        "Constructor",
+        "Callable",
+        "Unknown"
+      ]
+    },
+    "ParameterIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ParameterKindIr"
+        },
+        "annotation": {
+          "type": "string",
+          "default": ""
+        },
+        "has_default": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ParameterKindIr": {
+      "enum": [
+        "PositionalOnly",
+        "PositionalOrKeyword",
+        "VarPositional",
+        "KeywordOnly",
+        "VarKeyword"
+      ]
+    },
+    "PropertyIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "py_type", "readonly"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "py_type": {
+          "type": "string"
+        },
+        "setter_type": {
+          "type": ["string", "null"],
+          "default": null
+        },
+        "readonly": {
+          "type": "boolean"
+        },
+        "docstring": {
+          "type": ["string", "null"],
+          "default": null
+        },
+        "setter_docstring": {
+          "type": ["string", "null"],
+          "default": null
+        }
+      }
+    },
+    "EnumIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "kind"],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/EnumKindIr"
+        },
+        "variants": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnumVariantIr"
+          },
+          "default": []
+        },
+        "aliases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EnumAliasIr"
+          },
+          "default": []
+        },
+        "docstring": {
+          "type": ["string", "null"],
+          "default": null
+        },
+        "is_flag": {
+          "type": "boolean",
+          "default": false
+        },
+        "is_open": {
+          "type": "boolean",
+          "default": false
+        },
+        "string_backed": {
+          "type": "boolean",
+          "default": false
+        },
+        "plain_mirror": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "EnumKindIr": {
+      "enum": ["Enum", "IntEnum", "StrEnum"]
+    },
+    "EnumVariantIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["py_name"],
+      "properties": {
+        "py_name": {
+          "type": "string"
+        },
+        "value_repr": {
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "EnumAliasIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["py_name", "target_py_name"],
+      "properties": {
+        "py_name": {
+          "type": "string"
+        },
+        "target_py_name": {
+          "type": "string"
+        },
+        "value_repr": {
+          "type": "string",
+          "default": ""
+        }
+      }
+    },
+    "ImportIr": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["origin", "target"],
+      "properties": {
+        "origin": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

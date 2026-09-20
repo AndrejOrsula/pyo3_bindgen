@@ -1,0 +1,46 @@
+name: Cargo deny
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  cargo-deny:
+    if: ${{ github.repository != 'SpaceRL/pyo3_bindgen_private' || github.event.repository.private != true || github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    name: cargo-deny | ${{ matrix.manifest }}
+    runs-on: ${{ github.repository == 'SpaceRL/pyo3_bindgen_private' && github.event.repository.private == true && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && fromJSON('["self-hosted", "Linux", "X64"]') || 'ubuntu-24.04' }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - manifest: Cargo.toml
+            fixture_dir: ""
+          - manifest: crates/pyo3_bindgen_engine/tests/fixtures/num_complex_consumer/Cargo.toml
+            fixture_dir: crates/pyo3_bindgen_engine/tests/fixtures/num_complex_consumer
+          - manifest: crates/pyo3_bindgen_engine/tests/fixtures/numpy_consumer/Cargo.toml
+            fixture_dir: crates/pyo3_bindgen_engine/tests/fixtures/numpy_consumer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Materialize locked consumer fixture
+        if: ${{ matrix.fixture_dir != '' }}
+        env:
+          FIXTURE_DIR: ${{ matrix.fixture_dir }}
+        run: |
+          cp "$FIXTURE_DIR/Cargo.toml.fixture" "$FIXTURE_DIR/Cargo.toml"
+          cp "$FIXTURE_DIR/Cargo.lock.fixture" "$FIXTURE_DIR/Cargo.lock"
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: stable
+      - uses: taiki-e/install-action@9458fed45835344deb5e69e06e831be047c96abf # cargo-deny
+        with:
+          tool: cargo-deny@0.20.2
+      - name: cargo deny checks
+        run: >-
+          cargo deny --manifest-path "${{ matrix.manifest }}"
+          --all-features --config deny.toml
+          check --allow license-exception-not-encountered advisories bans licenses sources

@@ -1,0 +1,138 @@
+name: Publish crates.io
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Exact release tag present in the public repository (vX.Y.Z)
+        required: true
+        type: string
+      sha:
+        description: Exact lowercase 40-hex candidate commit SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: crates-io-publish
+  cancel-in-progress: false
+
+env:
+  RELEASE_RUST_TOOLCHAIN: "1.97.0"
+  RELEASE_PYTHON_VERSION: "3.10.21"
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    environment: crates-io
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate immutable release identity
+        env:
+          CANDIDATE_TAG: ${{ inputs.tag }}
+          CANDIDATE_SHA: ${{ inputs.sha }}
+          EVENT_REPOSITORY: ${{ github.repository }}
+          EVENT_REPOSITORY_OWNER_ID: ${{ github.repository_owner_id }}
+          EVENT_REPOSITORY_ID: ${{ github.repository_id }}
+          EVENT_REPOSITORY_VISIBILITY: ${{ github.repository_visibility }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_REF_PROTECTED: ${{ github.ref_protected }}
+          EVENT_REF_TYPE: ${{ github.ref_type }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_WORKFLOW_REF: ${{ github.workflow_ref }}
+          EVENT_WORKFLOW_SHA: ${{ github.workflow_sha }}
+          # This variable must exist at the protected `crates-io` environment scope.
+          # No repository/org fallback is allowed.
+          PYO3_BINDGEN_CRATES_IO_POLICY_SHA: ${{ vars.PYO3_BINDGEN_CRATES_IO_POLICY_SHA }}
+        run: |
+          set -Eeuo pipefail
+          expected_repository='AndrejOrsula/pyo3_bindgen'
+          expected_repository_owner_id='22929099'
+          expected_repository_id='745882942'
+          expected_repository_visibility='public'
+          expected_workflow_ref="${expected_repository}/.github/workflows/publish.yml@refs/tags/${CANDIDATE_TAG}"
+          [[ "$CANDIDATE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || {
+            printf 'release identity: invalid candidate tag: %s\n' "$CANDIDATE_TAG" >&2
+            exit 1
+          }
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]] || {
+            printf 'release identity: candidate SHA must be lowercase 40-hex\n' >&2
+            exit 1
+          }
+          [[ "$PYO3_BINDGEN_CRATES_IO_POLICY_SHA" == "$CANDIDATE_SHA" ]] || {
+            printf 'release identity: environment policy SHA differs from candidate SHA\n' >&2
+            exit 1
+          }
+          [[ "$EVENT_REPOSITORY" == "$expected_repository" ]] || {
+            printf 'release identity: unexpected repository: %s\n' "$EVENT_REPOSITORY" >&2
+            exit 1
+          }
+          [[ "$EVENT_REPOSITORY_OWNER_ID" == "$expected_repository_owner_id" ]] || {
+            printf 'release identity: unexpected repository owner ID: %s\n' "$EVENT_REPOSITORY_OWNER_ID" >&2
+            exit 1
+          }
+          [[ "$EVENT_REPOSITORY_ID" == "$expected_repository_id" ]] || {
+            printf 'release identity: unexpected repository ID: %s\n' "$EVENT_REPOSITORY_ID" >&2
+            exit 1
+          }
+          [[ "$EVENT_REPOSITORY_VISIBILITY" == "$expected_repository_visibility" ]] || {
+            printf 'release identity: unexpected repository visibility: %s\n' "$EVENT_REPOSITORY_VISIBILITY" >&2
+            exit 1
+          }
+          [[ "$EVENT_REF" == "refs/tags/${CANDIDATE_TAG}" ]] || {
+            printf 'release identity: workflow ref is not the candidate tag: %s\n' "$EVENT_REF" >&2
+            exit 1
+          }
+          [[ "$EVENT_REF_TYPE" == tag && "$EVENT_REF_PROTECTED" == true ]] || {
+            printf 'release identity: candidate tag is not protected\n' >&2
+            exit 1
+          }
+          [[ "$EVENT_SHA" == "$CANDIDATE_SHA" ]] || {
+            printf 'release identity: github.sha differs from candidate SHA\n' >&2
+            exit 1
+          }
+          [[ "$EVENT_WORKFLOW_REF" == "$expected_workflow_ref" ]] || {
+            printf 'release identity: workflow_ref is not the protected candidate tag\n' >&2
+            exit 1
+          }
+          [[ "$EVENT_WORKFLOW_SHA" == "$CANDIDATE_SHA" ]] || {
+            printf 'release identity: workflow_sha differs from candidate SHA\n' >&2
+            exit 1
+          }
+          checked_out_head="$(git rev-parse --verify 'HEAD^{commit}')"
+          peeled_tag="$(git rev-parse --verify "refs/tags/${CANDIDATE_TAG}^{commit}")"
+          [[ "$checked_out_head" == "$CANDIDATE_SHA" ]] || {
+            printf 'release identity: checked-out HEAD differs from candidate SHA\n' >&2
+            exit 1
+          }
+          [[ "$peeled_tag" == "$CANDIDATE_SHA" ]] || {
+            printf 'release identity: peeled candidate tag differs from candidate SHA\n' >&2
+            exit 1
+          }
+          printf 'release identity: %s %s %s\n' "$expected_repository" "$CANDIDATE_TAG" "$CANDIDATE_SHA"
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ env.RELEASE_PYTHON_VERSION }}
+      - uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c
+        with:
+          toolchain: ${{ env.RELEASE_RUST_TOOLCHAIN }}
+      - name: Validate requested release identity
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: scripts/release-preflight.sh --check --tag "$RELEASE_TAG"
+      - name: Acquire short-lived crates.io credential
+        id: crates-io-auth
+        uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
+      - name: Publish checksum-matched workspace crates
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.crates-io-auth.outputs.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: scripts/publish-workspace.sh --tag "$RELEASE_TAG"

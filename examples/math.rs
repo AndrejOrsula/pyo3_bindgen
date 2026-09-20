@@ -17,7 +17,7 @@ fn main() {
     // a) 🐍 Pi from Python "math" module
     // b) 🦀 Pi from Rust standard library
     // c) 🥧 Pi from your favorite bakery
-    pyo3::Python::with_gil(|py| {
+    pyo3::Python::attach(|py| {
         let python_pi = math::pi(py).unwrap();
         let rust_pi = std::f64::consts::PI;
         assert_eq!(python_pi, rust_pi);

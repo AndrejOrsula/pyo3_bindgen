@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "generator": {
+    "name": "fixture",
+    "version": "0.0.0",
+    "pyo3_version": null,
+    "nested_typo": true
+  },
+  "python": null,
+  "modules": [],
+  "diagnostics": [],
+  "outputs": []
+}

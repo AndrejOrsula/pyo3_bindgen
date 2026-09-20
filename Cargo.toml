@@ -1,21 +1,18 @@
 [workspace]
 members = [
+    # Publishable packages
+    "crates/pyo3_bindgen",
+    "crates/pyo3_bindgen_cli",
+    "crates/pyo3_bindgen_engine",
+    "crates/pyo3_bindgen_macros",
     # Examples of usage
     "examples",
-    # Public API
-    "pyo3_bindgen",
-    # CLI tool
-    "pyo3_bindgen_cli",
-    # The underlying engine
-    "pyo3_bindgen_engine",
-    # Procedural macros
-    "pyo3_bindgen_macros",
 ]
 default-members = [
-    "pyo3_bindgen",
-    "pyo3_bindgen_cli",
-    "pyo3_bindgen_engine",
-    "pyo3_bindgen_macros",
+    "crates/pyo3_bindgen",
+    "crates/pyo3_bindgen_cli",
+    "crates/pyo3_bindgen_engine",
+    "crates/pyo3_bindgen_macros",
 ]
 resolver = "2"
 
@@ -27,27 +24,83 @@ keywords = ["bindgen", "ffi", "pyo3", "python"]
 license = "MIT OR Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/AndrejOrsula/pyo3_bindgen"
-rust-version = "1.74"
-version = "0.5.0"
+rust-version = "1.83"
+version = "0.6.0"
 
 [workspace.dependencies]
-pyo3_bindgen = { path = "pyo3_bindgen", version = "0.5.0" }
-pyo3_bindgen_engine = { path = "pyo3_bindgen_engine", version = "0.5.0" }
-pyo3_bindgen_macros = { path = "pyo3_bindgen_macros", version = "0.5.0" }
+pyo3_bindgen = { path = "crates/pyo3_bindgen", version = "0.6.0" }
+pyo3_bindgen_engine = { path = "crates/pyo3_bindgen_engine", version = "0.6.0" }
+pyo3_bindgen_macros = { path = "crates/pyo3_bindgen_macros", version = "0.6.0" }
 
-assert_cmd = { version = "2" }
-clap = { version = "4.5", features = ["derive"] }
+assert_cmd = { version = "=2.1.1" }
+clap = { version = ">=4.5, <4.6", features = ["derive"] }
 criterion = { version = "0.5" }
 indoc = { version = "2" }
-itertools = { version = "0.12" }
+itertools = { version = "0.13" }
+jsonschema = { version = "=0.46.10", default-features = false, features = ["arbitrary-precision"] }
 libc = { version = "0.2" }
 predicates = { version = "3" }
 prettyplease = { version = "0.2" }
 proc-macro2 = { version = "1" }
-pyo3 = { version = "0.21", default-features = false }
-pyo3-build-config = { version = "0.22", features = ["resolve-config"] }
+pyo3 = { version = "=0.29.2", default-features = false, features = ["py-clone"] }
+pyo3-build-config = { version = "=0.29.2", features = ["resolve-config"] }
 quote = { version = "1" }
-rustc-hash = { version = "1" }
+rustc-hash = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+serde_ignored = { version = "0.1" }
+serde_json = { version = "1", features = ["raw_value"] }
+sha2 = { version = "0.10" }
 syn = { version = "2" }
-thiserror = { version = "1" }
-typed-builder = { version = "0.18" }
+thiserror = { version = "2" }
+tracing = { version = "0.1", features = ["attributes"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+typed-builder = { version = "0.20" }
+unicode-normalization = { version = "0.1" }
+windows-sys = { version = "0.61" }
+
+[workspace.lints.clippy]
+# Enable the production-ready broad group, then name the measured compatibility,
+# generated-code, documentation, and API-shape exceptions explicitly.
+pedantic = { level = "warn", priority = -1 }
+assigning_clones = "allow"
+cast_lossless = "allow"
+cast_possible_wrap = "allow"
+cast_sign_loss = "allow"
+doc_markdown = "allow"
+explicit_iter_loop = "allow"
+float_cmp = "allow"
+fn_params_excessive_bools = "allow"
+format_collect = "allow"
+format_push_string = "allow"
+if_not_else = "allow"
+implicit_clone = "allow"
+items_after_statements = "allow"
+manual_assert = "allow"
+manual_let_else = "allow"
+many_single_char_names = "allow"
+map_unwrap_or = "allow"
+match_same_arms = "allow"
+missing_errors_doc = "allow"
+module_name_repetitions = "allow"
+must_use_candidate = "allow"
+needless_continue = "allow"
+needless_pass_by_value = "allow"
+needless_raw_string_hashes = "allow"
+redundant_closure_for_method_calls = "allow"
+return_self_not_must_use = "allow"
+semicolon_if_nothing_returned = "allow"
+similar_names = "allow"
+single_match_else = "allow"
+struct_excessive_bools = "allow"
+struct_field_names = "allow"
+too_many_lines = "allow"
+trivially_copy_pass_by_ref = "allow"
+uninlined_format_args = "allow"
+unnecessary_wraps = "allow"
+unreadable_literal = "allow"
+unused_self = "allow"
+
+# Existing parser and integration-harness panic patterns remain outside the
+# shared gate; new unfinished implementation markers do not.
+todo = "warn"
+unimplemented = "warn"

@@ -1,0 +1,20 @@
+name: Security
+
+on:
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }} @ ${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  cargo-deny:
+    uses: ./.github/workflows/cargo-deny.yml
+    permissions:
+      contents: read

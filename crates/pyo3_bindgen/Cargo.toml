@@ -1,0 +1,42 @@
+[package]
+name = "pyo3_bindgen"
+authors.workspace = true
+categories.workspace = true
+description = "Automatic generation of Rust bindings to Python modules"
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+pyo3 = { workspace = true }
+pyo3_bindgen_engine = { workspace = true }
+pyo3_bindgen_macros = { workspace = true, optional = true }
+
+[features]
+default = []
+# Enables `import_python!` macro from `pyo3_bindgen_macros` crate
+macros = ["dep:pyo3_bindgen_macros"]
+# Enables mapping unknown-dtype Python `numpy::ndarray` to `numpy::PyUntypedArray`
+numpy = [
+    "pyo3_bindgen_engine/numpy",
+    "pyo3_bindgen_macros?/numpy",
+]
+# Enables mapping between Python `num_complex` and Rust `num_complex`
+num-complex = [
+    "pyo3/num-complex",
+    "pyo3_bindgen_engine/num-complex",
+    "pyo3_bindgen_macros?/num-complex",
+]
+# Publication fault injection and lock instrumentation for this workspace's own tests.
+# Never enable it for a published consumer: it exposes a way to fail a real publication.
+internal-test-hooks = ["pyo3_bindgen_engine/internal-test-hooks"]
+
+[package.metadata.docs.rs]
+all-features = true
+
+[lints]
+workspace = true

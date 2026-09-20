@@ -1,15 +1,22 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
 
+minimum_pre_commit_version: "4.6.0"
 exclude: Cargo.lock
 repos:
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.6.0
+  - repo: local
     hooks:
-      - id: check-ast
-      - id: check-builtin-literals
+      - id: documentation-contract
+        name: documentation contract
+        entry: scripts/check-docs.sh
+        language: system
+        pass_filenames: false
+        files: (^|/)docs/.*\.md$|(^|/).*\.md$
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
       - id: check-case-conflict
-      - id: check-docstring-first
       - id: check-executables-have-shebangs
       - id: check-merge-conflict
       - id: check-shebang-scripts-are-executable
@@ -17,60 +24,44 @@ repos:
       - id: check-symlinks
       - id: check-toml
       - id: check-vcs-permalinks
-      - id: check-xml
       - id: check-yaml
-      - id: debug-statements
       - id: destroyed-symlinks
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: fix-byte-order-marker
       - id: mixed-line-ending
-      - id: name-tests-test
-      - id: requirements-txt-fixer
       - id: sort-simple-yaml
       - id: trailing-whitespace
 
   - repo: https://github.com/lovesegfault/beautysh
-    rev: v6.2.1
+    rev: 885128fe2600889194c69fa19326cf55a3462777 # v6.4.3
     hooks:
       - id: beautysh
-
-  - repo: https://github.com/psf/black
-    rev: 24.10.0
-    hooks:
-      - id: black
+        additional_dependencies: ["setuptools<81"]
 
   - repo: https://github.com/codespell-project/codespell
-    rev: v2.3.0
+    rev: 2ccb47ff45ad361a21071a7eedda4c37e6ae8c5a # v2.4.2
     hooks:
       - id: codespell
-        args: ["--ignore-words-list", "crate"]
-        exclude: Cargo.lock
-
-  - repo: https://github.com/pycqa/isort
-    rev: 5.13.2
-    hooks:
-      - id: isort
-        args: ["--profile", "black"]
+        args: ["--ignore-words-list", "crate,ser"]
 
   - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.19
+    rev: 82912cdaea4fb830f751504486a7879c70526547 # 1.0.0
     hooks:
       - id: mdformat
 
   - repo: https://github.com/AndrejOrsula/pre-commit-cargo
-    rev: 0.3.0
+    rev: 33ae92ed9b1a4392c8ac5fdef46887640d866e1e # 0.5.0
     hooks:
       - id: cargo-fmt
-      - id: cargo-update
       - id: cargo-clippy
-        args: ["--workspace", "--all-targets", "--", "--deny=warnings"]
+        args: ["--workspace", "--all-targets", "--all-features", "--locked", "--", "--deny=warnings"]
       - id: cargo-check
-        args: ["--workspace", "--all-targets"]
+        args: ["--workspace", "--all-targets", "--all-features", "--locked"]
       - id: cargo-test
-        args: ["--workspace", "--all-targets"]
+        args: ["--workspace", "--lib", "--bins", "--tests", "--examples", "--all-features", "--locked"]
       - id: cargo-test-doc
-        args: ["--workspace"]
+        args: ["--workspace", "--all-features", "--locked"]
       - id: cargo-doc
-        args: ["--workspace", "--no-deps", "--document-private-items"]
+        args: ["--workspace", "--all-features", "--locked", "--no-deps", "--document-private-items"]
       - id: cargo-deny-check

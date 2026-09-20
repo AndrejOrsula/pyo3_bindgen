@@ -1,0 +1,51 @@
+name: Set up embedded CPython
+description: Install and validate job-local CPython for Rust embedding on Linux.
+inputs:
+  python-version:
+    description: CPython version, with an optional t suffix for free-threading.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Install pinned uv
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      with:
+        version: "0.12.10"
+        enable-cache: false
+        cache-local-path: ${{ runner.temp }}/embedded-python-uv-cache
+    - name: Install job-local CPython
+      shell: bash
+      env:
+        REQUESTED_PYTHON: ${{ inputs.python-version }}
+      run: |
+        set -euo pipefail
+        python_root="$(mktemp -d "${RUNNER_TEMP}/embedded-python.XXXXXX")"
+        export UV_PYTHON_INSTALL_DIR="${python_root}/interpreters"
+        python_request="${REQUESTED_PYTHON}"
+        uv python install --managed-python --no-bin "${python_request}"
+        uv venv --seed --managed-python --python "${python_request}" "${python_root}/venv"
+        python_executable="${python_root}/venv/bin/python"
+        python_libdir="$("${python_executable}" -c 'import sysconfig; print(sysconfig.get_config_var("LIBDIR"))')"
+        export LD_LIBRARY_PATH="${python_libdir}${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
+        "${python_executable}" - <<'PY'
+        import ctypes
+        import os
+        import pathlib
+        import sys
+        import sysconfig
+
+        requested = os.environ["REQUESTED_PYTHON"]
+        expected_version = tuple(int(part) for part in requested.rstrip("t").split("."))
+        assert sys.version_info[:len(expected_version)] == expected_version, sys.version
+        assert bool(sysconfig.get_config_var("Py_GIL_DISABLED")) == requested.endswith("t"), sys.version
+        assert sysconfig.get_config_var("Py_ENABLE_SHARED") == 1, "CPython must provide a shared library"
+        library = pathlib.Path(sysconfig.get_config_var("LIBDIR")) / sysconfig.get_config_var("LDLIBRARY")
+        assert library.is_file(), library
+        ctypes.CDLL(str(library), mode=ctypes.RTLD_GLOBAL)
+        import math
+        assert math.sqrt(4) == 2
+        print(sys.version)
+        print(f"Validated embedding library: {library}")
+        PY
+        printf '%s\n' "${python_root}/venv/bin" >> "${GITHUB_PATH}"
+        printf 'PYO3_PYTHON=%s\nLD_LIBRARY_PATH=%s\n' "${python_executable}" "${LD_LIBRARY_PATH}" >> "${GITHUB_ENV}"
