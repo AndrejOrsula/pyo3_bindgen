@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>pyo3_bindgen playground</title>
+  <meta name="description" content="Generate Rust bindings to any Python module in your browser with pyo3_bindgen, then download them as a ready-to-run crate.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233776ab'/%3E%3Cstop offset='1' stop-color='%23e8590c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23g)'/%3E%3Cpath d='M8 7l5 5-5 5M13 17h4' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <script src="theme.js"></script>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <a class="brand" href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+        <defs><linearGradient id="brand-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3776ab"/><stop offset="1" stop-color="#e8590c"/></linearGradient></defs>
+        <rect width="24" height="24" rx="6" fill="url(#brand-gradient)"/>
+        <path d="M8 7l5 5-5 5M13 17h4" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="brand-name">pyo3_bindgen</span>
+      <span class="brand-tag">playground</span>
+    </a>
+    <p class="tagline">Python in, Rust out. Everything runs in your browser.</p>
+    <p class="status" id="status" role="status" data-state="loading">
+      <span class="dot" aria-hidden="true"></span><span id="status-text">Starting…</span>
+    </p>
+  </header>
+
+  <main class="panes">
+    <section class="pane input" aria-labelledby="input-title">
+      <h2 class="visually-hidden" id="input-title">Python input</h2>
+      <div class="tabs" role="tablist" aria-label="Python input">
+        <button type="button" role="tab" id="tab-source" aria-controls="panel-source" aria-selected="true">Code</button>
+        <button type="button" role="tab" id="tab-package" aria-controls="panel-package" aria-selected="false" tabindex="-1">PyPI package</button>
+        <button type="button" role="tab" id="tab-module" aria-controls="panel-module" aria-selected="false" tabindex="-1">Module</button>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-source" aria-labelledby="tab-source">
+        <div class="field-row">
+          <label class="field grow">
+            <span>Example</span>
+            <select id="example">
+              <option value="orbit">Orbit: functions and classes</option>
+              <option value="shapes">Shapes: inheritance</option>
+              <option value="palette">Palette: enums</option>
+              <option value="inventory">Inventory: dataclasses</option>
+              <option value="greeting">Greeting: optional arguments</option>
+              <option value="" hidden>Your code</option>
+            </select>
+          </label>
+          <label class="field module-name">
+            <span>Module name</span>
+            <input id="source-module" value="orbit" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
+          </label>
+        </div>
+        <div class="field grow">
+          <label for="source">Python source</label>
+          <div class="editor" id="editor">
+            <pre class="editor-gutter" id="source-gutter" aria-hidden="true"></pre>
+            <div class="editor-body">
+              <pre class="editor-colors" aria-hidden="true"><code id="source-colors"></code></pre>
+              <div class="editor-error" id="source-error" hidden></div>
+              <div class="editor-focus" id="source-focus" hidden></div>
+              <textarea id="source" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-package" aria-labelledby="tab-package" hidden>
+        <form class="field-row" id="install-form">
+          <label class="field grow">
+            <span>Package from PyPI</span>
+            <input id="requirement" placeholder="attrs or attrs==25.3.0" autocomplete="off" spellcheck="false">
+          </label>
+          <button type="submit" class="secondary" id="install">Install</button>
+        </form>
+        <p class="chips" aria-label="Try a package">
+          <span>Try</span>
+          <button type="button" class="chip" data-requirement="attrs">attrs</button>
+          <button type="button" class="chip" data-requirement="python-dateutil">python-dateutil</button>
+          <button type="button" class="chip" data-requirement="tqdm">tqdm</button>
+          <button type="button" class="chip" data-requirement="networkx">networkx</button>
+        </p>
+        <fieldset class="installed" id="installed" hidden>
+          <legend id="installed-title"></legend>
+          <div id="installed-modules" class="checks"></div>
+        </fieldset>
+        <p class="hint">Pure-Python packages from PyPI and the packages that <a href="https://pyodide.org/en/stable/usage/packages-in-pyodide.html" target="_blank" rel="noopener">Pyodide builds</a>, such as NumPy, install here. Packages that only ship native wheels for other platforms do not.</p>
+      </div>
+
+      <div class="panel" role="tabpanel" id="panel-module" aria-labelledby="tab-module" hidden>
+        <label class="field">
+          <span>Importable modules, separated by spaces</span>
+          <input id="modules" value="math" autocomplete="off" spellcheck="false">
+        </label>
+        <p class="chips" aria-label="Try a module">
+          <span>Try</span>
+          <button type="button" class="chip" data-modules="math">math</button>
+          <button type="button" class="chip" data-modules="json">json</button>
+          <button type="button" class="chip" data-modules="fractions">fractions</button>
+          <button type="button" class="chip" data-modules="pathlib">pathlib</button>
+          <button type="button" class="chip" data-modules="random statistics">random statistics</button>
+        </p>
+        <p class="hint">Any module that Python can import here works: the standard library, NumPy, or packages installed in the PyPI tab.</p>
+      </div>
+
+      <details class="options" id="options">
+        <summary><span>Options</span> <span class="changed" id="options-changed"></span></summary>
+        <div class="option-groups">
+          <fieldset>
+            <legend>Generate</legend>
+            <label title="Python classes become Rust types with their methods"><input type="checkbox" data-option="generate_classes"> Classes</label>
+            <label title="Module-level functions"><input type="checkbox" data-option="generate_functions"> Functions</label>
+            <label title="Properties and module constants, with getters and setters"><input type="checkbox" data-option="generate_properties"> Properties</label>
+            <label title="Python enums become Rust enums"><input type="checkbox" data-option="generate_enums"> Enums</label>
+            <label title="typing.TypeVar declarations become type aliases"><input type="checkbox" data-option="generate_type_vars"> Type variables</label>
+            <label title="Re-exports of what the module imports"><input type="checkbox" data-option="generate_imports"> Imports</label>
+            <label title="A prelude module with the names in __all__"><input type="checkbox" data-option="generate_preludes"> <code>__all__</code> prelude</label>
+            <label title="Docstrings become Rust doc comments"><input type="checkbox" data-option="generate_docs"> Doc comments</label>
+            <label title="Constants that record the generator version, module name and input hash"><input type="checkbox" data-option="generate_provenance"> Provenance</label>
+          </fieldset>
+          <fieldset>
+            <legend>Scope</legend>
+            <label title="Also bind the submodules of a package"><input type="checkbox" data-option="traverse_submodules"> Submodules</label>
+            <label title="Also bind names that start with an underscore"><input type="checkbox" data-option="include_private"> Private names</label>
+            <label title="Also bind the modules that the module imports, as far as they can be found"><input type="checkbox" data-option="generate_dependencies"> Dependencies</label>
+            <label title="Fail instead of skipping submodules or dependencies that cannot be read"><input type="checkbox" data-option="strict_completeness"> Require completeness</label>
+            <label class="field skip" title="Attributes with these names are skipped"><span>Skip names</span><input id="blocklist" data-option="blocklist_names" autocomplete="off" spellcheck="false"></label>
+          </fieldset>
+          <fieldset>
+            <legend>Rust API</legend>
+            <label title="Subclasses inherit shared methods through *Methods traits instead of repeating them"><input type="checkbox" data-option="deduplicate_inherited_members"> Share inherited methods</label>
+            <label title="Methods are also callable directly on each type, without importing its trait"><input type="checkbox" data-option="generate_inherent_forwarders"> Direct method calls</label>
+            <label title="A builder per function that lets Rust leave out optional arguments"><input type="checkbox" data-option="call_builders"> Call builders</label>
+          </fieldset>
+        </div>
+        <button type="button" class="link" id="options-reset">Reset to defaults</button>
+      </details>
+
+      <div class="run">
+        <button type="button" class="primary" id="generate" disabled>Generate Rust</button>
+        <button type="button" class="secondary" id="cancel" hidden>Cancel</button>
+        <label class="live" title="Generate again shortly after you edit the code or change an option"><input type="checkbox" id="live" checked> Live</label>
+        <span class="kbd-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd></span>
+      </div>
+    </section>
+
+    <section class="pane output" aria-labelledby="output-title">
+      <h2 class="visually-hidden" id="output-title">Rust output</h2>
+      <div class="output-head">
+        <div class="tabs" role="tablist" aria-label="Output" id="views" hidden>
+          <button type="button" role="tab" id="view-overview" aria-controls="code-wrap" aria-selected="true" title="Each Python item beside the Rust that calls it">Overview</button>
+          <button type="button" role="tab" id="view-crate" aria-controls="code-wrap" aria-selected="false" tabindex="-1" title="The files of the crate that Download crate saves">Crate</button>
+          <button type="button" role="tab" id="view-types" aria-controls="code-wrap" aria-selected="false" tabindex="-1" title="How each annotated Python type became a Rust type">Type map</button>
+          <button type="button" role="tab" id="view-report" aria-controls="code-wrap" aria-selected="false" tabindex="-1" title="What was generated, and any warnings">Report</button>
+        </div>
+        <div class="actions">
+          <button type="button" class="secondary" id="copy" disabled>Copy</button>
+          <button type="button" class="primary" id="download" disabled title="A ZIP of a Cargo project with these bindings, an example main.rs, and a README">Download crate</button>
+        </div>
+      </div>
+      <div class="toolbar" id="toolbar" hidden>
+        <div class="files" role="tablist" aria-label="Crate files" id="files"></div>
+        <label class="jump" id="jump"><span class="visually-hidden">Jump to an item</span>
+          <select id="outline"></select>
+        </label>
+        <span class="toolbar-note" id="toolbar-note"></span>
+      </div>
+      <div class="code-wrap" id="code-wrap" role="tabpanel" aria-labelledby="output-title" tabindex="0">
+        <div class="code-grid" id="code-grid" hidden>
+          <pre class="gutter" id="gutter" aria-hidden="true"></pre>
+          <pre class="code" id="code"><code id="code-text"></code></pre>
+          <div class="line-mark" id="line-mark" hidden></div>
+        </div>
+        <div class="view" id="view" hidden></div>
+        <div class="empty" id="empty">
+          <ol class="steps" id="steps" aria-label="Getting ready">
+            <li data-step="python"><span class="step-mark" aria-hidden="true"></span><span><strong>Start Python</strong><span class="hint">Python 3.14 for the browser, from Pyodide</span></span></li>
+            <li data-step="generator"><span class="step-mark" aria-hidden="true"></span><span><strong>Install pyo3_bindgen</strong><span class="hint">The generator, compiled to WebAssembly</span></span></li>
+            <li data-step="generate"><span class="step-mark" aria-hidden="true"></span><span><strong>Generate bindings</strong><span class="hint">For the example on the left</span></span></li>
+          </ol>
+          <p class="empty-text" id="empty-text" hidden>The generated Rust appears here.</p>
+        </div>
+        <p class="stale" id="stale" hidden>Outdated: this shows the last bindings that generated.</p>
+      </div>
+      <p class="message" id="message" role="alert" hidden></p>
+      <p class="message note" id="note" role="status" hidden></p>
+      <div class="summary">
+        <p class="stats" id="stats" aria-live="polite"></p>
+        <button type="button" class="link warnings" id="warnings" hidden></button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p class="about">Python runs in a web worker through <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>, and pyo3_bindgen itself is compiled to WebAssembly. Your code is not uploaded anywhere, but the page keeps it in its link, so a link you share includes it. Packages download from PyPI and jsDelivr.</p>
+    <p><a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
+  </footer>
+</body>
+</html>

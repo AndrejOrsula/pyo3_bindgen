@@ -1,0 +1,8 @@
+{
+  "build": "5134a1c7c5b7beae8568b6b4fe5a092c4323ed2a",
+  "generator": "0.6.0",
+  "generator_revision": "",
+  "pyodide": "314.0.7",
+  "pyodide_url": "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/",
+  "wheel": "wheels/pyo3_bindgen_playground-0.0.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl"
+}

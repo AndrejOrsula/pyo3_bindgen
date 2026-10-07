@@ -1,0 +1,1372 @@
+/* Colors follow the tabi theme of the author's portfolio, which embeds this
+   page. theme.js sets data-theme before the page paints. */
+:root {
+  color-scheme: light;
+  --bg: #ffffff;
+  --surface: #f6f8f9;
+  --surface-2: #eef2f4;
+  --border: #d9e0e4;
+  --control: #848d96;
+  --text: #222226;
+  --muted: #5b6370;
+  --primary: #087e96;
+  --primary-text: #ffffff;
+  --primary-soft: rgba(8, 126, 150, 0.1);
+  --danger: #b42318;
+  --warning: #9a5b00;
+  --ok: #18794e;
+  --code-bg: #fbfcfd;
+  --mark: rgba(8, 126, 150, 0.16);
+  --tok-keyword: #8a3ffc;
+  --tok-type: #087e96;
+  --tok-string: #a3530b;
+  --tok-comment: #6a737d;
+  --tok-number: #b42318;
+  --tok-macro: #1f6feb;
+  --tok-attr: #6a737d;
+  --tok-fn: #0b5cad;
+  --tok-builtin: #0e7c5a;
+  --python: #3776ab;
+  --rust: #e8590c;
+  --radius: 10px;
+  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
+  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1f1f1f;
+  --surface: #262729;
+  --surface-2: #2e3033;
+  --border: #3a3d41;
+  --control: #747b84;
+  --text: #d4d4d4;
+  --muted: #9aa1ab;
+  --primary: #91e0ee;
+  --primary-text: #10272c;
+  --primary-soft: rgba(145, 224, 238, 0.12);
+  --danger: #ff8a80;
+  --warning: #f0b37e;
+  --ok: #7ee2a8;
+  --code-bg: #1b1c1e;
+  --mark: rgba(145, 224, 238, 0.16);
+  --tok-keyword: #c792ea;
+  --tok-type: #91e0ee;
+  --tok-string: #f0b37e;
+  --tok-comment: #7f8791;
+  --tok-number: #f78c6c;
+  --tok-macro: #82aaff;
+  --tok-attr: #7f8791;
+  --tok-fn: #82aaff;
+  --tok-builtin: #7ee2a8;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  height: 100%;
+}
+
+/* The panes fill the window but never get shorter than their controls: a shorter
+   window, or a short frame on an embedding page, scrolls the page instead. */
+body {
+  height: max(100%, 46rem);
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.5 var(--sans);
+}
+
+a {
+  color: var(--primary);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Header */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text);
+}
+
+.brand-mark {
+  width: 1.45rem;
+  height: 1.45rem;
+  align-self: center;
+  flex: none;
+}
+
+.brand-name {
+  font: 700 1.15rem/1 var(--mono);
+  color: var(--primary);
+}
+
+.brand-tag {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.status {
+  margin: 0 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.status .dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.status[data-state="loading"] .dot,
+.status[data-state="busy"] .dot {
+  background: var(--primary);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.status[data-state="ready"] .dot {
+  background: var(--ok);
+}
+
+.status[data-state="error"] .dot {
+  background: var(--danger);
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* Layout */
+.panes {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.pane {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* The input pane scrolls when the open options do not leave the source its
+   minimum height; the run controls stay in view at its bottom. The padding
+   keeps focus outlines inside the scrolling box. */
+.pane.input {
+  container-type: inline-size;
+  overflow-y: auto;
+  margin: -4px;
+  padding: 4px;
+}
+
+.input .panel,
+.input .field.grow {
+  min-height: auto;
+}
+
+.input .run {
+  position: sticky;
+  bottom: 4px;
+  z-index: 1;
+  background: var(--bg);
+  box-shadow: 0 -0.5rem 0 var(--bg), 0 4px 0 var(--bg);
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: thin;
+}
+
+.tabs [role="tab"] {
+  flex: none;
+  padding: 0.45rem 0.65rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tabs [role="tab"][aria-selected="true"] {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+.tabs [role="tab"]:hover {
+  color: var(--text);
+}
+
+.panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Fields */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.field.grow {
+  flex: 1;
+  min-height: 0;
+}
+
+.field-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.module-name {
+  flex: 0 1 10rem;
+}
+
+input:not([type]),
+input[type="text"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: 0.9rem/1.5 var(--mono);
+}
+
+select {
+  font-family: var(--sans);
+  cursor: pointer;
+}
+
+/* The source editor: a transparent textarea over its highlighted copy, beside
+   line numbers. Both share every metric that places text; the copy sets the
+   size of both and the editor scrolls them with the numbers. */
+.editor {
+  position: relative;
+  flex: 1;
+  min-height: 10rem;
+  display: flex;
+  align-items: flex-start;
+  overflow: auto;
+  overscroll-behavior: contain;
+  border: 1px solid var(--control);
+  border-radius: 8px;
+  background: var(--code-bg);
+  font: 400 0.875rem/1.55 var(--mono);
+  /* The source's length must not stretch the pane, and the columns fill
+     the editor's height when the source is short. */
+  container-type: size;
+}
+
+.editor:focus-within {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.editor-gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  flex: none;
+  min-width: 2.4em;
+  margin: 0;
+  padding: 0.6rem 0.55rem calc(0.6rem + 1.55em) 0.6rem;
+  font: inherit;
+  /* Muted without opacity, so the code scrolling beneath stays covered. */
+  color: color-mix(in srgb, var(--muted) 65%, var(--code-bg));
+  background: var(--code-bg);
+  border-right: 1px solid var(--border);
+  text-align: right;
+  user-select: none;
+}
+
+.editor-gutter,
+.editor-body {
+  min-height: 100cqh;
+}
+
+.editor-body {
+  position: relative;
+  flex: 1 0 auto;
+}
+
+.editor-colors,
+.editor textarea {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  font: inherit;
+  letter-spacing: normal;
+  tab-size: 4;
+  white-space: pre;
+}
+
+.editor-colors {
+  /* A spare line and columns: the textarea, sized to this copy, then always
+     holds its text and leaves the scrolling to the editor. */
+  padding-right: calc(0.75rem + 2ch);
+  padding-bottom: calc(0.6rem + 1.55em);
+  color: var(--text);
+  pointer-events: none;
+}
+
+.editor textarea {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  resize: none;
+}
+
+.editor textarea:focus-visible {
+  outline: none;
+}
+
+.editor textarea::selection {
+  background: var(--mark);
+  color: transparent;
+}
+
+.editor-error,
+.editor-focus {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-left: 3px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
+  pointer-events: none;
+}
+
+.editor-focus {
+  border-left-color: var(--primary);
+  background: var(--mark);
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+button:focus-visible,
+summary:focus-visible,
+.code-wrap:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+input:invalid {
+  border-color: var(--danger);
+}
+
+.hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.chip {
+  padding: 0.2rem 0.65rem;
+  border: 1px solid var(--control);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: 0.8rem var(--mono);
+  cursor: pointer;
+}
+
+.chip:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.installed {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.installed legend {
+  padding: 0 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.checks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  font-size: 0.9rem;
+}
+
+.checks label,
+.option-groups label:not(.field),
+.live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+}
+
+input[type="checkbox"] {
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+/* Options */
+.options {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.8rem;
+}
+
+.options summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.options .changed {
+  margin-left: 0.3rem;
+  padding: 0 0.45rem;
+  border-radius: 999px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 0.75rem;
+}
+
+.options .changed:empty {
+  display: none;
+}
+
+.option-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.6rem 0 0.4rem;
+}
+
+.option-groups fieldset {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-size: 0.875rem;
+}
+
+.option-groups legend {
+  margin-bottom: 0.2rem;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.option-groups code {
+  font: 0.8rem var(--mono);
+}
+
+.option-groups .skip {
+  margin-top: 0.25rem;
+  font-weight: 400;
+}
+
+.option-groups .skip input {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.8rem;
+}
+
+/* Buttons */
+button.primary,
+button.secondary {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font: 600 0.9rem var(--sans);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+button.primary {
+  border: 1px solid var(--primary);
+  background: var(--primary);
+  color: var(--primary-text);
+}
+
+button.secondary {
+  border: 1px solid var(--control);
+  background: var(--surface);
+  color: var(--text);
+}
+
+button.primary:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+button.secondary:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font: inherit;
+  font-size: 0.85rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.run {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 0.9rem;
+}
+
+.live {
+  font-size: 0.9rem;
+}
+
+.kbd-hint {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+kbd {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  font: 0.75rem var(--mono);
+}
+
+/* Output: when the tabs and the actions do not fit on one row, the actions
+   move above the tabs, so that no tab is cut off. */
+.output-head {
+  display: flex;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  align-items: flex-end;
+  column-gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.output-head .tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+  border-bottom: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.4rem;
+  padding-bottom: 0.35rem;
+}
+
+/* The crate's files, and a menu of the items in the Rust file shown. Files
+   that do not fit scroll sideways, faded at the edge that has more. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: -0.25rem;
+}
+
+.files {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  gap: 0.25rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.files::-webkit-scrollbar {
+  display: none;
+}
+
+.files.more-right {
+  mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+}
+
+.files.more-left {
+  mask-image: linear-gradient(to left, #000 calc(100% - 2.5rem), transparent);
+}
+
+.files.more-left.more-right {
+  mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+}
+
+.files [role="tab"] {
+  flex: none;
+  padding: 0.12rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font: 0.8rem/1.5 var(--mono);
+  cursor: pointer;
+}
+
+.files [role="tab"]:hover {
+  border-color: var(--control);
+  color: var(--text);
+}
+
+.files [role="tab"][aria-selected="true"] {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.files [role="tab"]:focus-visible {
+  outline-offset: -2px;
+}
+
+.jump {
+  flex: none;
+}
+
+.jump select {
+  width: 8rem;
+  padding: 0.2rem 0.5rem;
+  font: 0.8rem var(--mono);
+}
+
+.toolbar-note {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.toolbar-note:empty {
+  display: none;
+}
+
+.code-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 16rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--code-bg);
+}
+
+.code-grid {
+  position: relative;
+  display: flex;
+  min-width: max-content;
+}
+
+.gutter,
+.code {
+  margin: 0;
+  padding: 0.85rem 0;
+  font: 0.82rem/1.55 var(--mono);
+  tab-size: 4;
+  white-space: pre;
+}
+
+/* The line numbers stay in view when the code scrolls sideways. */
+.gutter {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  min-width: 3.2em;
+  padding-inline: 0.6rem 0.7rem;
+  border-right: 1px solid var(--border);
+  background: var(--code-bg);
+  color: var(--muted);
+  text-align: right;
+  user-select: none;
+  opacity: 0.75;
+}
+
+.code {
+  flex: 1;
+  padding-inline: 1rem;
+}
+
+.line-mark {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: var(--mark);
+  pointer-events: none;
+}
+
+.line-mark.flash {
+  animation: fade 2.4s ease-out forwards;
+}
+
+@keyframes fade {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.code-wrap.is-stale .code-grid,
+.code-wrap.is-stale .view {
+  opacity: 0.45;
+}
+
+.stale {
+  position: sticky;
+  bottom: 0.6rem;
+  left: 0;
+  z-index: 2;
+  width: fit-content;
+  margin: 0 0 0.6rem 0.6rem;
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--warning);
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--warning);
+  font-size: 0.8rem;
+}
+
+.empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  color: var(--muted);
+  text-align: center;
+  padding: 1rem;
+}
+
+.empty p {
+  margin: 0;
+}
+
+.steps {
+  display: grid;
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  transition: opacity 0.3s;
+}
+
+.steps li[data-state="pending"],
+.steps li:not([data-state]) {
+  opacity: 0.55;
+}
+
+.steps strong {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.steps .hint {
+  display: block;
+  font-size: 0.8rem;
+}
+
+.step-mark {
+  position: relative;
+  flex: none;
+  width: 1.3rem;
+  height: 1.3rem;
+  margin-top: 0.12rem;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+}
+
+.steps [data-state="active"] .step-mark {
+  border-color: var(--primary);
+  border-top-color: transparent;
+  animation: spin 0.9s linear infinite;
+}
+
+.steps [data-state="done"] .step-mark {
+  border-color: var(--ok);
+  background: var(--ok);
+}
+
+.steps [data-state="done"] .step-mark::after {
+  content: "";
+  position: absolute;
+  left: 0.3rem;
+  top: 0.1rem;
+  width: 0.32rem;
+  height: 0.62rem;
+  border: solid var(--bg);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.steps [data-state="failed"] .step-mark {
+  border-color: var(--danger);
+  background: var(--danger);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.message {
+  margin: 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  color: var(--danger);
+  font: 0.85rem/1.5 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.message.note {
+  border-color: var(--border);
+  color: var(--muted);
+  font-family: var(--sans);
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 1rem;
+  min-height: 1.4em;
+}
+
+.stats {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.summary .warnings {
+  color: var(--warning);
+}
+
+/* Views: the type map and the report */
+.view {
+  padding: 0.9rem 1rem 1rem;
+  font-size: 0.875rem;
+}
+
+.view h3 {
+  margin: 1.1rem 0 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.view-intro {
+  margin: 0 0 0.75rem;
+  color: var(--muted);
+}
+
+.view code {
+  font: 0.82rem var(--mono);
+}
+
+.view table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.view th,
+.view td {
+  padding: 0.3rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.view thead th {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.type-table tr.symbol th {
+  padding-top: 0.75rem;
+  background: none;
+}
+
+.type-table .kind,
+.type-table .position {
+  margin-right: 0.4rem;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.type-table .position {
+  display: inline-block;
+  min-width: 4.5rem;
+  font-family: var(--mono);
+}
+
+.rust-type {
+  padding: 0.05rem 0.35rem;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: var(--primary-soft);
+  color: var(--tok-type);
+  font: 0.82rem var(--mono);
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.rust-type:hover {
+  border-color: var(--primary);
+}
+
+.origin,
+.reason {
+  display: inline-block;
+  margin: 0 0.3rem 0.15rem 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.reason {
+  padding: 0 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.reason.fallback {
+  border-color: var(--warning);
+  color: var(--warning);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.2rem 1rem;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--muted);
+}
+
+.facts dd {
+  margin: 0;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.module-table td:not(:first-child),
+.module-table th:not(:first-child) {
+  text-align: right;
+}
+
+.enums,
+.diagnostics {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.diagnostics li {
+  margin-bottom: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.diagnostics .code {
+  margin-right: 0.4rem;
+  color: var(--warning);
+}
+
+.diagnostics .path {
+  margin-right: 0.2rem;
+  color: var(--muted);
+}
+
+.view .info summary {
+  margin-top: 0.75rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+/* Overview: each Python item beside its Rust, in cards per class and enum. A
+   narrow pane stacks the two, with the Rust indented under the Python. */
+.overview {
+  container: overview / inline-size;
+}
+
+.api-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 1.25rem;
+  margin: 0 0 0.4rem;
+  padding: 0 0.8rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.api-columns span:first-child {
+  color: var(--python);
+}
+
+.api-columns span:last-child {
+  color: var(--rust);
+}
+
+:root[data-theme="dark"] .api-columns span:first-child {
+  color: #79b8ff;
+}
+
+:root[data-theme="dark"] .api-columns span:last-child {
+  color: #ff9a62;
+}
+
+.api-module + .api-module {
+  margin-top: 1.4rem;
+}
+
+.view .api-module-title {
+  margin: 0 0 0.1rem;
+  font: 600 0.9rem var(--mono);
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text);
+}
+
+.api-module-doc {
+  margin: 0 0 0.6rem;
+  color: var(--muted);
+}
+
+.api-card {
+  margin: 0 0 0.7rem;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+.api-card > li + li {
+  border-top: 1px solid var(--border);
+}
+
+.api-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr);
+  gap: 0.35rem 1.25rem;
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.api-row:hover {
+  background: var(--primary-soft);
+}
+
+.api-row:focus-visible {
+  outline-offset: -2px;
+}
+
+.api-head {
+  background: var(--surface);
+}
+
+.api-py,
+.api-rs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.api-sig {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 0.45rem;
+}
+
+.view .api-row code {
+  font: 0.8rem/1.5 var(--mono);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.view .api-head code {
+  font-weight: 600;
+}
+
+.api-tag {
+  flex: none;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 600 0.65rem/1.6 var(--sans);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.api-doc {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.api-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.35rem;
+}
+
+.view .api-steps code {
+  color: var(--tok-fn);
+}
+
+.api-muted {
+  color: var(--muted);
+}
+
+.api-py-token {
+  opacity: 0.6;
+}
+
+@container overview (max-width: 32rem) {
+  .api-columns {
+    display: none;
+  }
+
+  .api-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .api-rs {
+    padding-left: 0.6rem;
+    border-left: 2px solid color-mix(in srgb, var(--rust) 45%, transparent);
+  }
+}
+
+/* Code tokens */
+.tok-keyword { color: var(--tok-keyword); }
+.tok-fn { color: var(--tok-fn); }
+.tok-builtin { color: var(--tok-builtin); }
+.tok-name { color: var(--text); }
+.tok-type { color: var(--tok-type); }
+.tok-string { color: var(--tok-string); }
+.tok-comment { color: var(--tok-comment); font-style: italic; }
+.tok-number { color: var(--tok-number); }
+.tok-macro { color: var(--tok-macro); }
+.tok-attr { color: var(--tok-attr); }
+
+/* Footer */
+.foot {
+  padding: 0.6rem 1.25rem 0.9rem;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.foot p {
+  margin: 0.15rem 0;
+}
+
+/* Embedded in a page, such as the portfolio, which explains the playground
+   itself: the frame keeps room for the panes. */
+.embedded body {
+  height: max(100%, 38rem);
+}
+
+.embedded .tagline,
+.embedded .foot .about {
+  display: none;
+}
+
+.embedded .bar {
+  padding-block: 0.55rem;
+}
+
+.embedded .foot {
+  padding-block: 0.4rem 0.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .status .dot,
+  .line-mark.flash,
+  .steps .step-mark {
+    animation: none !important;
+  }
+}
+
+/* Narrow screens: stack the panes and let the page scroll. */
+@media (max-width: 700px) {
+  body,
+  .embedded body {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .panes {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0.75rem;
+  }
+
+  .bar {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .tagline {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .editor {
+    min-height: 16rem;
+  }
+
+  .code-wrap {
+    min-height: 22rem;
+    max-height: 70vh;
+  }
+
+  .kbd-hint {
+    display: none;
+  }
+}
+
+/* A narrow input pane, as on a phone or in a narrow frame, stacks the example
+   and the module name. */
+@container (max-width: 24rem) {
+  .field-row:not(#install-form) {
+    flex-wrap: wrap;
+  }
+
+  .module-name {
+    flex: 1 1 100%;
+  }
+
+  .kbd-hint {
+    display: none;
+  }
+}
