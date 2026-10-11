@@ -1,5 +1,6 @@
 import { highlightPython, highlightRust } from './highlight.js';
 import { overviewText, parseBindings, pythonLines, renderOverview } from './overview.js';
+import { DEFAULT_EXAMPLE, EXAMPLES } from './examples.js';
 
 // The id under which the author's portfolio embeds this page; see README.md.
 const DEMO_ID = 'pyo3_bindgen';
@@ -13,23 +14,19 @@ const EDITOR_HIGHLIGHT_LIMIT = 200_000;
 // Live generation waits for a pause in typing.
 const LIVE_DELAY = 700;
 const DEFAULT_FILE = 'src/bindings.rs';
-const EXAMPLES = {
-  orbit: { title: 'Orbit' },
-  shapes: { title: 'Shapes', options: { traverse_submodules: false } },
-  palette: { title: 'Palette', options: { traverse_submodules: false } },
-  inventory: { title: 'Inventory' },
-  greeting: {
-    title: 'Greeting',
-    options: { call_builders: true, traverse_submodules: false },
-    note: 'This example turns on call builders, which let Rust leave out optional arguments: see greet_builder in the bindings.',
-  },
-};
-
 const $ = (id) => document.getElementById(id);
 const ui = {
   status: $('status'),
   statusText: $('status-text'),
   example: $('example'),
+  exampleGuide: $('example-guide'),
+  exampleDescription: $('example-description'),
+  exampleConcepts: $('example-concepts'),
+  exampleExperiment: $('example-experiment'),
+  exampleExperimentDescription: $('example-experiment-description'),
+  exampleResult: $('example-result'),
+  exampleReset: $('example-reset'),
+  exampleState: $('example-state'),
   source: $('source'),
   editor: $('editor'),
   sourceColors: $('source-colors'),
@@ -83,6 +80,7 @@ const state = {
   defaults: null,
   mode: 'source',
   result: null,
+  resultOptions: null,
   view: 'overview',
   file: DEFAULT_FILE,
   busy: false,
@@ -93,6 +91,8 @@ const state = {
   editedBeforeReady: false,
   preReadySnapshot: null,
   examples: new Map(),
+  guideExample: null,
+  exampleLoading: false,
 };
 
 /* ---------- Embedding protocol ---------- */
@@ -306,6 +306,8 @@ function restorePreReadySnapshot() {
   ui.requirement.value = snapshot.requirement;
   ui.modules.value = snapshot.modules;
   ui.live.checked = snapshot.live;
+  state.guideExample = snapshot.mode === 'source' && snapshot.example && exampleBase(snapshot.example) === snapshot.source ? snapshot.example : null;
+  updateExampleGuide();
 }
 
 /* ---------- Tabs ---------- */
@@ -344,6 +346,7 @@ function selectMode(mode) {
   const tab = $(`tab-${mode}`);
   selectTab(tab.parentElement, tab);
   for (const name of ['source', 'package', 'module']) $(`panel-${name}`).hidden = name !== mode;
+  if (ui.exampleGuide) updateExampleGuide();
 }
 
 /* ---------- Editor ---------- */
@@ -492,6 +495,16 @@ async function exampleSource(name) {
   return state.examples.get(name);
 }
 
+async function matchingExperiment(source, module) {
+  if (!Object.hasOwn(EXAMPLES, module) || !EXAMPLES[module].experiment) return '';
+  try {
+    const base = await exampleSource(module);
+    return source === `${base.trimEnd()}\n\n${EXAMPLES[module].experiment.append}` ? module : '';
+  } catch {
+    return '';
+  }
+}
+
 function matchingExample() {
   for (const [name, text] of state.examples) {
     if (text === ui.source.value && ui.sourceModule.value === name) return name;
@@ -505,9 +518,156 @@ async function loadExample(name, { isCurrent = () => true, applyOptions = () => 
   setSource(source);
   ui.sourceModule.value = name;
   ui.example.value = name;
+  state.guideExample = name;
   const options = EXAMPLES[name].options;
   if (options && state.defaults && applyOptions()) setOptions({ ...readOptions(), ...options });
+  updateExampleGuide();
   return true;
+}
+
+function exampleBase(name = state.guideExample) {
+  return name ? state.examples.get(name) : undefined;
+}
+
+function updateExampleGuide() {
+  const name = state.guideExample;
+  const example = name && Object.hasOwn(EXAMPLES, name) ? EXAMPLES[name] : null;
+  const base = exampleBase(name);
+  const experimentSource = example?.experiment && base
+    ? `${base.trimEnd()}\n\n${example.experiment.append}`
+    : '';
+  const pristine = Boolean(base && ui.sourceModule.value === name && ui.source.value === base);
+  const applied = Boolean(experimentSource && ui.sourceModule.value === name && ui.source.value === experimentSource);
+  const guarded = startupBusy || state.busy || state.exampleLoading;
+  ui.exampleGuide.hidden = !example || state.mode !== 'source';
+  if (!example) {
+    ui.exampleGuide.removeAttribute('data-example');
+    return;
+  }
+  ui.exampleGuide.dataset.example = name;
+  ui.exampleDescription.textContent = example.description;
+  ui.exampleConcepts.replaceChildren(...example.concepts.map((concept) => {
+    const item = document.createElement('li');
+    item.textContent = concept;
+    return item;
+  }));
+  ui.exampleExperiment.textContent = example.experiment.label;
+  ui.exampleExperimentDescription.textContent = `${example.experiment.description} Expected Rust change: ${example.experiment.item}.`;
+  ui.exampleExperiment.disabled = guarded || !pristine;
+  ui.exampleReset.disabled = guarded || pristine;
+  const resultIsFresh = applied && state.ready && !guarded && !state.stale && state.mode === 'source' &&
+    state.result?.source === ui.source.value && state.result?.module === ui.sourceModule.value.trim() &&
+    same(state.resultOptions, readOptions()) &&
+    outline(state.result?.files[DEFAULT_FILE] ?? '').some((item) => item.name === example.experiment.item);
+  ui.exampleResult.textContent = `View ${example.experiment.item} in Rust`;
+  ui.exampleResult.hidden = !resultIsFresh;
+  ui.exampleResult.disabled = !resultIsFresh;
+  if (pristine) {
+    ui.exampleState.textContent = 'Original example';
+  } else if (!applied) {
+    ui.exampleState.textContent = 'Source modified · reset restores the original example';
+  } else {
+    const currentResult = state.mode === 'source' && state.result && !state.stale &&
+      state.result.source === ui.source.value && state.result.module === ui.sourceModule.value.trim() &&
+      same(state.resultOptions, readOptions());
+    const itemInCurrentResult = currentResult && outline(state.result.files[DEFAULT_FILE] ?? '')
+      .some((item) => item.name === example.experiment.item);
+    if (itemInCurrentResult) {
+      ui.exampleState.textContent = `Experiment applied · generated Rust includes ${example.experiment.item}`;
+    } else if (currentResult) {
+      const options = readOptions();
+      const requiredOption = example.experiment.item === 'Rectangle' ? 'generate_classes' : 'generate_functions';
+      const optionLabel = requiredOption === 'generate_classes' ? 'Classes' : 'Functions';
+      const omitted = [];
+      if (!options[requiredOption]) omitted.push(`${optionLabel} is off`);
+      if (options.blocklist_names.includes(example.experiment.item)) omitted.push(`Skip names includes ${example.experiment.item}`);
+      ui.exampleState.textContent = omitted.length
+        ? `Experiment applied · current options omit ${example.experiment.item}: ${omitted.join('; ')}`
+        : `Experiment applied · current Rust output does not include ${example.experiment.item}; review generation options`;
+    } else if (!ui.message.hidden) {
+      ui.exampleState.textContent = 'Generation failed · fix the source, then generate again';
+    } else if (state.busy) {
+      ui.exampleState.textContent = `Generating Rust with ${example.experiment.item}…`;
+    } else if (ui.live.checked && (livePending || liveTimer !== null)) {
+      ui.exampleState.textContent = 'Updated Rust generation queued';
+    } else if (!state.ready) {
+      ui.exampleState.textContent = 'Experiment applied · Python must be ready to generate Rust';
+    } else if (ui.live.checked) {
+      ui.exampleState.textContent = 'Experiment applied · output is stale; waiting for generation';
+    } else {
+      ui.exampleState.textContent = `Experiment applied · choose Generate Rust to add ${example.experiment.item}`;
+    }
+  }
+}
+
+async function resetExample() {
+  const name = state.guideExample;
+  if (!name || startupBusy || state.busy || state.exampleLoading || !exampleBase(name)) return;
+  const pristine = ui.sourceModule.value === name && ui.source.value === exampleBase(name);
+  if (pristine) return;
+  if (!confirm(`Replace your modified code with the original ${EXAMPLES[name].title} example?`)) return;
+  const selection = ++exampleSelectionGeneration;
+  const startingMode = state.mode;
+  const startingSource = ui.source.value;
+  const startingModule = ui.sourceModule.value;
+  const startingOptions = readOptions();
+  state.exampleLoading = true;
+  updateExampleGuide();
+  clearTimeout(liveTimer);
+  liveTimer = null;
+  livePending = false;
+  pendingExampleGeneration = null;
+  try {
+    const loaded = await loadExample(name, {
+      isCurrent: () => selection === exampleSelectionGeneration && state.mode === startingMode && ui.source.value === startingSource && ui.sourceModule.value === startingModule,
+      applyOptions: () => same(readOptions(), startingOptions),
+    });
+    if (loaded && selection === exampleSelectionGeneration && ui.source.value === exampleBase(name)) {
+      markUserEdit();
+      if (ui.live.checked) scheduleLive(0);
+      else markStale(Boolean(state.result));
+    }
+  } catch (error) {
+    showMessage(`The example could not load (${error.message}).`);
+  } finally {
+    if (selection === exampleSelectionGeneration) {
+      state.exampleLoading = false;
+      updateExampleGuide();
+    }
+  }
+}
+
+function tryExampleExperiment() {
+  const name = state.guideExample;
+  const example = EXAMPLES[name];
+  const base = exampleBase(name);
+  if (!example?.experiment || startupBusy || state.busy || state.exampleLoading || !base) return;
+  if (ui.sourceModule.value !== name || ui.source.value !== base) return;
+  clearTimeout(liveTimer);
+  liveTimer = null;
+  livePending = false;
+  markUserEdit();
+  setSource(`${base.trimEnd()}\n\n${example.experiment.append}`);
+  ui.example.value = '';
+  updateExampleGuide();
+  if (ui.live.checked) scheduleLive(0);
+  else markStale(Boolean(state.result));
+}
+
+function viewExampleResult() {
+  const name = state.guideExample;
+  const example = EXAMPLES[name];
+  const base = exampleBase(name);
+  const source = state.result?.files[DEFAULT_FILE];
+  const experimentSource = base && example?.experiment ? `${base.trimEnd()}\n\n${example.experiment.append}` : '';
+  if (!example?.experiment || ui.exampleResult.hidden || ui.exampleResult.disabled || !source || !state.ready || state.mode !== 'source' || state.busy || startupBusy || state.stale) return;
+  if (ui.source.value !== experimentSource || ui.sourceModule.value !== name) return;
+  if (state.result.source !== ui.source.value || state.result.module !== ui.sourceModule.value.trim() || !same(state.resultOptions, readOptions())) return;
+  const item = outline(source).find((candidate) => candidate.name === example.experiment.item);
+  if (!item) return;
+  const previousView = state.view;
+  showBindingsLine(item.line, item.name, previousView);
+  ui.codeWrap.focus({ preventScroll: true });
 }
 
 async function chooseExample() {
@@ -519,6 +679,8 @@ async function chooseExample() {
   }
   markUserEdit();
   const selection = ++exampleSelectionGeneration;
+  state.exampleLoading = true;
+  updateExampleGuide();
   const startingMode = state.mode;
   const startingSource = ui.source.value;
   const startingModule = ui.sourceModule.value;
@@ -539,6 +701,11 @@ async function chooseExample() {
   } catch (error) {
     showMessage(`The example could not load (${error.message}).`);
     return;
+  } finally {
+    if (selection === exampleSelectionGeneration) {
+      state.exampleLoading = false;
+      updateExampleGuide();
+    }
   }
   await generate();
   if (EXAMPLES[name].note) showNote(EXAMPLES[name].note);
@@ -568,6 +735,7 @@ function renderTabs() {
 
 function clearOutput() {
   state.result = null;
+  state.resultOptions = null;
   state.stale = false;
   ui.views.hidden = true;
   ui.files.replaceChildren();
@@ -584,6 +752,7 @@ function clearOutput() {
   ui.codeWrap.classList.remove('is-stale');
   ui.stats.textContent = '';
   ui.warnings.hidden = true;
+  updateExampleGuide();
   updateButtons();
 }
 
@@ -696,6 +865,7 @@ function outline(text) {
 
 // Shows a line of bindings.rs, with a way back to the view that led there.
 function showBindingsLine(line, label, from) {
+  const previousFile = state.file;
   showFile(DEFAULT_FILE);
   jumpToLine(line);
   const back = document.createElement('button');
@@ -703,7 +873,14 @@ function showBindingsLine(line, label, from) {
   back.className = 'link';
   back.textContent = `Back to ${$(`view-${from}`).textContent.toLowerCase()}`;
   back.title = `${label}, line ${line}`;
-  back.addEventListener('click', () => showView(from));
+  back.addEventListener('click', () => {
+    if (from === 'crate') showFile(previousFile);
+    else showView(from);
+    const tab = from === 'crate'
+      ? [...ui.files.querySelectorAll('[role="tab"]')].find((element) => element.dataset.path === previousFile)
+      : $(`view-${from}`);
+    tab?.focus();
+  });
   ui.toolbarNote.replaceChildren(back);
 }
 
@@ -1034,6 +1211,7 @@ async function run(task, busyText) {
   if (!state.ready || state.busy) return null;
   state.busy = true;
   updateButtons();
+  updateExampleGuide();
   setStatus('busy', busyText);
   showMessage('');
   try {
@@ -1046,6 +1224,7 @@ async function run(task, busyText) {
     state.busy = false;
     if (state.ready) setStatus('ready', ui.status.dataset.readyText ?? 'Ready');
     updateButtons();
+    updateExampleGuide();
     const queuedExample = pendingExampleGeneration;
     pendingExampleGeneration = null;
     if (queuedExample && state.ready && queuedExample.selection === exampleSelectionGeneration && queuedExample.editRevision === userEditRevision) {
@@ -1065,17 +1244,29 @@ let livePending = false;
 // during a run generates again once that run ends.
 function scheduleLive(delay = LIVE_DELAY) {
   clearTimeout(liveTimer);
+  liveTimer = null;
   livePending = false;
-  if (!ui.live.checked || !state.ready) return;
-  if (state.mode === 'package' && !state.installed) return;
+  if (!ui.live.checked || !state.ready) {
+    updateExampleGuide();
+    return;
+  }
+  if (state.mode === 'package' && !state.installed) {
+    updateExampleGuide();
+    return;
+  }
   liveTimer = setTimeout(() => {
+    liveTimer = null;
     if (state.busy) livePending = true;
     else generate({ live: true });
   }, delay);
+  updateExampleGuide();
 }
 
 async function generate({ live = false } = {}) {
-  if (!live) clearTimeout(liveTimer);
+  if (!live) {
+    clearTimeout(liveTimer);
+    liveTimer = null;
+  }
   const mode = state.mode;
   if (mode === 'source') {
     const valid = live ? ui.sourceModule.checkValidity() : ui.sourceModule.reportValidity();
@@ -1117,6 +1308,7 @@ async function generate({ live = false } = {}) {
       : same(selectedModules(mode), modules) && (mode !== 'package' || ui.requirement.value.trim() === input.requirement));
   ui.sourceError.hidden = true;
   state.result = { ...outcome.result, name: crateName(modules), source: mode === 'source' ? input.source : null, module: modules[0] };
+  state.resultOptions = input.options;
   markStale(!matchesCurrentInput);
   if (!live) showNote('');
   renderTabs();
@@ -1157,6 +1349,7 @@ function markStale(stale) {
   ui.stale.hidden = !stale;
   ui.codeWrap.classList.toggle('is-stale', stale);
   updateButtons();
+  updateExampleGuide();
 }
 
 async function install() {
@@ -1350,6 +1543,8 @@ async function loadFromHash() {
       setSource(source);
       ui.sourceModule.value = params.get('name') ?? 'module';
       ui.example.value = '';
+      state.guideExample = await matchingExperiment(source, ui.sourceModule.value.trim());
+      updateExampleGuide();
       return restored;
     }
     if (params.has('modules')) {
@@ -1360,7 +1555,7 @@ async function loadFromHash() {
   } catch {
     showNote('The link holds code that could not be read, so the example is shown instead.');
   }
-  await loadExample('orbit').catch((error) => showMessage(`The example could not load (${error.message}).`));
+  await loadExample(DEFAULT_EXAMPLE).catch((error) => showMessage(`The example could not load (${error.message}).`));
   return restored;
 }
 
@@ -1394,6 +1589,9 @@ function wire() {
   });
   ui.download.addEventListener('click', download);
   ui.example.addEventListener('change', chooseExample);
+  ui.exampleExperiment.addEventListener('click', tryExampleExperiment);
+  ui.exampleResult.addEventListener('click', viewExampleResult);
+  ui.exampleReset.addEventListener('click', resetExample);
   ui.outline.addEventListener('change', () => {
     const line = Number(ui.outline.value);
     ui.outline.value = '';
@@ -1441,6 +1639,7 @@ function wire() {
     field.addEventListener('input', () => {
       ui.example.value = matchingExample();
       markUserEdit();
+      updateExampleGuide();
       if (state.mode === 'source') scheduleLive();
     });
   }
@@ -1462,6 +1661,7 @@ function wire() {
   });
   ui.live.addEventListener('change', () => {
     markUserEdit(false);
+    updateExampleGuide();
     if (ui.live.checked && state.stale) scheduleLive(0);
   });
   document.addEventListener('keydown', (event) => {
@@ -1499,6 +1699,7 @@ async function restoreInputsOnce() {
 async function start() {
   if (startupBusy || state.busy) return;
   startupBusy = true;
+  updateExampleGuide();
   ui.retry.disabled = true;
   showMessage('');
   setStatus('loading', 'Preparing Python…');
@@ -1562,9 +1763,16 @@ async function start() {
     startupBusy = false;
     ui.retry.disabled = false;
     updateButtons();
+    updateExampleGuide();
   }
 }
 
 wire();
+for (const option of ui.example.options) {
+  if (Object.hasOwn(EXAMPLES, option.value)) option.textContent = EXAMPLES[option.value].label;
+}
+if (ui.example.value !== DEFAULT_EXAMPLE) ui.example.value = DEFAULT_EXAMPLE;
+ui.sourceModule.value = DEFAULT_EXAMPLE;
+updateExampleGuide();
 updateButtons();
 start();

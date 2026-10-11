@@ -4,10 +4,18 @@
     <meta charset="utf-8">
     <title>pyo3_bindgen playground</title>
     <link rel="icon" href="data:,">
-    <link rel="canonical" href="playground/curated/">
-    <meta http-equiv="refresh" content="0; url=playground/curated/">
+    <link rel="canonical" href="playground/">
+    <script>
+      const destination = new URL('playground/', window.location.href);
+      destination.search = window.location.search;
+      destination.hash = window.location.hash;
+      window.location.replace(destination.href);
+    </script>
   </head>
   <body>
-    <p><a href="playground/curated/">Explore the pyo3_bindgen examples</a></p>
+    <noscript>
+      <meta http-equiv="refresh" content="0; url=playground/">
+      <p><a href="playground/">Open the interactive pyo3_bindgen playground</a></p>
+    </noscript>
   </body>
 </html>

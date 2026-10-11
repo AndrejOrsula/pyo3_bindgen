@@ -22,7 +22,7 @@
       <span class="brand-name">pyo3_bindgen</span>
       <span class="brand-tag">playground</span>
     </a>
-    <p class="tagline">Python in, Rust out. Everything runs in your browser.</p>
+    <p class="tagline">Edit Python and explore the generated Rust.</p>
     <p class="status" id="status" role="status" data-state="loading">
       <span class="dot" aria-hidden="true"></span><span id="status-text">Starting…</span>
     </p>
@@ -42,19 +42,33 @@
           <label class="field grow">
             <span>Example</span>
             <select id="example">
-              <option value="orbit">Orbit: functions and classes</option>
-              <option value="shapes">Shapes: inheritance</option>
-              <option value="palette">Palette: enums</option>
-              <option value="inventory">Inventory: dataclasses</option>
-              <option value="greeting">Greeting: optional arguments</option>
+              <option value="greeting">Greeting · optional arguments</option>
+              <option value="shapes">Shapes · inheritance</option>
+              <option value="palette">Palette · enums</option>
+              <option value="inventory">Inventory · dataclasses</option>
+              <option value="orbit">Orbit · functions and classes</option>
               <option value="" hidden>Your code</option>
             </select>
           </label>
           <label class="field module-name">
             <span>Module name</span>
-            <input id="source-module" value="orbit" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
+            <input id="source-module" value="greeting" autocomplete="off" spellcheck="false" required pattern="[A-Za-z_][A-Za-z0-9_]*">
           </label>
         </div>
+        <section class="example-guide" id="example-guide" aria-labelledby="example-guide-title" data-example="greeting">
+          <div class="guide-copy">
+            <p class="guide-kicker" id="example-guide-title">Explore this example</p>
+            <p id="example-description"></p>
+            <ul id="example-concepts" class="concepts" aria-label="Concepts in this example"></ul>
+          </div>
+          <div class="guide-actions">
+            <button type="button" class="secondary" id="example-experiment">Try the experiment</button>
+            <button type="button" class="secondary" id="example-result" hidden>View result in Rust</button>
+            <button type="button" class="link" id="example-reset">Reset example</button>
+          </div>
+          <p class="guide-state" id="example-state" role="status">Original example</p>
+          <p class="experiment-description" id="example-experiment-description"></p>
+        </section>
         <div class="field grow">
           <label for="source">Python source</label>
           <div class="editor" id="editor">
@@ -200,7 +214,7 @@
 
   <footer class="foot">
     <p class="about">Your submitted Python stays in this browser and is not sent to a server for generation. Python code and imported packages can make network requests. A shared link can include your source in its URL fragment. Pyodide loads from jsDelivr, and packages install from PyPI or Pyodide. Download a crate to inspect its generated files; open <code>src/main.rs</code> and follow the included README to compile and run the starter locally. Generic example calls may be commented out.</p>
-    <p><a href="curated/">Curated examples</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
+    <p><a href="curated/">Precomputed reference</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
   </footer>
 </body>
 </html>

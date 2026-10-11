@@ -227,6 +227,82 @@ a {
   box-shadow: 0 -0.5rem 0 var(--bg), 0 4px 0 var(--bg);
 }
 
+.example-guide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) max-content;
+  gap: 0.35rem 0.8rem;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--python);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+
+.guide-copy,
+.guide-actions {
+  min-width: 0;
+}
+
+.guide-copy > p,
+.guide-state,
+.experiment-description {
+  margin: 0;
+}
+
+.guide-kicker {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+#example-description,
+.experiment-description,
+.guide-state {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.concepts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.concepts li {
+  padding: 0.05rem 0.4rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.guide-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+}
+
+.guide-actions button.secondary {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.82rem;
+}
+
+.experiment-description {
+  grid-column: 1 / -1;
+}
+
+.guide-state {
+  grid-column: 1 / -1;
+}
+
+.experiment-description:empty {
+  display: none;
+}
+
 /* Tabs */
 .tabs {
   display: flex;
@@ -234,6 +310,10 @@ a {
   overflow-x: auto;
   border-bottom: 1px solid var(--border);
   scrollbar-width: thin;
+}
+
+.pane.input > .tabs {
+  flex: none;
 }
 
 .tabs [role="tab"] {
@@ -1341,8 +1421,8 @@ kbd {
   }
 }
 
-/* Narrow screens: stack the panes and let the page scroll. */
-@media (max-width: 700px) {
+/* Constrained screens: stack the panes and let the page scroll. */
+@media (max-width: 850px) {
   body,
   .embedded body {
     height: auto;
@@ -1352,6 +1432,15 @@ kbd {
   .panes {
     grid-template-columns: minmax(0, 1fr);
     padding: 0.75rem;
+  }
+
+  .pane.input {
+    overflow: visible;
+  }
+
+  .input .run {
+    position: static;
+    box-shadow: none;
   }
 
   .bar {
@@ -1378,7 +1467,7 @@ kbd {
 }
 
 /* Keep the brand and status from competing for the same line on very narrow
-   screens. The tagline still identifies the page as the playground. */
+   screens. The brand itself identifies the page as the playground. */
 @media (max-width: 360px) {
   .brand-tag {
     display: none;
@@ -1398,6 +1487,17 @@ kbd {
 /* A narrow input pane, as on a phone or in a narrow frame, stacks the example
    and the module name. */
 @container (max-width: 24rem) {
+  .example-guide {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guide-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem 0.65rem;
+  }
+
   .field-row:not(#install-form) {
     flex-wrap: wrap;
   }
