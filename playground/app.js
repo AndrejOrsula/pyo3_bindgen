@@ -15,12 +15,12 @@ const LIVE_DELAY = 700;
 const DEFAULT_FILE = 'src/bindings.rs';
 const EXAMPLES = {
   orbit: { title: 'Orbit' },
-  shapes: { title: 'Shapes' },
-  palette: { title: 'Palette' },
+  shapes: { title: 'Shapes', options: { traverse_submodules: false } },
+  palette: { title: 'Palette', options: { traverse_submodules: false } },
   inventory: { title: 'Inventory' },
   greeting: {
     title: 'Greeting',
-    options: { call_builders: true },
+    options: { call_builders: true, traverse_submodules: false },
     note: 'This example turns on call builders, which let Rust leave out optional arguments: see greet_builder in the bindings.',
   },
 };
@@ -50,10 +50,12 @@ const ui = {
   blocklist: $('blocklist'),
   generate: $('generate'),
   cancel: $('cancel'),
+  retry: $('retry'),
   live: $('live'),
   views: $('views'),
   files: $('files'),
   copy: $('copy'),
+  showExampleCall: $('show-example-call'),
   download: $('download'),
   toolbar: $('toolbar'),
   jump: $('jump'),
@@ -88,6 +90,8 @@ const state = {
   installed: null,
   stale: false,
   generated: false,
+  editedBeforeReady: false,
+  preReadySnapshot: null,
   examples: new Map(),
 };
 
@@ -104,11 +108,25 @@ function notifyHost(type, extra = {}) {
 let worker = null;
 let nextId = 1;
 const pending = new Map();
-let lastCrash = 0;
+let workerGeneration = 0;
+let bootGeneration = 0;
+let startupBusy = false;
+let initial = null;
+let inputRestored = false;
+let initialOptionsApplied = false;
+let hostReadySent = false;
+let startupRetries = 0;
+let packagesLost = false;
+let exampleSelectionGeneration = 0;
+let userEditRevision = 0;
+let pendingExampleGeneration = null;
 
 function startWorker() {
-  worker = new Worker('worker.js', { type: 'module' });
-  worker.onmessage = ({ data }) => {
+  const instance = new Worker('worker.js', { type: 'module' });
+  const generation = ++workerGeneration;
+  worker = instance;
+  instance.onmessage = ({ data }) => {
+    if (worker !== instance || generation !== workerGeneration) return;
     if (data.type === 'progress') {
       setStatus('loading', data.text);
       setStep(data.step);
@@ -120,34 +138,34 @@ function startWorker() {
     if (data.ok) request.resolve({ result: data.result, ms: data.ms });
     else request.reject(Object.assign(new Error(data.error), { ms: data.ms }));
   };
-  worker.onerror = (event) => {
+  instance.onerror = (event) => {
+    if (worker !== instance || generation !== workerGeneration) return;
     event.preventDefault();
-    crashed(event.message || 'The Python worker stopped unexpectedly.');
+    crashed(instance, event.message || 'The Python worker stopped unexpectedly.');
   };
 }
 
-// A worker that fails outside a call, such as when it runs out of memory, is
-// replaced; a second failure within a minute is left for the visitor to see.
-async function crashed(text) {
-  worker.terminate();
+function stopWorker(error = new Error('Python worker replaced.')) {
+  workerGeneration += 1;
+  const previous = worker;
+  worker = null;
+  previous?.terminate();
+  failAll(error);
+}
+
+function crashed(instance, text) {
+  if (worker !== instance) return;
+  stopWorker(new Error(text));
   state.ready = false;
+  packagesLost ||= Boolean(state.installed);
   state.installed = null;
   ui.installed.hidden = true;
-  failAll(new Error(text));
+  markStale(Boolean(state.result));
   setStatus('error', 'Python stopped');
+  showRetry(true);
+  showMessage(`Python stopped unexpectedly: ${text} Retry to start Python again. Packages installed earlier need installing again.`);
   updateButtons();
-  if (Date.now() - lastCrash < 60_000) {
-    showMessage(`Python stopped: ${text} Reload the page to start again.`);
-    return;
-  }
-  lastCrash = Date.now();
-  showNote('Python stopped unexpectedly, so it restarted. Packages installed earlier need installing again.');
-  try {
-    await boot();
-  } catch (error) {
-    setStatus('error', 'Python failed to start');
-    showMessage(error.message);
-  }
+  notifyHost('wasm-demo-error', { ...(state.config?.build ? { build: state.config.build } : {}), message: text });
 }
 
 function failAll(error) {
@@ -157,29 +175,49 @@ function failAll(error) {
 
 function call(command, args) {
   return new Promise((resolve, reject) => {
+    if (!worker) {
+      reject(new Error('Python is not running. Retry startup before generating.'));
+      return;
+    }
     const id = nextId++;
     pending.set(id, { resolve, reject });
-    worker.postMessage({ id, command, args });
+    try {
+      worker.postMessage({ id, command, args });
+    } catch (error) {
+      pending.delete(id);
+      reject(error);
+    }
   });
 }
 
 async function boot() {
+  const generation = ++bootGeneration;
+  stopWorker();
   state.ready = false;
   updateButtons();
   setStatus('loading', 'Starting Python…');
   setStep('python');
   startWorker();
-  const { result } = await call('init', {
-    pyodideUrl: state.config.pyodide_url,
-    wheelUrl: state.config.wheel,
-    glueUrl: 'playground.py',
-    generatorRevision: state.config.generator_revision ?? '',
-  });
+  let result;
+  try {
+    ({ result } = await call('init', {
+      pyodideUrl: state.config.pyodide_url,
+      wheelUrl: state.config.wheel,
+      glueUrl: 'playground.py',
+      generatorRevision: state.config.generator_revision ?? '',
+    }));
+  } catch (error) {
+    if (generation !== bootGeneration) throw Object.assign(error, { cancelled: true });
+    stopWorker(error);
+    throw error;
+  }
+  if (generation !== bootGeneration) throw Object.assign(new Error('Startup was superseded.'), { cancelled: true });
   state.defaults ??= result.defaults;
   state.ready = true;
   setStep('generate');
   ui.status.dataset.readyText = `Ready · Python ${result.python}`;
   setStatus('ready', ui.status.dataset.readyText);
+  showRetry(false);
   updateButtons();
   return result;
 }
@@ -226,6 +264,48 @@ function updateButtons() {
   const usable = Boolean(state.result) && !state.stale;
   ui.copy.disabled = !usable;
   ui.download.disabled = !usable || !idle;
+  ui.showExampleCall.disabled = !usable || !state.result.files['src/main.rs'];
+  const target = state.view === 'crate' ? state.file : state.view === 'types' ? 'Type map' : state.view === 'report' ? 'Report' : 'Overview';
+  ui.copy.textContent = `Copy ${target}`;
+  ui.copy.title = usable ? `Copy the current ${target} view.` : 'Generate current bindings before copying.';
+}
+
+function showRetry(visible) {
+  ui.retry.hidden = !visible;
+  ui.retry.disabled = false;
+}
+
+function markUserEdit(semantic = true) {
+  if (semantic) {
+    userEditRevision += 1;
+    pendingExampleGeneration = null;
+  }
+  if (state.ready) {
+    if (semantic && state.result) markStale(true);
+    return;
+  }
+  state.editedBeforeReady = true;
+  state.preReadySnapshot = {
+    mode: state.mode,
+    source: ui.source.value,
+    sourceModule: ui.sourceModule.value,
+    example: ui.example.value,
+    requirement: ui.requirement.value,
+    modules: ui.modules.value,
+    live: ui.live.checked,
+  };
+}
+
+function restorePreReadySnapshot() {
+  const snapshot = state.preReadySnapshot;
+  if (!snapshot) return;
+  selectMode(snapshot.mode);
+  setSource(snapshot.source);
+  ui.sourceModule.value = snapshot.sourceModule;
+  ui.example.value = snapshot.example;
+  ui.requirement.value = snapshot.requirement;
+  ui.modules.value = snapshot.modules;
+  ui.live.checked = snapshot.live;
 }
 
 /* ---------- Tabs ---------- */
@@ -419,12 +499,15 @@ function matchingExample() {
   return '';
 }
 
-async function loadExample(name) {
-  setSource(await exampleSource(name));
+async function loadExample(name, { isCurrent = () => true, applyOptions = () => true } = {}) {
+  const source = await exampleSource(name);
+  if (!isCurrent()) return false;
+  setSource(source);
   ui.sourceModule.value = name;
   ui.example.value = name;
   const options = EXAMPLES[name].options;
-  if (options && state.defaults) setOptions({ ...readOptions(), ...options });
+  if (options && state.defaults && applyOptions()) setOptions({ ...readOptions(), ...options });
+  return true;
 }
 
 async function chooseExample() {
@@ -434,8 +517,25 @@ async function chooseExample() {
     ui.example.value = '';
     return;
   }
+  markUserEdit();
+  const selection = ++exampleSelectionGeneration;
+  const startingMode = state.mode;
+  const startingSource = ui.source.value;
+  const startingModule = ui.sourceModule.value;
+  const startingOptions = readOptions();
   try {
-    await loadExample(name);
+    const loaded = await loadExample(name, {
+      isCurrent: () => selection === exampleSelectionGeneration && state.mode === startingMode && ui.source.value === startingSource && ui.sourceModule.value === startingModule,
+      applyOptions: () => same(readOptions(), startingOptions),
+    });
+    if (!loaded) {
+      if (selection === exampleSelectionGeneration) ui.example.value = matchingExample();
+      return;
+    }
+    if (state.busy) {
+      pendingExampleGeneration = { selection, editRevision: userEditRevision };
+      return;
+    }
   } catch (error) {
     showMessage(`The example could not load (${error.message}).`);
     return;
@@ -506,6 +606,7 @@ function showView(view) {
   ui.view.hidden = false;
   ui.view.replaceChildren({ overview: overviewView, types: typesView, report: reportView }[view]());
   ui.codeWrap.scrollTo(0, 0);
+  updateButtons();
 }
 
 function showFile(path) {
@@ -519,13 +620,14 @@ function showFile(path) {
   ui.view.hidden = true;
   ui.codeGrid.hidden = false;
   ui.toolbar.hidden = false;
-  renderCode(state.result.files[path], path.endsWith('.rs'));
+  renderCode(state.result.files[path], path);
   ui.codeWrap.scrollTo(0, 0);
   if (tab) {
     selectTab(ui.files, tab);
     ui.codeWrap.setAttribute('aria-labelledby', tab.id);
     revealFileTab(tab);
   }
+  updateButtons();
 }
 
 // Scrolls the row of files so that the selected one shows in full.
@@ -543,10 +645,13 @@ function updateFilesOverflow() {
   list.classList.toggle('more-right', list.scrollLeft < hidden - 1);
 }
 
-function renderCode(text, rust) {
+function renderCode(text, path) {
+  const rust = path.endsWith('.rs');
+  const python = path.endsWith('.py');
   const lines = text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
   ui.gutter.textContent = Array.from({ length: lines }, (_, index) => index + 1).join('\n');
-  if (rust && text.length <= HIGHLIGHT_LIMIT) ui.code.replaceChildren(highlightRust(text));
+  if (text.length <= HIGHLIGHT_LIMIT && rust) ui.code.replaceChildren(highlightRust(text));
+  else if (text.length <= HIGHLIGHT_LIMIT && python) ui.code.replaceChildren(highlightPython(text));
   else ui.code.textContent = text;
   const items = rust ? outline(text) : [];
   ui.jump.hidden = items.length === 0;
@@ -941,7 +1046,15 @@ async function run(task, busyText) {
     state.busy = false;
     if (state.ready) setStatus('ready', ui.status.dataset.readyText ?? 'Ready');
     updateButtons();
-    if (livePending) scheduleLive(0);
+    const queuedExample = pendingExampleGeneration;
+    pendingExampleGeneration = null;
+    if (queuedExample && state.ready && queuedExample.selection === exampleSelectionGeneration && queuedExample.editRevision === userEditRevision) {
+      clearTimeout(liveTimer);
+      livePending = false;
+      generate();
+    } else if (livePending) {
+      scheduleLive(0);
+    }
   }
 }
 
@@ -996,14 +1109,20 @@ async function generate({ live = false } = {}) {
     else if (!ui.message.hidden) clearOutput();
     return;
   }
-  markStale(false);
+  const matchesCurrentInput =
+    state.mode === mode &&
+    same(readOptions(), input.options) &&
+    (mode === 'source'
+      ? ui.source.value === input.source && ui.sourceModule.value.trim() === modules[0]
+      : same(selectedModules(mode), modules) && (mode !== 'package' || ui.requirement.value.trim() === input.requirement));
   ui.sourceError.hidden = true;
   state.result = { ...outcome.result, name: crateName(modules), source: mode === 'source' ? input.source : null, module: modules[0] };
+  markStale(!matchesCurrentInput);
   if (!live) showNote('');
   renderTabs();
   renderStats(outcome.result, outcome.ms);
   updateButtons();
-  await saveToHash(mode, modules, input);
+  if (matchesCurrentInput) await saveToHash(mode, modules, input);
 }
 
 // Python reports an error in the pasted code at `__init__.py`, the file that
@@ -1101,20 +1220,25 @@ async function copy() {
 }
 
 function flash(button, text) {
-  const original = button.dataset.label ?? button.textContent;
-  button.dataset.label = original;
+  const original = button.textContent;
   button.textContent = text;
   clearTimeout(button.flashTimer);
   button.flashTimer = setTimeout(() => {
-    button.textContent = original;
+    if (button === ui.copy) updateButtons();
+    else button.textContent = original;
   }, 1500);
 }
 
 async function download() {
-  if (!state.result) return;
-  const { files, name } = state.result;
+  const result = state.result;
+  if (!result || state.stale) return;
+  const { files, name } = result;
   const outcome = await run(() => call('crateZip', { files, name }), 'Packing the crate…');
   if (!outcome) return;
+  if (state.result !== result || state.stale) {
+    showNote('The inputs changed while the crate was being packed. Generate current bindings before downloading.');
+    return;
+  }
   const url = URL.createObjectURL(new Blob([outcome.result], { type: 'application/zip' }));
   const link = document.createElement('a');
   link.href = url;
@@ -1129,17 +1253,26 @@ async function cancel() {
   if (!state.busy) return;
   clearTimeout(liveTimer);
   livePending = false;
-  worker.terminate();
-  failAll(Object.assign(new Error('Cancelled'), { cancelled: true }));
+  stopWorker(Object.assign(new Error('Cancelled'), { cancelled: true }));
   state.busy = false;
+  state.ready = false;
+  packagesLost ||= Boolean(state.installed);
   state.installed = null;
   ui.installed.hidden = true;
+  markStale(Boolean(state.result));
   showNote('Cancelled. Python restarted, so packages installed earlier need installing again.');
   try {
     await boot();
+    if (packagesLost) {
+      showNote('Python restarted. Install the package again before generating package bindings.');
+      packagesLost = false;
+    }
   } catch (error) {
     setStatus('error', 'Python failed to start');
-    showMessage(error.message);
+    showMessage(`Python could not restart: ${error.message} Retry to try loading Pyodide, the generator, and Python glue again.`);
+    showRetry(true);
+    updateButtons();
+    notifyHost('wasm-demo-error', { ...(state.config?.build ? { build: state.config.build } : {}), message: error.message });
   }
 }
 
@@ -1234,7 +1367,10 @@ async function loadFromHash() {
 /* ---------- Wiring ---------- */
 
 function wire() {
-  setupTabs($('tab-source').parentElement, (tab) => selectMode(tab.id.slice('tab-'.length)));
+  setupTabs($('tab-source').parentElement, (tab) => {
+    selectMode(tab.id.slice('tab-'.length));
+    markUserEdit();
+  });
   setupTabs(ui.views, (tab) => showView(tab.id.slice('view-'.length)));
   setupTabs(ui.files, (tab) => showFile(tab.dataset.path));
   ui.files.addEventListener('scroll', updateFilesOverflow, { passive: true });
@@ -1247,7 +1383,15 @@ function wire() {
   });
   ui.generate.addEventListener('click', () => generate());
   ui.cancel.addEventListener('click', cancel);
+  ui.retry.addEventListener('click', () => {
+    startupRetries += 1;
+    start();
+  });
   ui.copy.addEventListener('click', copy);
+  ui.showExampleCall.addEventListener('click', () => {
+    if (ui.showExampleCall.disabled || !state.result?.files['src/main.rs']) return;
+    showFile('src/main.rs');
+  });
   ui.download.addEventListener('click', download);
   ui.example.addEventListener('change', chooseExample);
   ui.outline.addEventListener('change', () => {
@@ -1266,6 +1410,7 @@ function wire() {
   for (const chip of document.querySelectorAll('[data-requirement]')) {
     chip.addEventListener('click', async () => {
       ui.requirement.value = chip.dataset.requirement;
+      markUserEdit();
       await install();
       if (state.installed) generate();
     });
@@ -1273,14 +1418,21 @@ function wire() {
   for (const chip of document.querySelectorAll('[data-modules]')) {
     chip.addEventListener('click', () => {
       ui.modules.value = chip.dataset.modules;
+      markUserEdit();
       generate();
     });
   }
   ui.requirement.addEventListener('input', () => {
+    markUserEdit();
     state.installed = null;
     ui.installed.hidden = true;
   });
+  ui.modules.addEventListener('input', () => {
+    markUserEdit();
+    scheduleLive();
+  });
   ui.source.addEventListener('input', () => {
+    markUserEdit();
     renderEditor();
     revealCaret();
   });
@@ -1288,21 +1440,28 @@ function wire() {
   for (const field of [ui.source, ui.sourceModule]) {
     field.addEventListener('input', () => {
       ui.example.value = matchingExample();
+      markUserEdit();
       if (state.mode === 'source') scheduleLive();
     });
   }
-  ui.installedModules.addEventListener('change', () => scheduleLive(0));
+  ui.installedModules.addEventListener('change', () => {
+    markUserEdit();
+    scheduleLive(0);
+  });
   for (const input of optionInputs()) {
     input.addEventListener(input.type === 'checkbox' ? 'change' : 'input', () => {
+      markUserEdit();
       updateOptionsSummary();
       scheduleLive(input.type === 'checkbox' ? 0 : LIVE_DELAY);
     });
   }
   ui.optionsReset.addEventListener('click', () => {
+    markUserEdit();
     setOptions(state.defaults);
     scheduleLive(0);
   });
   ui.live.addEventListener('change', () => {
+    markUserEdit(false);
     if (ui.live.checked && state.stale) scheduleLive(0);
   });
   document.addEventListener('keydown', (event) => {
@@ -1315,49 +1474,97 @@ function wire() {
   });
 }
 
-async function main() {
-  wire();
-  updateButtons();
-  try {
-    const response = await fetch('playground.json', { cache: 'no-cache' });
-    if (!response.ok) throw new Error(`playground.json: HTTP ${response.status}`);
-    state.config = await response.json();
-  } catch (error) {
-    setStep('python', true);
-    setStatus('error', 'Failed to load');
-    showMessage(`The playground could not load its configuration (${error.message}).`);
-    notifyHost('wasm-demo-error', { phase: 'startup', message: error.message });
-    return;
+async function fetchConfig() {
+  const response = await fetch('playground.json', { cache: 'no-cache' });
+  if (!response.ok) throw new Error(`playground.json: HTTP ${response.status}`);
+  const config = await response.json();
+  if (!config || typeof config !== 'object' || typeof config.build !== 'string' || typeof config.generator !== 'string' || typeof config.pyodide_url !== 'string' || typeof config.wheel !== 'string') {
+    throw new Error('playground.json: missing required build, generator, pyodide_url, or wheel field');
   }
-  const initial = await loadFromHash();
-  const { build, generator } = state.config;
-  ui.buildInfo.textContent = `pyo3_bindgen ${generator} · build ${build.slice(0, 7)}`;
-  // The page is interactive from here on and shows its own loading progress.
-  notifyHost('wasm-demo-ready', { build });
-  try {
-    await boot();
-  } catch (error) {
-    failStep();
-    setStatus('error', 'Python failed to start');
-    showMessage(`Python could not start: ${error.message}`);
-    notifyHost('wasm-demo-error', { build, message: error.message });
-    return;
-  }
-  // The options start from the generator's defaults; a link's options or the
-  // example's own replace them.
-  setOptions(state.defaults);
-  if (initial.params.has('opt') || initial.params.has('skip')) optionsFromParams(initial.params);
-  else if (EXAMPLES[ui.example.value]?.options) setOptions({ ...state.defaults, ...EXAMPLES[ui.example.value].options });
-  updateButtons();
-  if (initial.mode === 'package') {
-    await install();
-    if (state.installed && initial.modules?.length) {
-      for (const box of ui.installedModules.querySelectorAll('input')) box.checked = initial.modules.includes(box.value);
-    }
-    if (state.installed) await generate();
+  state.config = config;
+}
+
+async function restoreInputsOnce() {
+  if (inputRestored) return;
+  const params = new URLSearchParams(location.hash.slice(1));
+  if (!state.editedBeforeReady) {
+    initial = await loadFromHash();
+    if (state.editedBeforeReady) restorePreReadySnapshot();
   } else {
-    await generate();
+    initial = { mode: state.mode, params, modules: (params.get('modules') ?? '').split(/\s+/).filter(Boolean) };
+  }
+  inputRestored = true;
+}
+
+async function start() {
+  if (startupBusy || state.busy) return;
+  startupBusy = true;
+  ui.retry.disabled = true;
+  showMessage('');
+  setStatus('loading', 'Preparing Python…');
+  try {
+    if (!state.config) await fetchConfig();
+    await restoreInputsOnce();
+    const { build, generator } = state.config;
+    ui.buildInfo.textContent = `pyo3_bindgen ${generator} · build ${build.slice(0, 7)}`;
+    // Protocol 1 means the page shell is ready; Python may still be loading.
+    if (!hostReadySent) {
+      notifyHost('wasm-demo-ready', { build });
+      hostReadySent = true;
+    }
+    await boot();
+    const hadLostPackages = packagesLost;
+    packagesLost = false;
+    if (!initialOptionsApplied) {
+      // Options stay inert until defaults exist, so apply the link or example
+      // once here; later retries never replace options the visitor changed.
+      setOptions(state.defaults);
+      if (initial.params.has('opt') || initial.params.has('skip')) optionsFromParams(initial.params);
+      else {
+        const selectedExample = EXAMPLES[initial.params.get('example')] ?? EXAMPLES[ui.example.value];
+        if (selectedExample?.options) setOptions({ ...state.defaults, ...selectedExample.options });
+      }
+      initialOptionsApplied = true;
+    }
+    showMessage('');
+    if (startupRetries === 0 && !state.editedBeforeReady) {
+      if (initial.mode === 'package') {
+        await install();
+        if (state.installed && initial.modules?.length) {
+          for (const box of ui.installedModules.querySelectorAll('input')) box.checked = initial.modules.includes(box.value);
+        }
+        if (state.installed) await generate();
+      } else {
+        await generate();
+      }
+    } else if (hadLostPackages) {
+      showNote('Python is ready again. Install the package again before generating package bindings.');
+    } else if (!state.result) {
+      showNote('Python is ready. Review your input, then choose Generate Rust when you are ready to run it.');
+    }
+  } catch (error) {
+    if (error.cancelled) return;
+    state.ready = false;
+    stopWorker(error);
+    if (state.config) failStep();
+    else setStep('python', true);
+    setStatus('error', state.config ? 'Python failed to start' : 'Failed to load');
+    showMessage(state.config
+      ? `Python could not start: ${error.message} Retry to try loading Pyodide, the generator, and Python glue again.`
+      : `The playground could not load its configuration (${error.message}). Retry to fetch it again.`);
+    showRetry(true);
+    updateButtons();
+    notifyHost('wasm-demo-error', {
+      ...(state.config?.build ? { build: state.config.build } : { phase: 'startup' }),
+      message: error.message,
+    });
+  } finally {
+    startupBusy = false;
+    ui.retry.disabled = false;
+    updateButtons();
   }
 }
 
-main();
+wire();
+updateButtons();
+start();

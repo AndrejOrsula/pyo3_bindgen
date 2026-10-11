@@ -12,6 +12,7 @@
 </head>
 <body>
   <header class="bar">
+    <h1 class="visually-hidden">pyo3_bindgen playground</h1>
     <a class="brand" href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">
       <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
         <defs><linearGradient id="brand-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3776ab"/><stop offset="1" stop-color="#e8590c"/></linearGradient></defs>
@@ -66,6 +67,7 @@
             </div>
           </div>
         </div>
+        <p class="hint">Edit this example or paste Python, then choose <strong>Generate Rust</strong>. The generator runs in your browser; it does not run the generated Rust.</p>
       </div>
 
       <div class="panel" role="tabpanel" id="panel-package" aria-labelledby="tab-package" hidden>
@@ -157,7 +159,8 @@
           <button type="button" role="tab" id="view-report" aria-controls="code-wrap" aria-selected="false" tabindex="-1" title="What was generated, and any warnings">Report</button>
         </div>
         <div class="actions">
-          <button type="button" class="secondary" id="copy" disabled>Copy</button>
+          <button type="button" class="secondary" id="copy" disabled>Copy Overview</button>
+          <button type="button" class="secondary" id="show-example-call" disabled title="View src/main.rs from this generated crate. Compile and run it locally; a generic example call may be commented out.">Show starter src/main.rs</button>
           <button type="button" class="primary" id="download" disabled title="A ZIP of a Cargo project with these bindings, an example main.rs, and a README">Download crate</button>
         </div>
       </div>
@@ -186,6 +189,7 @@
         <p class="stale" id="stale" hidden>Outdated: this shows the last bindings that generated.</p>
       </div>
       <p class="message" id="message" role="alert" hidden></p>
+      <button type="button" class="secondary" id="retry" hidden>Retry Python startup</button>
       <p class="message note" id="note" role="status" hidden></p>
       <div class="summary">
         <p class="stats" id="stats" aria-live="polite"></p>
@@ -195,8 +199,8 @@
   </main>
 
   <footer class="foot">
-    <p class="about">Python runs in a web worker through <a href="https://pyodide.org" target="_blank" rel="noopener">Pyodide</a>, and pyo3_bindgen itself is compiled to WebAssembly. Your code is not uploaded anywhere, but the page keeps it in its link, so a link you share includes it. Packages download from PyPI and jsDelivr.</p>
-    <p><a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
+    <p class="about">Your submitted Python stays in this browser and is not sent to a server for generation. Python code and imported packages can make network requests. A shared link can include your source in its URL fragment. Pyodide loads from jsDelivr, and packages install from PyPI or Pyodide. Download a crate to inspect its generated files; open <code>src/main.rs</code> and follow the included README to compile and run the starter locally. Generic example calls may be commented out.</p>
+    <p><a href="curated/">Curated examples</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
   </footer>
 </body>
 </html>
