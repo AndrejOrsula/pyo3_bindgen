@@ -900,7 +900,8 @@ function renderCode(text, path) {
 
 function renderRustEditor() {
   const text = ui.rustSource.value;
-  ui.rustColors.replaceChildren(highlightRust(text));
+  if (text.length <= HIGHLIGHT_LIMIT) ui.rustColors.replaceChildren(highlightRust(text));
+  else ui.rustColors.textContent = text;
   if (text.endsWith('\n')) ui.rustColors.append(' ');
   const lines = text.split('\n').length;
   if (Number(ui.rustGutter.dataset.lines) !== lines) {
@@ -1890,12 +1891,16 @@ async function decodeCode(params) {
 }
 
 async function saveToHash(mode, modules, input) {
+  const editRevision = userEditRevision;
+  const generationId = state.generationId;
+  const isCurrent = () => editRevision === userEditRevision && generationId === state.generationId && mode === state.mode;
   const params = new URLSearchParams();
   if (mode === 'source') {
     if (input.example) {
       params.set('example', input.example);
     } else {
       const code = await encodeCode(input.source);
+      if (!isCurrent()) return;
       if (code.length > LINK_CODE_LIMIT) {
         showNote('This code is too long to keep in the page link, so the link does not include it.');
         history.replaceState(null, '', location.pathname + location.search);
@@ -1910,6 +1915,7 @@ async function saveToHash(mode, modules, input) {
   } else {
     params.set('modules', modules.join(' '));
   }
+  if (!isCurrent()) return;
   optionsToParams(params, input.options);
   history.replaceState(null, '', `#${params}`);
 }

@@ -2,6 +2,7 @@ const MAX_DIAGNOSTICS = 65_536;
 const MAX_SOURCE_BYTES = 16 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
 const MAX_ASSET_CHUNK_BYTES = 16 * 1024 * 1024;
+const MAX_RUNTIME_TAR_BYTES = 512 * 1024 * 1024;
 const EXPECTED = {
   schema_version: 1,
   rust_version: '1.93.0',
@@ -135,6 +136,76 @@ async function streamChunks(chunks, base, id, label, onChunk) {
     const bytes = await fetchChecked(chunks[index], base, `${label} part ${index + 1}`);
     await onChunk(bytes, index);
     progress(id, 'downloading', `Downloaded ${label} part ${index + 1} of ${chunks.length}`);
+  }
+}
+
+async function streamRuntimeTarToGuest(chunks, base, id, {
+  maxBytes = MAX_RUNTIME_TAR_BYTES,
+  partBytes = MAX_ASSET_CHUNK_BYTES,
+} = {}) {
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1
+      || !Number.isSafeInteger(partBytes) || partBytes < 1 || partBytes > MAX_ASSET_CHUNK_BYTES) {
+    throw new Error('Invalid Rust runtime staging limits');
+  }
+  if (typeof DecompressionStream !== 'function') throw new Error('This browser has no gzip decompression support');
+  let next = 0;
+  let total = 0;
+  let part = 0;
+  let used = 0;
+  let buffer = null;
+  const compressed = new ReadableStream({
+    async pull(controller) {
+      try {
+        if (next >= chunks.length) { controller.close(); return; }
+        const index = next++;
+        const bytes = await fetchChecked(chunks[index], base, `Rust runtime part ${index + 1}`);
+        controller.enqueue(bytes);
+        progress(id, 'downloading', `Downloaded Rust runtime part ${index + 1} of ${chunks.length}`);
+      } catch (error) { controller.error(error); }
+    },
+  });
+  const reader = compressed.pipeThrough(new DecompressionStream('gzip')).getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (total + value.byteLength > maxBytes) {
+        throw new Error(`Rust runtime archive exceeds ${maxBytes} decompressed bytes`);
+      }
+      total += value.byteLength;
+      let offset = 0;
+      while (offset < value.byteLength) {
+        if (buffer === null) buffer = new Uint8Array(partBytes);
+        const copied = Math.min(buffer.byteLength - used, value.byteLength - offset);
+        buffer.set(value.subarray(offset, offset + copied), used);
+        used += copied;
+        offset += copied;
+        if (used === buffer.byteLength) {
+          await emulator.create_file(`/runtime-tar-${String(part++).padStart(4, '0')}.tar`, buffer);
+          buffer = null;
+          used = 0;
+        }
+      }
+    }
+    if (total === 0) throw new Error('Rust runtime archive is empty');
+    if (used > 0) {
+      await emulator.create_file(`/runtime-tar-${String(part++).padStart(4, '0')}.tar`, buffer.slice(0, used));
+    }
+  } catch (error) {
+    try { await reader.cancel(error); } catch { /* preserve the original stream or guest-write error */ }
+    throw error;
+  } finally {
+    reader.releaseLock();
+  }
+  return { bytes: total, parts: part };
+}
+
+async function stageRuntimeTar(chunks, base, id, limits) {
+  try {
+    return await streamRuntimeTarToGuest(chunks, base, id, limits);
+  } catch (error) {
+    try { await destroyEmulator(); } catch { /* preserve the original runtime staging error */ }
+    throw error;
   }
 }
 
@@ -352,20 +423,18 @@ async function startEmulator(manifest, base, id) {
     throw new Error('Linux shell command handshake failed');
   }
 
-  await streamChunks(manifest.runtime.chunks, base, id, 'Rust runtime', async (bytes, index) => {
-    await emulator.create_file(`/runtime-${String(index).padStart(4, '0')}.gz`, bytes);
-  });
+  await stageRuntimeTar(manifest.runtime.chunks, base, id);
   await streamChunks(manifest.dependencies.chunks, base, id, 'Rust dependencies', async (bytes, index) => {
     await emulator.create_file(`/dependencies-${String(index).padStart(4, '0')}.gz`, bytes);
   });
   const script = [
     'mkdir -p /tmp/lib /tmp/rust /tmp/deps /tmp/jobs',
-    'cat /mnt/runtime-*.gz | gunzip -c | tar -xf - -C /tmp',
+    'cat /mnt/runtime-tar-*.tar | tar -xf - -C /tmp',
     'cat /mnt/dependencies-*.gz | gunzip -c | tar -xf - -C /tmp/deps',
     'chmod +x /tmp/lib/ld-linux.so.2',
     '/tmp/lib/ld-linux.so.2 --library-path /tmp/lib:/tmp/rust/lib /tmp/rust/bin/rustc --version',
     'echo __COMPILER_RUNTIME_READY__',
-    'rm -f /mnt/runtime-*.gz /mnt/dependencies-*.gz /mnt/compiler-bootstrap.sh',
+    'rm -f /mnt/runtime-tar-*.tar /mnt/dependencies-*.gz /mnt/compiler-bootstrap.sh',
     '',
   ].join('\n');
   const result = await runCommand(script, 'compiler-bootstrap.sh', 240_000, ['__COMPILER_RUNTIME_READY__']);
