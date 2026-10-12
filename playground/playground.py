@@ -159,7 +159,7 @@ def generate_modules(modules, options):
     return result(code, report, analysis, modules, None, options)
 
 
-def generate_source(source, module, options):
+def generate_source(source, module, options, main_body=None):
     """Bindings for a module given by its source code, with the starter crate's files."""
     module = module.strip()
     check_module_name(module)
@@ -182,10 +182,10 @@ def generate_source(source, module, options):
             PASTED.pop(module, None)
         else:
             PASTED[module] = sys.modules[module]
-    return result(code, report, analysis, [module], source, options)
+    return result(code, report, analysis, [module], source, options, main_body)
 
 
-def result(code, report, analysis, modules, source, options):
+def result(code, report, analysis, modules, source, options, main_body=None):
     """The page's view of a generation; the analysis stays JSON text for the page to parse."""
     report = json.loads(report)
     return {
@@ -193,7 +193,7 @@ def result(code, report, analysis, modules, source, options):
         "report": report,
         "analysis": analysis,
         "python_api": python_api(module["name"] for module in report["modules"]),
-        "files": crate_files(code, report, modules, source, options),
+        "files": crate_files(code, report, modules, source, options, main_body),
     }
 
 
@@ -501,7 +501,7 @@ def build_script(modules, source, changed):
     return "\n".join(lines)
 
 
-def crate_files(code, report, modules, source, options):
+def crate_files(code, report, modules, source, options, main_body=None):
     """The files of a starter crate around the generated bindings."""
     name = crate_name(modules)
     generator = report["generator"]
@@ -526,16 +526,26 @@ def crate_files(code, report, modules, source, options):
             "        // Load the embedded Python source before calling into it.",
             f"        {first}::pyo3_embed_python_source_code(py)?;",
         ]
-    lines += [
-        f'        let module = py.import("{first}")?;',
-        '        println!("Python module ready: {module}");',
-    ]
-    call = example_call(code, first)
-    if call:
+    has_call_hint = False
+    if main_body is None:
         lines += [
-            "        // Uncomment to call a binding:",
-            f"        // let value = {call};",
+            f'        let module = py.import("{first}")?;',
+            '        println!("Python module ready: {module}");',
         ]
+        call = example_call(code, first)
+        has_call_hint = call is not None
+        if call:
+            lines += [
+                "        // Uncomment to call a binding:",
+                f"        // let value = {call};",
+            ]
+    else:
+        if not isinstance(main_body, str) or not main_body.strip():
+            raise ValueError("the selected starter body must be nonempty Rust source")
+        lines.extend(
+            f"        {line}" if line else ""
+            for line in main_body.rstrip().splitlines()
+        )
     lines += ["        Ok(())", "    })", "}", ""]
     main_rs = "\n".join(lines)
 
@@ -590,9 +600,13 @@ def crate_files(code, report, modules, source, options):
     else:
         setup = "The module is part of the Python standard library, so no installation is needed."
     usage = (
-        "`src/main.rs` shows how to call a binding, and"
-        if call
-        else "`src/main.rs` imports the module; "
+        "`src/main.rs` runs the matching example and checks its result."
+        if main_body is not None
+        else (
+            "`src/main.rs` imports the module and shows a commented binding-call hint."
+            if has_call_hint
+            else "`src/main.rs` imports the module."
+        )
     )
     readme = [
         f"# {name}",
@@ -613,8 +627,7 @@ def crate_files(code, report, modules, source, options):
         "cargo run",
         "```",
         "",
-        "It imports the module through the bindings and prints it, which confirms the "
-        f"setup. {usage} `cargo doc --open` lists every generated function and type.",
+        f"{usage} `cargo doc --open` lists every generated function and type.",
         "",
         "## Regenerate",
         "",

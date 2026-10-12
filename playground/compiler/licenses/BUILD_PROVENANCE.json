@@ -1,0 +1,22 @@
+{
+  "linker": {
+    "builder_workflow_commit": "517de68447f38f2dc12304f34d8a51929a19be82",
+    "builder_workflow_run": "https://github.com/oligamiq/rust_wasm/actions/runs/30251220500",
+    "clang_source_candidate": {
+      "commit": "944dd7c774954180e621cc8e12984023a7f8bcbe",
+      "confidence": "inferred; workflow omitted ref",
+      "repository": "https://github.com/YoWASP/clang"
+    },
+    "llvm_source_commit": "97196c8eeb1d495fa43bb8af2fb26af5ef5b89fb",
+    "release_asset_sha256": "69bf1fb994c0b31b1bbda58dff3f9df2ecb29f25b8053f80a489cab859d50f8a",
+    "release_asset_url": "https://github.com/oligamiq/rust_wasm/releases/download/v0.2.1-release/llvm_opt.wasm.br",
+    "release_packaging_workflow_commit": "60d347c1c4a3a87f1efcbb548ff1501e0f4a096b",
+    "release_packaging_workflow_run": "https://github.com/oligamiq/rust_wasm/actions/runs/33261254637",
+    "unresolved_mutable_builder_inputs": [
+      "rust_wasm checkout uses gh-actions ref",
+      "toolchain-for-building-rustc uses unpinned default branch",
+      "ubuntu-latest and Actions @v4/@main refs"
+    ],
+    "wasi_libc_submodule_commit": "ac020b86fd44bafe60aa4fa12f407d16e3731329"
+  }
+}

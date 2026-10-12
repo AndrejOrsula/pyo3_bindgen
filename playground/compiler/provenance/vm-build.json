@@ -1,0 +1,138 @@
+{
+  "commands": [
+    "SeaBIOS: pin .version=rel-1.16.2-0-gea1b7a0 && make olddefconfig && make EXTRAVERSION=-pyo3-browser-v1 -jN",
+    "Linux: make ARCH=i386 olddefconfig && make -s ARCH=i386 -jN bzImage",
+    "BusyBox: make ARCH=i386 oldconfig && make ARCH=i386 CC=provenance/zig-cc -jN && make ARCH=i386 CC=provenance/zig-cc CONFIG_PREFIX=<rootfs> install",
+    "initramfs: sorted newc entries (uid/gid 0, fixed epoch) then gzip -n -9"
+  ],
+  "inputs": {
+    "busybox": {
+      "bytes": 2525473,
+      "file": "busybox-1.36.1.tar.bz2",
+      "sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314"
+    },
+    "busybox_config": {
+      "bytes": 29387,
+      "file": "busybox-1.36.1.config",
+      "sha256": "ba158297c573bff7775cd2ab8bf0f96154ebde2a31a9821bf2330b1ef3dee099"
+    },
+    "init": {
+      "bytes": 310,
+      "file": "init",
+      "sha256": "ac168eb19eb0bc2bbef86c468b3d2ebfdf0743e1ed9332084ddfb08353dccabe"
+    },
+    "kernel_config": {
+      "bytes": 133467,
+      "file": "linux-6.8.12.config",
+      "sha256": "433cacd4299c5f2fb07c0bd1f7d2c594ba5bd4603ceaa4aad137ba733ef755c3"
+    },
+    "linux": {
+      "bytes": 142594556,
+      "file": "linux-6.8.12.tar.xz",
+      "sha256": "19b31956d229b5b9ca5671fa1c74320179682a3d8d00fc86794114b21da86039"
+    },
+    "seabios": {
+      "bytes": 635918,
+      "file": "seabios-rel-1.16.2-source.tar.gz",
+      "sha256": "efa8d529442ad168056f94ac6666b1b3543c62ff7af6d9e020561f4d0e32f959"
+    },
+    "seabios_config": {
+      "bytes": 2068,
+      "file": "seabios-default.config",
+      "sha256": "2f3d992760829a18101d56a8afd37ce44118d6234919e19e927d6e41a1bda47b"
+    }
+  },
+  "outputs": {
+    "bzImage": {
+      "bytes": 10330624,
+      "file": "bzImage",
+      "sha256": "63192db3ae78173d2587f3d45b6e3d4bef070850785bd30cf97ca014bb12f2c1"
+    },
+    "initramfs.cpio.gz": {
+      "bytes": 778128,
+      "file": "initramfs.cpio.gz",
+      "sha256": "26ae3bcab9bde85f95d4d8eb5fb877abc298a704be992937d4d856c13bd258bb"
+    },
+    "seabios-built.bin": {
+      "bytes": 262144,
+      "file": "seabios-built.bin",
+      "sha256": "a388e87eed2ae23bce8d4f089f1a05246c2c80ade8d2bea446562dffdd276981"
+    }
+  },
+  "recipe": {
+    "prepare_vm_sha256": "dc465c88edb89c4c3f8900f015637c7dbaaab31f439fb0f0e2323d2f3fced3b5",
+    "zig_cc_sha256": "1d5805377c8758e93d26866c006783e0d0044f3c739536db707dccc79fd9ee65"
+  },
+  "reproducible_metadata": {
+    "initramfs_compression": "gzip -n -9",
+    "initramfs_format": "newc",
+    "initramfs_uid_gid": "0:0",
+    "kbuild_host": "reproducible-build",
+    "kbuild_timestamp": "Thu Jan  1 00:00:00 UTC 2026",
+    "kbuild_user": "pyo3-vm-build",
+    "kbuild_version": "1",
+    "seabios_version": "rel-1.16.2-0-gea1b7a0-pyo3-browser-v1",
+    "source_date_epoch": 1767225600
+  },
+  "schema_version": 1,
+  "toolchain": {
+    "busybox_config_after_oldconfig_sha256": "0a1c8a757a261061be52efbd797af11ad4908ede422171b8e7e68ea89cbe333a",
+    "busybox_config_before_oldconfig_sha256": "ba158297c573bff7775cd2ab8bf0f96154ebde2a31a9821bf2330b1ef3dee099",
+    "host": {
+      "gcc": "gcc (Ubuntu 11.4.0-1ubuntu1~22.04.3) 11.4.0",
+      "ld": "GNU ld (GNU Binutils for Ubuntu) 2.38",
+      "make": "GNU Make 4.3",
+      "python3": "3.14.2"
+    },
+    "kernel_config_after_olddefconfig_sha256": "433cacd4299c5f2fb07c0bd1f7d2c594ba5bd4603ceaa4aad137ba733ef755c3",
+    "kernel_config_before_olddefconfig_sha256": "433cacd4299c5f2fb07c0bd1f7d2c594ba5bd4603ceaa4aad137ba733ef755c3",
+    "task_local": {
+      "acpica-tools": {
+        "bytes": 899738,
+        "file": "acpica-tools_20200925-6_amd64.deb",
+        "sha256": "3a7ad820f8c35d392176f91a1e293e346f45df5cb516f2e551f87915bc3c7d08",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/universe/a/acpica-unix/acpica-tools_20200925-6_amd64.deb",
+        "version": "20200925-6"
+      },
+      "bison": {
+        "bytes": 748182,
+        "file": "bison_3.8.2+dfsg-1ubuntu0.22.04.1_amd64.deb",
+        "sha256": "40ba998a24ce53a420fc3f8188b833fde276564df1a7e90acaf875f4f9b76c4e",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/main/b/bison/bison_3.8.2+dfsg-1ubuntu0.22.04.1_amd64.deb",
+        "version": "2:3.8.2+dfsg-1ubuntu0.22.04.1"
+      },
+      "bison_tool_version": "bison (GNU Bison) 3.8.2",
+      "flex": {
+        "bytes": 306728,
+        "file": "flex_2.6.4-8build2_amd64.deb",
+        "sha256": "980674f410fa6cb5e41d1bdf434a9391dcec0ac8fae5194cd90f9598ae074d8d",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/main/f/flex/flex_2.6.4-8build2_amd64.deb",
+        "version": "2.6.4-8build2"
+      },
+      "flex_tool_version": "flex 2.6.4",
+      "iasl_tool_version": "Intel ACPI Component Architecture",
+      "libsigsegv2": {
+        "bytes": 14612,
+        "file": "libsigsegv2_2.13-1ubuntu3_amd64.deb",
+        "sha256": "894fcb0804df54dca59edbd0860d6f3eeac25d1555aebd3fa99d80665969f891",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/main/libs/libsigsegv/libsigsegv2_2.13-1ubuntu3_amd64.deb",
+        "version": "2.13-1ubuntu3"
+      },
+      "m4": {
+        "bytes": 198836,
+        "file": "m4_1.4.18-5ubuntu2_amd64.deb",
+        "sha256": "572a544d2c18bf49d25c465720c570cd8e6e38731386ac9c0a7f29bed2486f3e",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/main/m/m4/m4_1.4.18-5ubuntu2_amd64.deb",
+        "version": "1.4.18-5ubuntu2"
+      },
+      "m4_tool_version": "m4 (GNU M4) 1.4.18",
+      "zig": {
+        "bytes": 47082308,
+        "file": "zig-linux-x86_64-0.13.0.tar.xz",
+        "sha256": "d45312e61ebcc48032b77bc4cf7fd6915c11fa16e4aad116b66c9468211230ea",
+        "url": "https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz",
+        "version": "0.13.0"
+      }
+    }
+  }
+}

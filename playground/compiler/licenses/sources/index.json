@@ -1,0 +1,222 @@
+[
+  {
+    "file": "glibc_2.36.orig.tar.xz",
+    "sha256": "a543c02070d46ccaf866957efd13f10c924daa74c86a90a0254db09a92a708ee",
+    "bytes": 19363988,
+    "parts": [
+      "glibc_2.36.orig.tar.xz.part-000",
+      "glibc_2.36.orig.tar.xz.part-001"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36.orig.tar.xz",
+    "origin": null
+  },
+  {
+    "file": "glibc_2.36-9+deb12u14.debian.tar.xz",
+    "sha256": "cf4ac9cd98185452cae3ef34e2e4ee12753e3d93fd0c62c61396d4a47eec902f",
+    "bytes": 918488,
+    "parts": [
+      "glibc_2.36-9+deb12u14.debian.tar.xz"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36-9+deb12u14.debian.tar.xz",
+    "origin": null
+  },
+  {
+    "file": "glibc_2.36-9+deb12u14.dsc",
+    "sha256": "cfe1f0b8dc1fa211ce5a45b3725cc38b29f88667f1140ebdca6de35cf9c6f1fd",
+    "bytes": 9765,
+    "parts": [
+      "glibc_2.36-9+deb12u14.dsc"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36-9+deb12u14.dsc",
+    "origin": null
+  },
+  {
+    "file": "gcc-12_12.2.0.orig.tar.gz",
+    "sha256": "b8298be16aeeb96a889c6afed0a8e2241b47452e89cc81fe65ea849d5c740fcb",
+    "bytes": 87090343,
+    "parts": [
+      "gcc-12_12.2.0.orig.tar.gz.part-000",
+      "gcc-12_12.2.0.orig.tar.gz.part-001",
+      "gcc-12_12.2.0.orig.tar.gz.part-002",
+      "gcc-12_12.2.0.orig.tar.gz.part-003",
+      "gcc-12_12.2.0.orig.tar.gz.part-004",
+      "gcc-12_12.2.0.orig.tar.gz.part-005"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0.orig.tar.gz",
+    "origin": null
+  },
+  {
+    "file": "gcc-12_12.2.0-14+deb12u1.debian.tar.xz",
+    "sha256": "59f7f7763a0c355e3f27ff9e7ac80d06382b29939361a87e7b139226bfe7402e",
+    "bytes": 1675204,
+    "parts": [
+      "gcc-12_12.2.0-14+deb12u1.debian.tar.xz"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1.debian.tar.xz",
+    "origin": null
+  },
+  {
+    "file": "gcc-12_12.2.0-14+deb12u1.dsc",
+    "sha256": "3aed0b189189c744dc9f4b74798a51d3e512ea85e492568db788a927c88e20ba",
+    "bytes": 27330,
+    "parts": [
+      "gcc-12_12.2.0-14+deb12u1.dsc"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1.dsc",
+    "origin": null
+  },
+  {
+    "file": "zlib_1.2.13.dfsg.orig.tar.bz2",
+    "sha256": "71feb7947e3c00ef125f83b79a4e529bde31171e5babe48b391f06758d1ab0a1",
+    "bytes": 1239825,
+    "parts": [
+      "zlib_1.2.13.dfsg.orig.tar.bz2"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.2.13.dfsg.orig.tar.bz2",
+    "origin": null
+  },
+  {
+    "file": "zlib_1.2.13.dfsg-1.debian.tar.xz",
+    "sha256": "f66cf3d4f2d7defcd4d1fd1fb0a11ee39f1e01b42ec7d059c9dc5c1695133c44",
+    "bytes": 15700,
+    "parts": [
+      "zlib_1.2.13.dfsg-1.debian.tar.xz"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.2.13.dfsg-1.debian.tar.xz",
+    "origin": null
+  },
+  {
+    "file": "zlib_1.2.13.dfsg-1.dsc",
+    "sha256": "3fa1e6b2fc525062aa88207dda52fed8e045373c809d362fe8a2bfbf7cf515a8",
+    "bytes": 2399,
+    "parts": [
+      "zlib_1.2.13.dfsg-1.dsc"
+    ],
+    "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.2.13.dfsg-1.dsc",
+    "origin": null
+  },
+  {
+    "file": "rustc-1.93.0-src.tar.xz",
+    "sha256": "e30d898272c587a22f77679f03c5e8192b5645c7c9ccc3407ad1106761507cea",
+    "bytes": 270925104,
+    "parts": [
+      "rustc-1.93.0-src.tar.xz.part-000",
+      "rustc-1.93.0-src.tar.xz.part-001",
+      "rustc-1.93.0-src.tar.xz.part-002",
+      "rustc-1.93.0-src.tar.xz.part-003",
+      "rustc-1.93.0-src.tar.xz.part-004",
+      "rustc-1.93.0-src.tar.xz.part-005",
+      "rustc-1.93.0-src.tar.xz.part-006",
+      "rustc-1.93.0-src.tar.xz.part-007",
+      "rustc-1.93.0-src.tar.xz.part-008",
+      "rustc-1.93.0-src.tar.xz.part-009",
+      "rustc-1.93.0-src.tar.xz.part-010",
+      "rustc-1.93.0-src.tar.xz.part-011",
+      "rustc-1.93.0-src.tar.xz.part-012",
+      "rustc-1.93.0-src.tar.xz.part-013",
+      "rustc-1.93.0-src.tar.xz.part-014",
+      "rustc-1.93.0-src.tar.xz.part-015",
+      "rustc-1.93.0-src.tar.xz.part-016"
+    ],
+    "url": "https://static.rust-lang.org/dist/2026-01-22/rustc-1.93.0-src.tar.xz",
+    "origin": null
+  },
+  {
+    "file": "linux-6.8.12.tar.xz",
+    "sha256": "19b31956d229b5b9ca5671fa1c74320179682a3d8d00fc86794114b21da86039",
+    "bytes": 142594556,
+    "parts": [
+      "linux-6.8.12.tar.xz.part-000",
+      "linux-6.8.12.tar.xz.part-001",
+      "linux-6.8.12.tar.xz.part-002",
+      "linux-6.8.12.tar.xz.part-003",
+      "linux-6.8.12.tar.xz.part-004",
+      "linux-6.8.12.tar.xz.part-005",
+      "linux-6.8.12.tar.xz.part-006",
+      "linux-6.8.12.tar.xz.part-007",
+      "linux-6.8.12.tar.xz.part-008"
+    ],
+    "url": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.8.12.tar.xz",
+    "origin": null
+  },
+  {
+    "file": "busybox-1.36.1.tar.bz2",
+    "sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+    "bytes": 2525473,
+    "parts": [
+      "busybox-1.36.1.tar.bz2"
+    ],
+    "url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+    "origin": null
+  },
+  {
+    "file": "seabios-rel-1.16.2-source.tar.gz",
+    "sha256": "efa8d529442ad168056f94ac6666b1b3543c62ff7af6d9e020561f4d0e32f959",
+    "bytes": 635918,
+    "parts": [
+      "seabios-rel-1.16.2-source.tar.gz"
+    ],
+    "url": "https://www.seabios.org/downloads/seabios-1.16.2.tar.gz",
+    "origin": null
+  },
+  {
+    "file": "linux-6.8.12.config",
+    "sha256": "433cacd4299c5f2fb07c0bd1f7d2c594ba5bd4603ceaa4aad137ba733ef755c3",
+    "bytes": 133467,
+    "parts": [
+      "linux-6.8.12.config"
+    ],
+    "url": null,
+    "origin": "repository input: compiler/provenance/linux-6.8.12.config"
+  },
+  {
+    "file": "busybox-1.36.1.config",
+    "sha256": "ba158297c573bff7775cd2ab8bf0f96154ebde2a31a9821bf2330b1ef3dee099",
+    "bytes": 29387,
+    "parts": [
+      "busybox-1.36.1.config"
+    ],
+    "url": null,
+    "origin": "repository input: compiler/provenance/busybox-1.36.1.config"
+  },
+  {
+    "file": "init",
+    "sha256": "ac168eb19eb0bc2bbef86c468b3d2ebfdf0743e1ed9332084ddfb08353dccabe",
+    "bytes": 310,
+    "parts": [
+      "init"
+    ],
+    "url": null,
+    "origin": "repository input: compiler/provenance/init"
+  },
+  {
+    "file": "seabios-default.config",
+    "sha256": "2f3d992760829a18101d56a8afd37ce44118d6234919e19e927d6e41a1bda47b",
+    "bytes": 2068,
+    "parts": [
+      "seabios-default.config"
+    ],
+    "url": null,
+    "origin": "repository input: compiler/provenance/seabios-default.config"
+  },
+  {
+    "file": "v86-lib-softfloat-3e.c",
+    "sha256": "c03900abf111b5900303162bf06717c6bb5e4154f42b4980954674b273257367",
+    "bytes": 1324966,
+    "parts": [
+      "v86-lib-softfloat-3e.c"
+    ],
+    "url": "https://raw.githubusercontent.com/copy/v86/94faf3d6b19ecabc53a4010aaa24252fa6a162e2/lib/softfloat/softfloat.c",
+    "origin": null
+  },
+  {
+    "file": "v86-lib-zstd-1.4.5-xxhash.c",
+    "sha256": "eb2df1130f9a66d71c660b7d9c7e7a3c675bb12768f16765072c8c3327c1099d",
+    "bytes": 578415,
+    "parts": [
+      "v86-lib-zstd-1.4.5-xxhash.c"
+    ],
+    "url": "https://raw.githubusercontent.com/copy/v86/94faf3d6b19ecabc53a4010aaa24252fa6a162e2/lib/zstd/zstddeclib.c",
+    "origin": null
+  }
+]

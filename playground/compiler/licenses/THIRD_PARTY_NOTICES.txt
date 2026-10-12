@@ -1,0 +1,27 @@
+Third-party notices for the browser Rust compiler
+
+This directory accompanies the browser compiler assets. It includes
+the exact source archives and license files listed in SHA256SUMS.
+
+Rust 1.93.0 is distributed under MIT OR Apache-2.0. Its bundled
+COPYRIGHT and full component notices are preserved in this directory.
+PyO3 0.29.2 and every locked Rust dependency retain their license
+files. v86, SeaBIOS, the browser WASI shim, Linux, BusyBox, and LLD
+retain their upstream notices. Debian runtime library notices and
+corresponding sources retain Debian metadata and patches.
+
+The Rust source archive is split into ordered .part-NNN files. Join
+them in order before extraction. Each source and notice hash is in
+sources/index.json and SHA256SUMS.
+
+The browser VM bundles glibc. Its corresponding source and Rust
+compiler source archives and Debian patches are included. The VM's
+standalone build recipe, pinned inputs, configs, init script, and
+tool wrapper are available in VM_BUILD.md, assets.json,
+prepare-vm.py, and provenance/.
+The runtime libraries are separate manifest chunks and can be
+replaced together with updated chunk hashes and manifest metadata.
+The LLD wasm module is checksum-pinned from the upstream release
+asset. Its source/build metadata is in BUILD_PROVENANCE.json; the
+upstream recipe has mutable refs, so this package does not claim
+that the workflow reproduces the release binary bit-for-bit.

@@ -1,0 +1,12 @@
+#!/bin/sh
+mount -t devtmpfs devtmpfs /dev
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mkdir -p /tmp /mnt
+mount -t tmpfs -o mode=1777 tmpfs /tmp
+if ! mount -t 9p -o trans=virtio,version=9p2000.L host9p /mnt; then
+    echo BINDGEN_VM_9P_MOUNT_FAILED
+    exec /bin/sh
+fi
+echo BINDGEN_VM_READY
+exec /bin/sh

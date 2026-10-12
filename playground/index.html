@@ -22,7 +22,7 @@
       <span class="brand-name">pyo3_bindgen</span>
       <span class="brand-tag">playground</span>
     </a>
-    <p class="tagline">Edit Python and explore the generated Rust.</p>
+    <p class="tagline">Edit Python, compile Rust, and run it with the generated bindings.</p>
     <p class="status" id="status" role="status" data-state="loading">
       <span class="dot" aria-hidden="true"></span><span id="status-text">Starting…</span>
     </p>
@@ -81,7 +81,7 @@
             </div>
           </div>
         </div>
-        <p class="hint">Edit this example or paste Python, then choose <strong>Generate Rust</strong>. The generator runs in your browser; it does not run the generated Rust.</p>
+        <p class="hint">Edit this example or paste Python, then choose <strong>Generate Rust</strong>. Generation and compilation stay in this browser.</p>
       </div>
 
       <div class="panel" role="tabpanel" id="panel-package" aria-labelledby="tab-package" hidden>
@@ -174,7 +174,8 @@
         </div>
         <div class="actions">
           <button type="button" class="secondary" id="copy" disabled>Copy Overview</button>
-          <button type="button" class="secondary" id="show-example-call" disabled title="View src/main.rs from this generated crate. Compile and run it locally; a generic example call may be commented out.">Show starter src/main.rs</button>
+          <button type="button" class="secondary" id="show-example-call" disabled title="Open the editable src/main.rs in the crate viewer">Show starter src/main.rs</button>
+          <button type="button" class="primary" id="compile-run" disabled aria-describedby="compiler-cost" title="Compile the current src/main.rs and run it with these bindings. The first run downloads compiler assets and boots a Linux VM.">Compile and run</button>
           <button type="button" class="primary" id="download" disabled title="A ZIP of a Cargo project with these bindings, an example main.rs, and a README">Download crate</button>
         </div>
       </div>
@@ -184,12 +185,20 @@
           <select id="outline"></select>
         </label>
         <span class="toolbar-note" id="toolbar-note"></span>
+        <button type="button" class="link rust-reset" id="rust-reset" hidden>Reset Rust source</button>
       </div>
       <div class="code-wrap" id="code-wrap" role="tabpanel" aria-labelledby="output-title" tabindex="0">
         <div class="code-grid" id="code-grid" hidden>
           <pre class="gutter" id="gutter" aria-hidden="true"></pre>
           <pre class="code" id="code"><code id="code-text"></code></pre>
           <div class="line-mark" id="line-mark" hidden></div>
+        </div>
+        <div class="rust-editor" id="rust-editor-panel" hidden>
+          <pre class="gutter" id="rust-gutter" aria-hidden="true"></pre>
+          <div class="rust-editor-body">
+            <pre class="rust-colors" aria-hidden="true"><code id="rust-colors"></code></pre>
+            <textarea id="rust-source" aria-label="Editable Rust source, src/main.rs" spellcheck="false" autocomplete="off" autocapitalize="off" wrap="off" aria-describedby="rust-editor-help"></textarea>
+          </div>
         </div>
         <div class="view" id="view" hidden></div>
         <div class="empty" id="empty">
@@ -202,9 +211,34 @@
         </div>
         <p class="stale" id="stale" hidden>Outdated: this shows the last bindings that generated.</p>
       </div>
+      <p class="rust-editor-help" id="rust-editor-help" hidden>Edit src/main.rs directly. Rust edits affect compilation and the downloaded crate; shared links include Python inputs only.</p>
       <p class="message" id="message" role="alert" hidden></p>
       <button type="button" class="secondary" id="retry" hidden>Retry Python startup</button>
       <p class="message note" id="note" role="status" hidden></p>
+      <p class="compiler-cost" id="compiler-cost"></p>
+      <section class="run-console" id="run-console" aria-label="Compile and run output" hidden>
+        <div class="run-console-head">
+          <h3>Run output</h3>
+          <div class="run-console-actions">
+            <button type="button" class="secondary" id="cancel-run" hidden>Cancel</button>
+            <button type="button" class="secondary" id="restart-python" hidden>Restart Python</button>
+          </div>
+        </div>
+        <p class="run-progress" id="run-progress" role="status" aria-live="polite"></p>
+        <section class="run-section" id="compile-output-section" hidden>
+          <h4>Compiler diagnostics</h4>
+          <pre id="compile-output"></pre>
+        </section>
+        <section class="run-section" id="stdout-section" hidden>
+          <h4>stdout</h4>
+          <pre id="run-stdout"></pre>
+        </section>
+        <section class="run-section" id="stderr-section" hidden>
+          <h4>stderr</h4>
+          <pre id="run-stderr"></pre>
+        </section>
+        <p class="run-error" id="run-error" role="alert" hidden></p>
+      </section>
       <div class="summary">
         <p class="stats" id="stats" aria-live="polite"></p>
         <button type="button" class="link warnings" id="warnings" hidden></button>
@@ -213,8 +247,8 @@
   </main>
 
   <footer class="foot">
-    <p class="about">Your submitted Python stays in this browser and is not sent to a server for generation. Python code and imported packages can make network requests. A shared link can include your source in its URL fragment. Pyodide loads from jsDelivr, and packages install from PyPI or Pyodide. Download a crate to inspect its generated files; open <code>src/main.rs</code> and follow the included README to compile and run the starter locally. Generic example calls may be commented out.</p>
-    <p><a href="curated/">Precomputed reference</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
+    <p class="about">Your Python and Rust source stay in this browser and are not sent to a server for generation or compilation. Python code and imported packages can make network requests. Shared links include Python inputs but exclude Rust edits; downloaded crates include your edited <code>src/main.rs</code>. First compilation downloads the browser compiler assets. Python packages install from PyPI or Pyodide.</p>
+    <p><a href="curated/">Precomputed reference</a> · <a id="compiler-notices" href="compiler/licenses/README.html" hidden>Compiler licenses and sources</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
   </footer>
 </body>
 </html>

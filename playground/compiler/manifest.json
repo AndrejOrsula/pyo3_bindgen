@@ -1,0 +1,120 @@
+{
+  "schema_version": 1,
+  "rust_version": "1.93.0",
+  "pyo3_version": "0.29.2",
+  "pyodide_version": "314.0.7",
+  "target": "wasm32-unknown-emscripten",
+  "memory_bytes": 1073741824,
+  "v86": {
+    "module": "vendor/v86/libv86.mjs",
+    "wasm": {
+      "path": "vendor/v86/v86.wasm",
+      "sha256": "2fc5609ae837fcbc77147155de6f1014677ecab5369f5584ebc670e9d56e6510",
+      "bytes": 2007347
+    },
+    "bios": {
+      "path": "vm/seabios-built.bin",
+      "sha256": "a388e87eed2ae23bce8d4f089f1a05246c2c80ade8d2bea446562dffdd276981",
+      "bytes": 262144
+    },
+    "vga_bios": null,
+    "kernel": {
+      "path": "vm/bzImage",
+      "sha256": "63192db3ae78173d2587f3d45b6e3d4bef070850785bd30cf97ca014bb12f2c1",
+      "bytes": 10330624
+    },
+    "cmdline": "console=ttyS0,115200n8 rdinit=/init tsc=reliable mitigations=off random.trust_cpu=on",
+    "ready_marker": "BINDGEN_VM_READY",
+    "initrd": {
+      "path": "vm/initramfs.cpio.gz",
+      "sha256": "26ae3bcab9bde85f95d4d8eb5fb877abc298a704be992937d4d856c13bd258bb",
+      "bytes": 778128
+    }
+  },
+  "wasi_module": "vendor/wasi/index.js",
+  "runtime": {
+    "chunks": [
+      {
+        "path": "runtime/part-000.bin",
+        "sha256": "83acf672e9523f00d2f56a87a49b844a46eb35af5b3cd7b8194abb8a9ecf72c0",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-001.bin",
+        "sha256": "60e272cf5a647cb8108ec2595fa6867f51171768f913e6d0e9e6c60820eefb38",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-002.bin",
+        "sha256": "14fe141ad11963f657c4c3c578fe4aecc7e0f894d1e83298042f0df6df3614a9",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-003.bin",
+        "sha256": "1886d07d98d53334d5436adeefc9f2a9cdc2187d592a08b5a67748d9cc055247",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-004.bin",
+        "sha256": "97cfdb91baddabc4558d009e0e8184a782b0604b4005dc12df5e61a792e9642f",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-005.bin",
+        "sha256": "b5fb1765b9867b468a87be42be314e08189df4e8bfe3938c155462a62cc45f0b",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-006.bin",
+        "sha256": "0f544afab46a5bd8bf16757e124ce1cc7ccf5baf72248689491bcbfa159e8034",
+        "bytes": 16777216
+      },
+      {
+        "path": "runtime/part-007.bin",
+        "sha256": "84ae9d52ab238336d5ef58883266f7c86726deeec6341d573ebbf18a16dc1328",
+        "bytes": 13645125
+      }
+    ]
+  },
+  "dependencies": {
+    "chunks": [
+      {
+        "path": "dependencies/part-000.bin",
+        "sha256": "b4e71ab1cecee104ec0be74a63b230f186d2b6b08dfc158d31cb92e39a61f2e9",
+        "bytes": 3867691
+      }
+    ],
+    "pyo3_rlib": "libpyo3-ecb452fc68985bdd.rlib"
+  },
+  "linker": {
+    "chunks": [
+      {
+        "path": "linker/part-000.bin",
+        "sha256": "dc4946a0a5908b340467d111cdc6bad4c7a42ab1318001de425267c4baa06846",
+        "bytes": 16777216
+      },
+      {
+        "path": "linker/part-001.bin",
+        "sha256": "a1a2be6f5e988a704d3e22fed6e7a7a254de9455dffc7c0f428f456ed484b75a",
+        "bytes": 14211227
+      }
+    ],
+    "encoding": "gzip",
+    "sha256": "1ee7dac37c10c1eb380846ee5a6d23e53a8981b02e306d03aeed75aa6206c505",
+    "bytes": 97970272
+  },
+  "input_hashes": {
+    "v86": "e23f8e81cab1789e17ce61f4cf44a7c0732fe4d499f9daac773039e48023c54e",
+    "wasi": "9c0281520d0e99f027ec7c1c79b4036c0f8168ed9bf98aba19db4737a1333782",
+    "rustc_archive": "72038681a14fe632e2b550392b83dadf40325c472dabecfff40a9efdc2d8e201",
+    "linux": "19b31956d229b5b9ca5671fa1c74320179682a3d8d00fc86794114b21da86039",
+    "busybox": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+    "seabios": "efa8d529442ad168056f94ac6666b1b3543c62ff7af6d9e020561f4d0e32f959",
+    "linker_br": "69bf1fb994c0b31b1bbda58dff3f9df2ecb29f25b8053f80a489cab859d50f8a",
+    "rust_std": "63cdbb1ea7f353060539c00f7346f4f5fb0d6f09899cacddc1f172ef07c4af8b",
+    "libc6": "76b12e06be66ec3fc2c1791d7d8cf34c2b828ed210e3913feeeb8edc9688f820",
+    "libgcc_s1": "56b95a550b342418f6c4765d5c9b08df2c7167134767e44f1f1bc82ced363ece",
+    "zlib1g": "3ca84a1245347652b7e1f8694db222851f7f1e7060515b21e1439b0cf84f96e1"
+  },
+  "download_bytes": 179722711
+}

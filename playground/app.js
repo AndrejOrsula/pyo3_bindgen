@@ -1,6 +1,7 @@
 import { highlightMarkdown, highlightPython, highlightRust, highlightToml } from './highlight.js';
 import { overviewText, parseBindings, pythonLines, renderOverview } from './overview.js';
-import { DEFAULT_EXAMPLE, EXAMPLES } from './examples.js';
+import { DEFAULT_EXAMPLE, EXAMPLES, selectStarterBody } from './examples.js';
+import { BrowserCompiler } from './compiler.js';
 
 // The id under which the author's portfolio embeds this page; see README.md.
 const DEMO_ID = 'pyo3_bindgen';
@@ -33,6 +34,12 @@ const ui = {
   sourceGutter: $('source-gutter'),
   sourceError: $('source-error'),
   sourceFocus: $('source-focus'),
+  rustEditorPanel: $('rust-editor-panel'),
+  rustSource: $('rust-source'),
+  rustColors: $('rust-colors'),
+  rustGutter: $('rust-gutter'),
+  rustReset: $('rust-reset'),
+  rustEditorHelp: $('rust-editor-help'),
   sourceModule: $('source-module'),
   requirement: $('requirement'),
   installForm: $('install-form'),
@@ -53,6 +60,20 @@ const ui = {
   files: $('files'),
   copy: $('copy'),
   showExampleCall: $('show-example-call'),
+  compileRun: $('compile-run'),
+  compilerCost: $('compiler-cost'),
+  compilerNotices: $('compiler-notices'),
+  runConsole: $('run-console'),
+  runProgress: $('run-progress'),
+  compileOutputSection: $('compile-output-section'),
+  compileOutput: $('compile-output'),
+  stdoutSection: $('stdout-section'),
+  runStdout: $('run-stdout'),
+  stderrSection: $('stderr-section'),
+  runStderr: $('run-stderr'),
+  runError: $('run-error'),
+  cancelRun: $('cancel-run'),
+  restartPython: $('restart-python'),
   download: $('download'),
   toolbar: $('toolbar'),
   jump: $('jump'),
@@ -93,6 +114,15 @@ const state = {
   examples: new Map(),
   guideExample: null,
   exampleLoading: false,
+  rustDraft: '',
+  rustRevision: 0,
+  rustEdited: false,
+  generationId: 0,
+  runBusy: false,
+  runPhase: null,
+  resetRequired: false,
+  rustLoadAttempts: 0,
+  compilerStarted: false,
 };
 
 /* ---------- Embedding protocol ---------- */
@@ -108,6 +138,7 @@ function notifyHost(type, extra = {}) {
 let worker = null;
 let nextId = 1;
 const pending = new Map();
+let actionEpoch = 0;
 let workerGeneration = 0;
 let bootGeneration = 0;
 let startupBusy = false;
@@ -120,6 +151,9 @@ let packagesLost = false;
 let exampleSelectionGeneration = 0;
 let userEditRevision = 0;
 let pendingExampleGeneration = null;
+let browserCompiler = null;
+let runEpoch = 0;
+let runTimeout = null;
 
 function startWorker() {
   const instance = new Worker('worker.js', { type: 'module' });
@@ -133,6 +167,10 @@ function startWorker() {
       return;
     }
     const request = pending.get(data.id);
+    if (data.type === 'run-output') {
+      request?.onStream?.(data);
+      return;
+    }
     if (!request) return;
     pending.delete(data.id);
     if (data.ok) request.resolve({ result: data.result, ms: data.ms });
@@ -157,6 +195,8 @@ function crashed(instance, text) {
   if (worker !== instance) return;
   stopWorker(new Error(text));
   state.ready = false;
+  state.rustLoadAttempts = 0;
+  state.resetRequired = false;
   packagesLost ||= Boolean(state.installed);
   state.installed = null;
   ui.installed.hidden = true;
@@ -173,14 +213,14 @@ function failAll(error) {
   pending.clear();
 }
 
-function call(command, args) {
+function call(command, args, { onStream } = {}) {
   return new Promise((resolve, reject) => {
     if (!worker) {
       reject(new Error('Python is not running. Retry startup before generating.'));
       return;
     }
     const id = nextId++;
-    pending.set(id, { resolve, reject });
+    pending.set(id, { resolve, reject, onStream });
     try {
       worker.postMessage({ id, command, args });
     } catch (error) {
@@ -194,6 +234,8 @@ async function boot() {
   const generation = ++bootGeneration;
   stopWorker();
   state.ready = false;
+  state.rustLoadAttempts = 0;
+  state.resetRequired = false;
   updateButtons();
   setStatus('loading', 'Starting Python…');
   setStep('python');
@@ -256,7 +298,7 @@ function showNote(text) {
 }
 
 function updateButtons() {
-  const idle = state.ready && !state.busy;
+  const idle = state.ready && !state.busy && !state.runBusy;
   ui.generate.disabled = !idle;
   ui.install.disabled = !idle;
   ui.cancel.hidden = !state.busy;
@@ -265,6 +307,10 @@ function updateButtons() {
   ui.copy.disabled = !usable;
   ui.download.disabled = !usable || !idle;
   ui.showExampleCall.disabled = !usable || !state.result.files['src/main.rs'];
+  ui.compileRun.disabled = !usable || !idle || state.runBusy || state.resetRequired || !state.config?.compiler || !state.result.files['src/main.rs'];
+  ui.compileRun.textContent = state.runBusy ? 'Compiling and running…' : 'Compile and run';
+  ui.cancelRun.hidden = !state.runBusy;
+  ui.restartPython.hidden = !state.resetRequired;
   const target = state.view === 'crate' ? state.file : state.view === 'types' ? 'Type map' : state.view === 'report' ? 'Report' : 'Overview';
   ui.copy.textContent = `Copy ${target}`;
   ui.copy.title = usable ? `Copy the current ${target} view.` : 'Generate current bindings before copying.';
@@ -279,6 +325,7 @@ function markUserEdit(semantic = true) {
   if (semantic) {
     userEditRevision += 1;
     pendingExampleGeneration = null;
+    invalidateActiveRun('Python inputs or generation options changed.');
   }
   if (state.ready) {
     if (semantic && state.result) markStale(true);
@@ -373,6 +420,7 @@ function renderEditor() {
 // never scrolls itself; the editor scrolls instead, which this keeps on the
 // caret (or the moving end of a selection) as the visitor types or selects.
 let characterWidth = 0;
+let rustCharacterWidth = 0;
 function revealCaret() {
   const { source, editor } = ui;
   if (document.activeElement !== source) return;
@@ -743,6 +791,9 @@ function clearOutput() {
   ui.code.textContent = '';
   ui.gutter.textContent = '';
   ui.codeGrid.hidden = true;
+  ui.rustEditorPanel.hidden = true;
+  ui.rustEditorHelp.hidden = true;
+  ui.rustReset.hidden = true;
   ui.view.hidden = true;
   ui.toolbar.hidden = true;
   ui.empty.hidden = false;
@@ -771,6 +822,9 @@ function showView(view) {
   ui.empty.hidden = true;
   ui.lineMark.hidden = true;
   ui.codeGrid.hidden = true;
+  ui.rustEditorPanel.hidden = true;
+  ui.rustEditorHelp.hidden = true;
+  ui.rustReset.hidden = true;
   ui.toolbar.hidden = true;
   ui.view.hidden = false;
   ui.view.replaceChildren({ overview: overviewView, types: typesView, report: reportView }[view]());
@@ -787,9 +841,17 @@ function showFile(path) {
   ui.empty.hidden = true;
   ui.lineMark.hidden = true;
   ui.view.hidden = true;
-  ui.codeGrid.hidden = false;
+  const editableMain = path === 'src/main.rs';
+  ui.codeGrid.hidden = editableMain;
+  ui.rustEditorPanel.hidden = !editableMain;
+  ui.rustEditorHelp.hidden = !editableMain;
+  ui.rustReset.hidden = !editableMain || !state.rustEdited;
   ui.toolbar.hidden = false;
-  renderCode(state.result.files[path], path);
+  if (editableMain) {
+    ui.rustSource.value = state.rustDraft;
+    ui.code.textContent = state.rustDraft;
+    renderRustEditor();
+  } else renderCode(state.result.files[path], path);
   ui.codeWrap.scrollTo(0, 0);
   if (tab) {
     selectTab(ui.files, tab);
@@ -834,6 +896,314 @@ function renderCode(text, path) {
     ui.outline.append(new Option(`${'  '.repeat(item.depth)}${item.kind} ${item.name}`, String(item.line)));
   }
   ui.toolbarNote.textContent = '';
+}
+
+function renderRustEditor() {
+  const text = ui.rustSource.value;
+  ui.rustColors.replaceChildren(highlightRust(text));
+  if (text.endsWith('\n')) ui.rustColors.append(' ');
+  const lines = text.split('\n').length;
+  if (Number(ui.rustGutter.dataset.lines) !== lines) {
+    ui.rustGutter.dataset.lines = String(lines);
+    ui.rustGutter.textContent = Array.from({ length: lines }, (_, index) => index + 1).join('\n');
+  }
+  ui.rustSource.scrollTo(0, 0);
+  revealRustCaret();
+}
+
+function revealRustCaret() {
+  const source = ui.rustSource;
+  if (document.activeElement !== source) return;
+  const style = getComputedStyle(source);
+  if (!rustCharacterWidth) {
+    const context = document.createElement('canvas').getContext('2d');
+    context.font = `${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
+    rustCharacterWidth = context.measureText('0'.repeat(32)).width / 32;
+  }
+  const end = source.selectionDirection === 'backward' ? source.selectionStart : source.selectionEnd;
+  const before = source.value.slice(0, end);
+  const lineStart = before.lastIndexOf('\n') + 1;
+  const line = before.split('\n').length - 1;
+  let column = 0;
+  for (const character of before.slice(lineStart)) column = character === '\t' ? column - (column % 4) + 4 : column + 1;
+  const height = parseFloat(style.lineHeight);
+  const top = parseFloat(style.paddingTop) + line * height;
+  if (top < ui.codeWrap.scrollTop) ui.codeWrap.scrollTop = top;
+  else if (top + height > ui.codeWrap.scrollTop + ui.codeWrap.clientHeight) ui.codeWrap.scrollTop = top + height - ui.codeWrap.clientHeight;
+  const gutter = ui.rustGutter.offsetWidth;
+  const left = gutter + parseFloat(style.paddingLeft) + column * rustCharacterWidth;
+  if (left < ui.codeWrap.scrollLeft + gutter + parseFloat(style.paddingLeft)) ui.codeWrap.scrollLeft = left - gutter - parseFloat(style.paddingLeft);
+  else if (left + rustCharacterWidth > ui.codeWrap.scrollLeft + ui.codeWrap.clientWidth) ui.codeWrap.scrollLeft = left + 2 * rustCharacterWidth - ui.codeWrap.clientWidth;
+}
+
+function editRust() {
+  state.rustDraft = ui.rustSource.value;
+  ui.code.textContent = state.rustDraft;
+  state.rustRevision += 1;
+  state.rustEdited = state.rustDraft !== (state.result?.files['src/main.rs'] ?? '');
+  invalidateActiveRun('src/main.rs changed. Compile and run the updated source.');
+  if (state.view === 'crate' && state.file === 'src/main.rs') ui.rustReset.hidden = !state.rustEdited;
+  renderRustEditor();
+  updateButtons();
+}
+
+function resetRust() {
+  if (!state.result?.files['src/main.rs']) return;
+  if (state.rustEdited && !window.confirm('Discard your edits to src/main.rs and restore the generated starter?')) return;
+  state.rustDraft = state.result.files['src/main.rs'];
+  state.rustEdited = false;
+  state.rustRevision += 1;
+  invalidateActiveRun('Rust source reset to the generated starter.');
+  if (state.file === 'src/main.rs') {
+    ui.rustSource.value = state.rustDraft;
+    ui.code.textContent = state.rustDraft;
+    renderRustEditor();
+  }
+  ui.rustReset.hidden = true;
+  updateButtons();
+}
+
+function isCurrentRun(snapshot, epoch) {
+  return epoch === runEpoch && state.result === snapshot.result &&
+    state.generationId === snapshot.generationId && state.rustRevision === snapshot.rustRevision &&
+    !state.stale && state.rustDraft === snapshot.main;
+}
+
+function clearRunOutput() {
+  ui.runConsole.hidden = false;
+  ui.runProgress.textContent = '';
+  ui.compileOutput.textContent = '';
+  ui.runStdout.textContent = '';
+  ui.runStderr.textContent = '';
+  ui.compileOutputSection.hidden = true;
+  ui.stdoutSection.hidden = true;
+  ui.stderrSection.hidden = true;
+  ui.runError.hidden = true;
+  ui.runError.textContent = '';
+}
+
+function appendRunStream(element, section, value, currentChars) {
+  const remaining = Math.max(0, 65_536 - currentChars.chars);
+  let end = Math.min(value.length, remaining);
+  if (end > 0 && end < value.length) {
+    const last = value.charCodeAt(end - 1);
+    if (last >= 0xd800 && last <= 0xdbff) end -= 1;
+  }
+  const chunk = value.slice(0, end);
+  element.textContent += chunk;
+  currentChars.chars += chunk.length;
+  if (chunk.length < value.length) currentChars.truncated = true;
+  section.hidden = false;
+}
+
+function updateCompilerCost() {
+  ui.compilerNotices.hidden = !state.config?.compiler;
+  if (!state.config) {
+    ui.compilerCost.textContent = 'Browser compiler availability loads with the page configuration.';
+    return;
+  }
+  if (!state.config.compiler) {
+    ui.compilerCost.textContent = 'Browser compiler assets are unavailable on this build.';
+    return;
+  }
+  if (state.compilerStarted) {
+    ui.compilerCost.textContent = 'Compiler assets loaded for this page session; later runs may reuse cached assets. Compilation and execution stay in this browser.';
+    return;
+  }
+  const bytes = Number(state.config.compiler_download_bytes);
+  const size = Number.isFinite(bytes) && bytes > 0
+    ? `about ${(bytes / (1024 * 1024)).toFixed(0)} MiB of compiler assets`
+    : 'compiler assets';
+  ui.compilerCost.textContent = `First run downloads ${size} and boots a Linux compiler VM configured with 1 GiB RAM; keep extra desktop memory available for the browser. Compilation supports the bundled Rust standard library and PyO3; other Cargo dependencies are outside this browser flow.`;
+}
+
+function invalidateActiveRun(reason) {
+  const phase = state.runPhase;
+  const wasRunning = state.runBusy;
+  const hadRunUi = !ui.runConsole.hidden;
+  if (wasRunning) {
+    ++runEpoch;
+    state.runBusy = false;
+    state.runPhase = null;
+    clearTimeout(runTimeout);
+    if (phase === 'compiling') browserCompiler?.cancel();
+  }
+  state.resetRequired = state.rustLoadAttempts >= 8;
+  if (wasRunning || hadRunUi) {
+    clearRunOutput();
+    ui.runProgress.textContent = wasRunning ? 'Run result is out of date.' : '';
+    ui.runError.hidden = false;
+    ui.runError.textContent = wasRunning ? `${reason} Previous run was cancelled.` : reason;
+  }
+  if (phase === 'running') void recoverPythonWorker(`${reason} Python restarted.`);
+  updateButtons();
+}
+
+async function compileAndRun() {
+  if (ui.compileRun.disabled || !state.result || state.stale || !state.config?.compiler) return;
+  clearTimeout(liveTimer);
+  liveTimer = null;
+  livePending = false;
+  const main = state.rustDraft;
+  const snapshot = {
+    result: state.result,
+    generationId: state.generationId,
+    rustRevision: state.rustRevision,
+    main,
+    files: { ...state.result.files, 'src/main.rs': main },
+  };
+  const epoch = ++runEpoch;
+  state.runBusy = true;
+  state.resetRequired = false;
+  state.runPhase = 'compiling';
+  clearRunOutput();
+  ui.cancelRun.hidden = false;
+  ui.runProgress.textContent = 'Starting browser compiler…';
+  showFile('src/main.rs');
+  updateButtons();
+  let compiled;
+  try {
+    if (!state.ready) throw new Error('Python is not ready. Retry Python startup before compiling and running.');
+    browserCompiler ??= new BrowserCompiler(new URL(state.config.compiler, document.baseURI).href);
+    const compilePromise = browserCompiler.compile(snapshot.files, (progress) => {
+      if (epoch !== runEpoch || !state.runBusy) return;
+      ui.runProgress.textContent = progress.text;
+    });
+    compiled = await Promise.race([
+      compilePromise,
+      new Promise((_, reject) => {
+        runTimeout = setTimeout(() => {
+          browserCompiler?.cancel();
+          reject(new Error('Compilation timed out. Retry after checking your connection and available memory.'));
+        }, 5 * 60_000);
+      }),
+    ]);
+    clearTimeout(runTimeout);
+    if (!isCurrentRun(snapshot, epoch)) return;
+    state.compilerStarted = true;
+    updateCompilerCost();
+    if (compiled.diagnostics) {
+      ui.compileOutput.textContent = compiled.diagnostics;
+      ui.compileOutputSection.hidden = false;
+    }
+    state.runPhase = 'running';
+    ui.runProgress.textContent = 'Running the compiled Rust program in the current Python session…';
+    const streamChars = { stdout: { chars: 0, truncated: false }, stderr: { chars: 0, truncated: false } };
+    const streamed = { stdout: false, stderr: false };
+    state.rustLoadAttempts += 1;
+    const outcome = await Promise.race([
+      call('runRust', { moduleName: compiled.moduleName, wasm: compiled.wasm }, {
+        onStream: ({ stream, text }) => {
+          if (!isCurrentRun(snapshot, epoch)) return;
+          const stdout = stream === 'stdout';
+          streamed[stdout ? 'stdout' : 'stderr'] = true;
+          appendRunStream(stdout ? ui.runStdout : ui.runStderr, stdout ? ui.stdoutSection : ui.stderrSection, text, streamChars[stdout ? 'stdout' : 'stderr']);
+        },
+      }),
+      new Promise((_, reject) => {
+        runTimeout = setTimeout(() => reject(Object.assign(new Error('Program exceeded the 30 second execution limit.'), { resetRequired: true })), 30_000);
+      }),
+    ]);
+    clearTimeout(runTimeout);
+    if (!isCurrentRun(snapshot, epoch)) return;
+    const result = outcome.result;
+    if (result.stdout && !streamed.stdout) appendRunStream(ui.runStdout, ui.stdoutSection, result.stdout, streamChars.stdout);
+    if (result.stderr && !streamed.stderr) appendRunStream(ui.runStderr, ui.stderrSection, result.stderr, streamChars.stderr);
+    const truncated = result.truncated || streamChars.stdout.truncated || streamChars.stderr.truncated;
+    ui.runProgress.textContent = result.success ? 'Program finished successfully.' : 'Program failed.';
+    if (truncated) ui.runProgress.textContent += ' Output truncated (65,536 characters per stream).';
+    const loadLimitReached = state.rustLoadAttempts >= 8;
+    state.resetRequired = loadLimitReached;
+    if (loadLimitReached && result.success) ui.runProgress.textContent += ' Restart Python before the next run.';
+    if (!result.success) {
+      ui.runError.hidden = false;
+      ui.runError.textContent = result.error || 'The Rust program failed.';
+      if (result.resetRequired && /load limit reached/i.test(result.error ?? '')) {
+        state.resetRequired = true;
+        ui.runProgress.textContent = 'Run limit reached. Restart Python before compiling another program.';
+      } else if (result.resetRequired) {
+        state.resetRequired = false;
+        await recoverPythonWorker('Python restarted because Rust execution left the runtime in an unsafe state.');
+      }
+    }
+  } catch (error) {
+    clearTimeout(runTimeout);
+    if (epoch !== runEpoch || error.cancelled) return;
+    if (error.diagnostics) {
+      ui.compileOutput.textContent = error.diagnostics;
+      ui.compileOutputSection.hidden = false;
+    } else if (state.runPhase === 'compiling') {
+      ui.compileOutput.textContent = error.message;
+      ui.compileOutputSection.hidden = false;
+    } else {
+      ui.runError.hidden = false;
+      ui.runError.textContent = error.message;
+    }
+    ui.runProgress.textContent = state.runPhase === 'compiling' ? 'Compilation failed. Edit the source and retry.' : 'Execution failed.';
+    if (state.runPhase === 'running' || error.resetRequired) {
+      state.resetRequired = false;
+      await recoverPythonWorker('Python restarted after execution stopped.');
+    }
+  } finally {
+    if (epoch === runEpoch) {
+      clearTimeout(runTimeout);
+      state.runBusy = false;
+      state.runPhase = null;
+      ui.cancelRun.hidden = true;
+      updateButtons();
+    }
+  }
+}
+
+async function recoverPythonWorker(note) {
+  clearTimeout(runTimeout);
+  packagesLost ||= Boolean(state.installed);
+  const lostPackages = packagesLost;
+  state.installed = null;
+  if (lostPackages && state.result) markStale(true);
+  ui.installed.hidden = true;
+  state.ready = false;
+  state.rustLoadAttempts = 0;
+  stopWorker(Object.assign(new Error('Python worker restarted after Rust execution.'), { cancelled: true }));
+  showNote(`${note}${lostPackages ? ' Installed packages were cleared; reinstall them before generating package bindings.' : ''}`);
+  try {
+    await boot();
+    packagesLost = false;
+  } catch (error) {
+    setStatus('error', 'Python failed to restart');
+    showMessage(`Python could not restart: ${error.message} Retry to start Python again.`);
+    showRetry(true);
+  }
+  updateButtons();
+}
+
+function cancelCompileOrRun() {
+  if (!state.runBusy) return;
+  if (state.runPhase === 'compiling') {
+    ++runEpoch;
+    browserCompiler?.cancel();
+    clearTimeout(runTimeout);
+    state.runBusy = false;
+    state.runPhase = null;
+    ui.cancelRun.hidden = true;
+    ui.runProgress.textContent = 'Compilation cancelled. Python and installed packages are unchanged.';
+    updateButtons();
+    return;
+  }
+  ++runEpoch;
+  state.runBusy = false;
+  state.runPhase = null;
+  ui.cancelRun.hidden = true;
+  ui.runProgress.textContent = 'Execution cancelled. Restarting Python…';
+  void recoverPythonWorker('Python restarted after execution was cancelled.');
+  updateButtons();
+}
+
+function restartPython() {
+  if (!state.resetRequired) return;
+  state.resetRequired = false;
+  void recoverPythonWorker('Python restarted at your request.');
+  updateButtons();
 }
 
 // Generated helpers that every class or enum has; the outline lists the API.
@@ -1212,7 +1582,8 @@ function selectedModules(mode) {
 }
 
 async function run(task, busyText) {
-  if (!state.ready || state.busy) return null;
+  if (!state.ready || state.busy || state.runBusy) return null;
+  const epoch = ++actionEpoch;
   state.busy = true;
   updateButtons();
   updateExampleGuide();
@@ -1225,6 +1596,7 @@ async function run(task, busyText) {
     showMessage(error.message);
     return null;
   } finally {
+    if (epoch !== actionEpoch) return;
     state.busy = false;
     if (state.ready) setStatus('ready', ui.status.dataset.readyText ?? 'Ready');
     updateButtons();
@@ -1289,10 +1661,13 @@ async function generate({ live = false } = {}) {
     return;
   }
   const options = { ...input.options, analysis: true };
+  const mainBody = mode === 'source'
+    ? selectStarterBody(input.source, modules[0], options, state.defaults, state.examples.get(modules[0]))
+    : null;
   const outcome = await run(
     () =>
       mode === 'source'
-        ? call('generateSource', { source: input.source, module: modules[0], options })
+        ? call('generateSource', { source: input.source, module: modules[0], options, mainBody })
         : call('generateModules', { modules, options }),
     `Generating bindings for ${modules.join(', ')}…`,
   );
@@ -1312,6 +1687,9 @@ async function generate({ live = false } = {}) {
       : same(selectedModules(mode), modules) && (mode !== 'package' || ui.requirement.value.trim() === input.requirement));
   ui.sourceError.hidden = true;
   state.result = { ...outcome.result, name: crateName(modules), source: mode === 'source' ? input.source : null, module: modules[0] };
+  state.generationId += 1;
+  if (!state.rustEdited) state.rustDraft = state.result.files['src/main.rs'] ?? '';
+  state.rustEdited = state.rustDraft !== (state.result.files['src/main.rs'] ?? '');
   state.resultOptions = input.options;
   markStale(!matchesCurrentInput);
   if (!live) showNote('');
@@ -1398,7 +1776,7 @@ function currentText() {
   if (state.view === 'overview') return overviewText(bindingsModel(), state.result.python_api ?? {});
   if (state.view === 'types') return typesText();
   if (state.view === 'report') return `${JSON.stringify(state.result.report, null, 2)}\n`;
-  return state.result.files[state.file];
+  return state.file === 'src/main.rs' ? state.rustDraft : state.result.files[state.file];
 }
 
 async function copy() {
@@ -1408,6 +1786,12 @@ async function copy() {
     await navigator.clipboard.writeText(text);
     flash(ui.copy, 'Copied');
   } catch {
+    if (state.view === 'crate' && state.file === 'src/main.rs') {
+      ui.rustSource.focus();
+      ui.rustSource.select();
+      flash(ui.copy, 'Press Ctrl+C');
+      return;
+    }
     const range = document.createRange();
     range.selectNodeContents(state.view === 'crate' ? ui.code : ui.view);
     getSelection().removeAllRanges();
@@ -1429,11 +1813,13 @@ function flash(button, text) {
 async function download() {
   const result = state.result;
   if (!result || state.stale) return;
-  const { files, name } = result;
+  const revision = state.rustRevision;
+  const files = { ...result.files, 'src/main.rs': state.rustDraft };
+  const { name } = result;
   const outcome = await run(() => call('crateZip', { files, name }), 'Packing the crate…');
   if (!outcome) return;
-  if (state.result !== result || state.stale) {
-    showNote('The inputs changed while the crate was being packed. Generate current bindings before downloading.');
+  if (state.result !== result || state.stale || state.rustRevision !== revision || files['src/main.rs'] !== state.rustDraft) {
+    showNote('The Rust source changed while the crate was being packed. Download the current source again.');
     return;
   }
   const url = URL.createObjectURL(new Blob([outcome.result], { type: 'application/zip' }));
@@ -1448,6 +1834,7 @@ async function download() {
 
 async function cancel() {
   if (!state.busy) return;
+  ++actionEpoch;
   clearTimeout(liveTimer);
   livePending = false;
   stopWorker(Object.assign(new Error('Cancelled'), { cancelled: true }));
@@ -1587,10 +1974,16 @@ function wire() {
     start();
   });
   ui.copy.addEventListener('click', copy);
+  ui.compileRun.addEventListener('click', compileAndRun);
   ui.showExampleCall.addEventListener('click', () => {
     if (ui.showExampleCall.disabled || !state.result?.files['src/main.rs']) return;
     showFile('src/main.rs');
   });
+  ui.cancelRun.addEventListener('click', cancelCompileOrRun);
+  ui.restartPython.addEventListener('click', restartPython);
+  ui.rustSource.addEventListener('input', editRust);
+  document.addEventListener('selectionchange', revealRustCaret);
+  ui.rustReset.addEventListener('click', resetRust);
   ui.download.addEventListener('click', download);
   ui.example.addEventListener('change', chooseExample);
   ui.exampleExperiment.addEventListener('click', tryExampleExperiment);
@@ -1672,6 +2065,8 @@ function wire() {
     if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
       event.preventDefault();
       generate();
+    } else if (event.key === 'Escape' && state.runBusy) {
+      cancelCompileOrRun();
     } else if (event.key === 'Escape' && state.busy) {
       cancel();
     }
@@ -1686,6 +2081,7 @@ async function fetchConfig() {
     throw new Error('playground.json: missing required build, generator, pyodide_url, or wheel field');
   }
   state.config = config;
+  updateCompilerCost();
 }
 
 async function restoreInputsOnce() {
@@ -1779,4 +2175,5 @@ if (ui.example.value !== DEFAULT_EXAMPLE) ui.example.value = DEFAULT_EXAMPLE;
 ui.sourceModule.value = DEFAULT_EXAMPLE;
 updateExampleGuide();
 updateButtons();
+updateCompilerCost();
 start();

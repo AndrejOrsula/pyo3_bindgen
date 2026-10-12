@@ -1,0 +1,18 @@
+#!/usr/bin/env python3
+"""Translate BusyBox's GCC-style dependency/link flags for pinned Zig cc."""
+import os
+import sys
+
+zig = os.environ.get("ZIG_CC_ZIG")
+if not zig or not os.path.isfile(zig) or not os.access(zig, os.X_OK):
+    raise SystemExit("ZIG_CC_ZIG must name the verified task-local Zig 0.13.0 executable")
+
+args = []
+for arg in sys.argv[1:]:
+    if arg in {"-Wl,--warn-common", "-Wl,--verbose"} or arg.startswith("-Wl,-Map,"):
+        continue
+    if arg.startswith("-Wp,-MD,"):
+        args.extend(("-MMD", "-MF", arg[8:]))
+    else:
+        args.append(arg)
+os.execv(zig, [zig, "cc", "-target", "x86-linux-musl", *args])

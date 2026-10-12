@@ -1,0 +1,487 @@
+{
+  "schema_version": 1,
+  "inputs": {
+    "v86": {
+      "file": "v86-0.5.471.tgz",
+      "url": "https://registry.npmjs.org/v86/-/v86-0.5.471.tgz",
+      "sha256": "e23f8e81cab1789e17ce61f4cf44a7c0732fe4d499f9daac773039e48023c54e",
+      "bytes": 4218637
+    },
+    "wasi": {
+      "file": "browser_wasi_shim-0.4.2.tgz",
+      "url": "https://registry.npmjs.org/@bjorn3/browser_wasi_shim/-/browser_wasi_shim-0.4.2.tgz",
+      "sha512": "/iHkCVUG3VbcbmEHn5iIUpIrh7a7WPiwZ3sHy4HZKZzBdSadwdddYDZAII2zBvQYV0Lfi8naZngPCN7WPHI/hA=="
+    },
+    "rustc_archive": {
+      "file": "rustc-1.93.0-i686-unknown-linux-gnu.tar.xz",
+      "url": "https://static.rust-lang.org/dist/2026-01-22/rustc-1.93.0-i686-unknown-linux-gnu.tar.xz",
+      "sha256": "72038681a14fe632e2b550392b83dadf40325c472dabecfff40a9efdc2d8e201",
+      "bytes": 95648060
+    },
+    "linux": {
+      "file": "linux-6.8.12.tar.xz",
+      "url": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.8.12.tar.xz",
+      "sha256": "19b31956d229b5b9ca5671fa1c74320179682a3d8d00fc86794114b21da86039",
+      "bytes": 142594556
+    },
+    "busybox": {
+      "file": "busybox-1.36.1.tar.bz2",
+      "url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+      "sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+      "bytes": 2525473
+    },
+    "seabios": {
+      "file": "seabios-rel-1.16.2-source.tar.gz",
+      "url": "https://www.seabios.org/downloads/seabios-1.16.2.tar.gz",
+      "sha256": "efa8d529442ad168056f94ac6666b1b3543c62ff7af6d9e020561f4d0e32f959",
+      "bytes": 635918
+    },
+    "linker_br": {
+      "file": "llvm_opt.wasm.br",
+      "url": "https://github.com/oligamiq/rust_wasm/releases/download/v0.2.1-release/llvm_opt.wasm.br",
+      "sha256": "69bf1fb994c0b31b1bbda58dff3f9df2ecb29f25b8053f80a489cab859d50f8a",
+      "bytes": 20794577
+    },
+    "rust_std": {
+      "file": "rust-std-1.93.0-wasm32-unknown-emscripten.tar.xz",
+      "url": "https://static.rust-lang.org/dist/2026-01-22/rust-std-1.93.0-wasm32-unknown-emscripten.tar.xz",
+      "sha256": "63cdbb1ea7f353060539c00f7346f4f5fb0d6f09899cacddc1f172ef07c4af8b",
+      "bytes": 22732144
+    },
+    "libc6": {
+      "file": "libc6_2.36-9+deb12u14_i386.deb",
+      "url": "https://deb.debian.org/debian/pool/main/g/glibc/libc6_2.36-9+deb12u14_i386.deb",
+      "sha256": "76b12e06be66ec3fc2c1791d7d8cf34c2b828ed210e3913feeeb8edc9688f820",
+      "bytes": 2626392
+    },
+    "libgcc_s1": {
+      "file": "libgcc-s1_12.2.0-14+deb12u1_i386.deb",
+      "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/libgcc-s1_12.2.0-14+deb12u1_i386.deb",
+      "sha256": "56b95a550b342418f6c4765d5c9b08df2c7167134767e44f1f1bc82ced363ece",
+      "bytes": 59560
+    },
+    "zlib1g": {
+      "file": "zlib1g_1.2.13.dfsg-1_i386.deb",
+      "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib1g_1.2.13.dfsg-1_i386.deb",
+      "sha256": "3ca84a1245347652b7e1f8694db222851f7f1e7060515b21e1439b0cf84f96e1",
+      "bytes": 82644
+    }
+  },
+  "sources": [
+    {
+      "file": "glibc_2.36.orig.tar.xz",
+      "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36.orig.tar.xz",
+      "sha256": "a543c02070d46ccaf866957efd13f10c924daa74c86a90a0254db09a92a708ee",
+      "bytes": 19363988
+    },
+    {
+      "file": "glibc_2.36-9+deb12u14.debian.tar.xz",
+      "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36-9+deb12u14.debian.tar.xz",
+      "sha256": "cf4ac9cd98185452cae3ef34e2e4ee12753e3d93fd0c62c61396d4a47eec902f",
+      "bytes": 918488
+    },
+    {
+      "file": "glibc_2.36-9+deb12u14.dsc",
+      "url": "https://deb.debian.org/debian/pool/main/g/glibc/glibc_2.36-9+deb12u14.dsc",
+      "sha256": "cfe1f0b8dc1fa211ce5a45b3725cc38b29f88667f1140ebdca6de35cf9c6f1fd",
+      "bytes": 9765
+    },
+    {
+      "file": "gcc-12_12.2.0.orig.tar.gz",
+      "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0.orig.tar.gz",
+      "sha256": "b8298be16aeeb96a889c6afed0a8e2241b47452e89cc81fe65ea849d5c740fcb",
+      "bytes": 87090343
+    },
+    {
+      "file": "gcc-12_12.2.0-14+deb12u1.debian.tar.xz",
+      "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1.debian.tar.xz",
+      "sha256": "59f7f7763a0c355e3f27ff9e7ac80d06382b29939361a87e7b139226bfe7402e",
+      "bytes": 1675204
+    },
+    {
+      "file": "gcc-12_12.2.0-14+deb12u1.dsc",
+      "url": "https://deb.debian.org/debian/pool/main/g/gcc-12/gcc-12_12.2.0-14+deb12u1.dsc",
+      "sha256": "3aed0b189189c744dc9f4b74798a51d3e512ea85e492568db788a927c88e20ba",
+      "bytes": 27330
+    },
+    {
+      "file": "zlib_1.2.13.dfsg.orig.tar.bz2",
+      "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.2.13.dfsg.orig.tar.bz2",
+      "sha256": "71feb7947e3c00ef125f83b79a4e529bde31171e5babe48b391f06758d1ab0a1",
+      "bytes": 1239825
+    },
+    {
+      "file": "zlib_1.2.13.dfsg-1.debian.tar.xz",
+      "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.2.13.dfsg-1.debian.tar.xz",
+      "sha256": "f66cf3d4f2d7defcd4d1fd1fb0a11ee39f1e01b42ec7d059c9dc5c1695133c44",
+      "bytes": 15700
+    },
+    {
+      "file": "zlib_1.2.13.dfsg-1.dsc",
+      "url": "https://deb.debian.org/debian/pool/main/z/zlib/zlib_1.2.13.dfsg-1.dsc",
+      "sha256": "3fa1e6b2fc525062aa88207dda52fed8e045373c809d362fe8a2bfbf7cf515a8",
+      "bytes": 2399
+    },
+    {
+      "file": "rustc-1.93.0-src.tar.xz",
+      "url": "https://static.rust-lang.org/dist/2026-01-22/rustc-1.93.0-src.tar.xz",
+      "sha256": "e30d898272c587a22f77679f03c5e8192b5645c7c9ccc3407ad1106761507cea",
+      "bytes": 270925104
+    },
+    {
+      "file": "linux-6.8.12.tar.xz",
+      "url": "https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.8.12.tar.xz",
+      "sha256": "19b31956d229b5b9ca5671fa1c74320179682a3d8d00fc86794114b21da86039",
+      "bytes": 142594556
+    },
+    {
+      "file": "busybox-1.36.1.tar.bz2",
+      "url": "https://busybox.net/downloads/busybox-1.36.1.tar.bz2",
+      "sha256": "b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314",
+      "bytes": 2525473
+    },
+    {
+      "file": "seabios-rel-1.16.2-source.tar.gz",
+      "sha256": "efa8d529442ad168056f94ac6666b1b3543c62ff7af6d9e020561f4d0e32f959",
+      "bytes": 635918,
+      "url": "https://www.seabios.org/downloads/seabios-1.16.2.tar.gz"
+    },
+    {
+      "file": "linux-6.8.12.config",
+      "sha256": "433cacd4299c5f2fb07c0bd1f7d2c594ba5bd4603ceaa4aad137ba733ef755c3",
+      "bytes": 133467,
+      "local": "compiler/provenance/linux-6.8.12.config"
+    },
+    {
+      "file": "busybox-1.36.1.config",
+      "sha256": "ba158297c573bff7775cd2ab8bf0f96154ebde2a31a9821bf2330b1ef3dee099",
+      "bytes": 29387,
+      "local": "compiler/provenance/busybox-1.36.1.config"
+    },
+    {
+      "file": "init",
+      "sha256": "ac168eb19eb0bc2bbef86c468b3d2ebfdf0743e1ed9332084ddfb08353dccabe",
+      "bytes": 310,
+      "local": "compiler/provenance/init"
+    },
+    {
+      "file": "seabios-default.config",
+      "sha256": "2f3d992760829a18101d56a8afd37ce44118d6234919e19e927d6e41a1bda47b",
+      "bytes": 2068,
+      "local": "compiler/provenance/seabios-default.config"
+    },
+    {
+      "file": "v86-lib-softfloat-3e.c",
+      "url": "https://raw.githubusercontent.com/copy/v86/94faf3d6b19ecabc53a4010aaa24252fa6a162e2/lib/softfloat/softfloat.c",
+      "sha256": "c03900abf111b5900303162bf06717c6bb5e4154f42b4980954674b273257367",
+      "bytes": 1324966
+    },
+    {
+      "file": "v86-lib-zstd-1.4.5-xxhash.c",
+      "url": "https://raw.githubusercontent.com/copy/v86/94faf3d6b19ecabc53a4010aaa24252fa6a162e2/lib/zstd/zstddeclib.c",
+      "sha256": "eb2df1130f9a66d71c660b7d9c7e7a3c675bb12768f16765072c8c3327c1099d",
+      "bytes": 578415
+    }
+  ],
+  "notices": [
+    {
+      "file": "v86-LICENSE.MIT",
+      "url": "https://raw.githubusercontent.com/copy/v86/94faf3d6b19ecabc53a4010aaa24252fa6a162e2/LICENSE.MIT",
+      "sha256": "be2a564f95c110b381fde87ea17b24adb50a5cd4c279ecb7991dee7821041069",
+      "bytes": 1141,
+      "destination": "notices/v86-LICENSE.MIT"
+    },
+    {
+      "file": "v86-softfloat-license-notice.txt",
+      "input": "v86-lib-softfloat-3e.c",
+      "extract": {
+        "offset": 74,
+        "bytes": 1840,
+        "append_final_lf": true
+      },
+      "sha256": "2973b0b5346073d510a88a484dcd8b676dc3e61313872ec91fc4a0140a459c17",
+      "bytes": 1841,
+      "destination": "notices/v86-softfloat-license-notice.txt"
+    },
+    {
+      "file": "zstd-1.4.5-LICENSE",
+      "url": "https://raw.githubusercontent.com/facebook/zstd/v1.4.5/LICENSE",
+      "sha256": "2c1a7fa704df8f3a606f6fc010b8b5aaebf403f3aeec339a12048f1ba7331a0b",
+      "bytes": 1530,
+      "destination": "notices/zstd-1.4.5-LICENSE"
+    },
+    {
+      "file": "llvm-LICENSE.TXT",
+      "url": "https://raw.githubusercontent.com/YoWASP/llvm-project/97196c8eeb1d495fa43bb8af2fb26af5ef5b89fb/LICENSE.TXT",
+      "sha256": "8d85c1057d742e597985c7d4e6320b015a9139385cff4cbae06ffc0ebe89afee",
+      "bytes": 15141,
+      "destination": "notices/llvm-LICENSE.TXT"
+    },
+    {
+      "file": "wasi-libc-LICENSE",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/ac020b86fd44bafe60aa4fa12f407d16e3731329/LICENSE",
+      "sha256": "2711a8b5a5cdfef0e639f96c1aca12ae23d7d64a02d0507f1bdf14d2b27bbc3a",
+      "bytes": 910,
+      "destination": "notices/wasi-libc-LICENSE"
+    },
+    {
+      "file": "wasi-libc-LICENSE-APACHE",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/ac020b86fd44bafe60aa4fa12f407d16e3731329/LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847,
+      "destination": "notices/wasi-libc-LICENSE-APACHE"
+    },
+    {
+      "file": "wasi-libc-LICENSE-APACHE-LLVM",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/ac020b86fd44bafe60aa4fa12f407d16e3731329/LICENSE-APACHE-LLVM",
+      "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+      "bytes": 12243,
+      "destination": "notices/wasi-libc-LICENSE-APACHE-LLVM"
+    },
+    {
+      "file": "wasi-libc-LICENSE-MIT",
+      "url": "https://raw.githubusercontent.com/WebAssembly/wasi-libc/ac020b86fd44bafe60aa4fa12f407d16e3731329/LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "bytes": 1023,
+      "destination": "notices/wasi-libc-LICENSE-MIT"
+    }
+  ],
+  "archive_notices": [
+    {
+      "input": "rustc_archive",
+      "member": "rustc-1.93.0-i686-unknown-linux-gnu/COPYRIGHT",
+      "sha256": "172020dbfd5b53a226dfde77616190a48dcff519b0bc0e6deb91a8450782c4af",
+      "bytes": 1571,
+      "destination": "notices/rust-COPYRIGHT"
+    },
+    {
+      "input": "rustc_archive",
+      "member": "rustc-1.93.0-i686-unknown-linux-gnu/LICENSE-APACHE",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "bytes": 9723,
+      "destination": "notices/rust-LICENSE-APACHE"
+    },
+    {
+      "input": "rustc_archive",
+      "member": "rustc-1.93.0-i686-unknown-linux-gnu/LICENSE-MIT",
+      "sha256": "b71bd43a069ca0641a9ecfe585ca7b3c53b5cc1608f8b68321168698e28b5ea1",
+      "bytes": 1068,
+      "destination": "notices/rust-LICENSE-MIT"
+    },
+    {
+      "input": "rustc_archive",
+      "member": "rustc/share/doc/rust/COPYRIGHT.html",
+      "sha256": "ed776cb483639823551326501ea4a7d0e63a040a5589d25d68234c223bd9d9f9",
+      "bytes": 13722140,
+      "destination": "notices/rust-COPYRIGHT.html"
+    },
+    {
+      "input": "rustc_archive",
+      "member": "rustc/share/doc/rust/COPYRIGHT-library.html",
+      "sha256": "d93d65853736bde4e8649691233a98848ba709673873aeb39487bc1ca6ee292a",
+      "bytes": 425661,
+      "destination": "notices/rust-COPYRIGHT-library.html"
+    },
+    {
+      "input": "linux",
+      "member": "linux-6.8.12/COPYING",
+      "sha256": "fb5a425bd3b3cd6071a3a9aff9909a859e7c1158d54d32e07658398cd67eb6a0",
+      "bytes": 496,
+      "destination": "notices/linux-COPYING"
+    },
+    {
+      "input": "busybox",
+      "member": "busybox-1.36.1/LICENSE",
+      "sha256": "bbfc9843646d483c334664f651c208b9839626891d8f17604db2146962f43548",
+      "bytes": 18348,
+      "destination": "notices/busybox-LICENSE"
+    },
+    {
+      "input": "seabios",
+      "member": "COPYING",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "bytes": 35147,
+      "destination": "notices/seabios-COPYING"
+    },
+    {
+      "input": "seabios",
+      "member": "COPYING.LESSER",
+      "sha256": "a853c2ffec17057872340eee242ae4d96cbf2b520ae27d903e1b2fef1a5f9d1c",
+      "bytes": 7639,
+      "destination": "notices/seabios-COPYING.LESSER"
+    },
+    {
+      "input": "linux",
+      "member": "linux-6.8.12/LICENSES/preferred/GPL-2.0",
+      "sha256": "f6b78c087c3ebdf0f3c13415070dd480a3f35d8fc76f3d02180a407c1c812f79",
+      "bytes": 18729,
+      "destination": "notices/GPL-2.0"
+    },
+    {
+      "input": "glibc_2.36-9+deb12u14.debian.tar.xz",
+      "member": "debian/copyright",
+      "sha256": "40c7e1f2118531f038ca22999bd976901254e1bc5cd1b0f0211bdd064c599987",
+      "bytes": 25467,
+      "destination": "notices/glibc-debian-copyright"
+    },
+    {
+      "input": "gcc-12_12.2.0-14+deb12u1.debian.tar.xz",
+      "member": "debian/copyright",
+      "sha256": "da8191658b3452ce9caf31638ba61dab31a38c619fa39df119812e050f592fd3",
+      "bytes": 68194,
+      "destination": "notices/gcc-debian-copyright"
+    },
+    {
+      "input": "zlib_1.2.13.dfsg-1.debian.tar.xz",
+      "member": "debian/copyright",
+      "sha256": "9e5b96d63773a5d177ba264254390f792be07e41748ebd94730981c6cac31cc6",
+      "bytes": 2927,
+      "destination": "notices/zlib-debian-copyright"
+    },
+    {
+      "input": "glibc_2.36.orig.tar.xz",
+      "member": "glibc-2.36/COPYING.LIB",
+      "sha256": "dc626520dcd53a22f727af3ee42c770e56c97a64fe3adb063799d8ab032fe551",
+      "bytes": 26530,
+      "destination": "notices/LGPL-2.1"
+    },
+    {
+      "input": "gcc-12_12.2.0.orig.tar.gz",
+      "member": "gcc-12-12.2.0/gcc-12.2.0-dfsg.tar.xz!gcc-12.2.0/COPYING3",
+      "sha256": "8ceb4b9ee5adedde47b31e975c1d90c73ad27b6b165a1dcd80c7c545eb65b903",
+      "bytes": 35147,
+      "destination": "notices/GPL-3.0-COPYING3"
+    },
+    {
+      "input": "gcc-12_12.2.0.orig.tar.gz",
+      "member": "gcc-12-12.2.0/gcc-12.2.0-dfsg.tar.xz!gcc-12.2.0/COPYING.RUNTIME",
+      "sha256": "9d6b43ce4d8de0c878bf16b54d8e7a10d9bd42b75178153e3af6a815bdc90f74",
+      "bytes": 3324,
+      "destination": "notices/GCC-Runtime-Library-Exception"
+    },
+    {
+      "input": "zlib_1.2.13.dfsg.orig.tar.bz2",
+      "member": "zlib-1.2.13.dfsg/LICENSE",
+      "sha256": "845efc77857d485d91fb3e0b884aaa929368c717ae8186b66fe1ed2495753243",
+      "bytes": 1002,
+      "destination": "notices/zlib-LICENSE"
+    }
+  ],
+  "cargo_notices": [
+    {
+      "crate": "pyo3-0.29.2",
+      "file": "LICENSE-APACHE",
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "bytes": 9807,
+      "destination": "notices/cargo-pyo3-0.29.2-LICENSE-APACHE"
+    },
+    {
+      "crate": "pyo3-0.29.2",
+      "file": "LICENSE-MIT",
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "bytes": 1107,
+      "destination": "notices/cargo-pyo3-0.29.2-LICENSE-MIT"
+    },
+    {
+      "crate": "pyo3-ffi-0.29.2",
+      "file": "LICENSE-APACHE",
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "bytes": 9807,
+      "destination": "notices/cargo-pyo3-ffi-0.29.2-LICENSE-APACHE"
+    },
+    {
+      "crate": "pyo3-ffi-0.29.2",
+      "file": "LICENSE-MIT",
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "bytes": 1107,
+      "destination": "notices/cargo-pyo3-ffi-0.29.2-LICENSE-MIT"
+    },
+    {
+      "crate": "pyo3-build-config-0.29.2",
+      "file": "LICENSE-APACHE",
+      "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
+      "bytes": 9807,
+      "destination": "notices/cargo-pyo3-build-config-0.29.2-LICENSE-APACHE"
+    },
+    {
+      "crate": "pyo3-build-config-0.29.2",
+      "file": "LICENSE-MIT",
+      "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
+      "bytes": 1107,
+      "destination": "notices/cargo-pyo3-build-config-0.29.2-LICENSE-MIT"
+    },
+    {
+      "crate": "libc-0.2.190",
+      "file": "LICENSE-APACHE",
+      "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
+      "bytes": 9723,
+      "destination": "notices/cargo-libc-0.2.190-LICENSE-APACHE"
+    },
+    {
+      "crate": "libc-0.2.190",
+      "file": "LICENSE-MIT",
+      "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e",
+      "bytes": 1066,
+      "destination": "notices/cargo-libc-0.2.190-LICENSE-MIT"
+    },
+    {
+      "crate": "once_cell-1.21.4",
+      "file": "LICENSE-APACHE",
+      "sha256": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+      "bytes": 10847,
+      "destination": "notices/cargo-once_cell-1.21.4-LICENSE-APACHE"
+    },
+    {
+      "crate": "once_cell-1.21.4",
+      "file": "LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "bytes": 1023,
+      "destination": "notices/cargo-once_cell-1.21.4-LICENSE-MIT"
+    },
+    {
+      "crate": "portable-atomic-1.13.1",
+      "file": "LICENSE-APACHE",
+      "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
+      "bytes": 10174,
+      "destination": "notices/cargo-portable-atomic-1.13.1-LICENSE-APACHE"
+    },
+    {
+      "crate": "portable-atomic-1.13.1",
+      "file": "LICENSE-MIT",
+      "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+      "bytes": 1023,
+      "destination": "notices/cargo-portable-atomic-1.13.1-LICENSE-MIT"
+    },
+    {
+      "crate": "target-lexicon-0.13.5",
+      "file": "LICENSE",
+      "sha256": "268872b9816f90fd8e85db5a28d33f8150ebb8dd016653fb39ef1f94f2686bc5",
+      "bytes": 12243,
+      "destination": "notices/cargo-target-lexicon-0.13.5-LICENSE"
+    }
+  ],
+  "linker_output": {
+    "sha256": "1ee7dac37c10c1eb380846ee5a6d23e53a8981b02e306d03aeed75aa6206c505",
+    "bytes": 97970272
+  },
+  "linker_provenance": {
+    "release_asset_url": "https://github.com/oligamiq/rust_wasm/releases/download/v0.2.1-release/llvm_opt.wasm.br",
+    "release_asset_sha256": "69bf1fb994c0b31b1bbda58dff3f9df2ecb29f25b8053f80a489cab859d50f8a",
+    "release_packaging_workflow_commit": "60d347c1c4a3a87f1efcbb548ff1501e0f4a096b",
+    "release_packaging_workflow_run": "https://github.com/oligamiq/rust_wasm/actions/runs/33261254637",
+    "builder_workflow_commit": "517de68447f38f2dc12304f34d8a51929a19be82",
+    "builder_workflow_run": "https://github.com/oligamiq/rust_wasm/actions/runs/30251220500",
+    "llvm_source_commit": "97196c8eeb1d495fa43bb8af2fb26af5ef5b89fb",
+    "wasi_libc_submodule_commit": "ac020b86fd44bafe60aa4fa12f407d16e3731329",
+    "clang_source_candidate": {
+      "repository": "https://github.com/YoWASP/clang",
+      "commit": "944dd7c774954180e621cc8e12984023a7f8bcbe",
+      "confidence": "inferred; workflow omitted ref"
+    },
+    "unresolved_mutable_builder_inputs": [
+      "rust_wasm checkout uses gh-actions ref",
+      "toolchain-for-building-rustc uses unpinned default branch",
+      "ubuntu-latest and Actions @v4/@main refs"
+    ]
+  }
+}
