@@ -643,8 +643,10 @@ def crate_files(code, report, modules, source, options):
         ]
     else:
         readme += [
-            f"If version {version} is not on crates.io yet, these steps wait for its "
-            "release; `src/bindings.rs` works without them.",
+            f"Use these regeneration steps when version {version} is available on "
+            "crates.io. If it is not available yet, regenerate in the browser and "
+            "download a fresh starter. The included `src/bindings.rs` builds without "
+            "installing the generator.",
             "",
         ]
     readme += [

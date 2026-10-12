@@ -1,6 +1,6 @@
-// Small Rust and Python highlighters for the generated code and the pasted
-// source. They build text nodes and spans, never HTML, so docstrings from
-// Python cannot inject markup.
+// Small Rust, Python, TOML, and Markdown highlighters for the generated code,
+// starter files, and pasted source. They build text nodes and spans, never
+// HTML, so source text cannot inject markup.
 
 const KEYWORDS = new Set(
   ('as async await break const continue crate dyn else enum extern false fn for if impl in let loop ' +
@@ -98,4 +98,92 @@ export function highlightPython(code) {
     }
     return null;
   });
+}
+
+const TOML_TOKEN = new RegExp(
+  [
+    String.raw`(?<comment>#[^\n]*)`,
+    String.raw`(?<string>"""(?:\\[\s\S]|(?!""")[^\\])*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\n])*"|'[^'\n]*')`,
+    String.raw`(?<table>^[ \t]*\[{1,2}[^\]\n]*\]{1,2})`,
+    String.raw`(?<lineKey>^[ \t]*(?:[A-Za-z0-9_-]+\.)*[A-Za-z0-9_-]+(?=[ \t]*=))`,
+    String.raw`(?<inlineKey>(?<=[{,])[ \t]*(?:[A-Za-z0-9_-]+\.)*[A-Za-z0-9_-]+(?=[ \t]*=))`,
+    String.raw`(?<boolean>\b(?:true|false)\b)`,
+    String.raw`(?<number>\b[+-]?(?:0[xX][0-9A-Fa-f](?:_?[0-9A-Fa-f])*|0[oO][0-7](?:_?[0-7])*|0[bB][01](?:_?[01])*|(?:\d(?:_?\d)*(?:\.(?!\.)\d(?:_?\d)*)?(?:[eE][+-]?\d(?:_?\d)*)?))\b)`,
+  ].join('|'),
+  'gm',
+);
+
+export function highlightToml(code) {
+  return highlight(code, TOML_TOKEN, (groups) => {
+    if (groups.comment) return 'comment';
+    if (groups.string) return 'string';
+    if (groups.table) return 'table';
+    if (groups.lineKey || groups.inlineKey) return 'key';
+    if (groups.boolean) return 'boolean';
+    if (groups.number) return 'number';
+    return null;
+  });
+}
+
+const MARKDOWN_INLINE = new RegExp(
+  [
+    String.raw`(?<link>\[[^\[\]\n]+\]\([^()\[\]\n]*\))`,
+    String.raw`(?<inline>\x60+[^\x60\n]*\x60+)`,
+    String.raw`(?<strong>\*\*[^*\n]+\*\*|__[^_\n]+__)`,
+    String.raw`(?<emphasis>\*[^*\n]+\*|_[^_\n]+_)`,
+  ].join('|'),
+  'g',
+);
+
+function appendMarkdownLine(fragment, line, content, kind) {
+  if (kind) {
+    fragment.append(span(kind, line));
+    return;
+  }
+  const newline = line.endsWith('\n') ? '\n' : '';
+  fragment.append(highlight(content, MARKDOWN_INLINE, (groups) => {
+    if (groups.link) return 'link';
+    if (groups.inline) return 'inline';
+    if (groups.strong) return 'strong';
+    if (groups.emphasis) return 'emphasis';
+    return null;
+  }));
+  if (newline) fragment.append(newline);
+}
+
+export function highlightMarkdown(code) {
+  const fragment = document.createDocumentFragment();
+  let offset = 0;
+  let fence = null;
+  while (offset < code.length) {
+    const newline = code.indexOf('\n', offset);
+    const end = newline < 0 ? code.length : newline + 1;
+    const line = code.slice(offset, end);
+    const content = line.endsWith('\n') ? line.slice(0, -1) : line;
+    if (fence) {
+      fragment.append(span('fenced', line));
+      const closing = new RegExp(`^ {0,3}${fence.character}{${fence.length},}\\s*$`);
+      if (closing.test(content)) fence = null;
+    } else {
+      const opening = /^( {0,3})(`{3,}|~{3,})[^\n]*$/.exec(content);
+      if (opening) {
+        fence = { character: opening[2][0], length: opening[2].length };
+        fragment.append(span('fenced', line));
+      } else if (/^ {0,3}#{1,6}(?:\s|$)/.test(content)) {
+        appendMarkdownLine(fragment, line, content, 'heading');
+      } else {
+        const list = /^( {0,3}(?:[-+*]|\d+[.)])(?=\s))/.exec(content);
+        if (list) {
+          const indent = list[1].match(/^ */)[0].length;
+          fragment.append(content.slice(0, indent));
+          fragment.append(span('list', list[1].slice(indent)));
+          appendMarkdownLine(fragment, line.slice(list[1].length), content.slice(list[1].length));
+        } else {
+          appendMarkdownLine(fragment, line, content);
+        }
+      }
+    }
+    offset = end;
+  }
+  return fragment;
 }

@@ -1,4 +1,4 @@
-import { highlightPython, highlightRust } from './highlight.js';
+import { highlightMarkdown, highlightPython, highlightRust, highlightToml } from './highlight.js';
 import { overviewText, parseBindings, pythonLines, renderOverview } from './overview.js';
 import { DEFAULT_EXAMPLE, EXAMPLES } from './examples.js';
 
@@ -817,10 +817,14 @@ function updateFilesOverflow() {
 function renderCode(text, path) {
   const rust = path.endsWith('.rs');
   const python = path.endsWith('.py');
+  const toml = path.endsWith('.toml');
+  const markdown = path.endsWith('.md');
   const lines = text.endsWith('\n') ? text.split('\n').length - 1 : text.split('\n').length;
   ui.gutter.textContent = Array.from({ length: lines }, (_, index) => index + 1).join('\n');
   if (text.length <= HIGHLIGHT_LIMIT && rust) ui.code.replaceChildren(highlightRust(text));
   else if (text.length <= HIGHLIGHT_LIMIT && python) ui.code.replaceChildren(highlightPython(text));
+  else if (text.length <= HIGHLIGHT_LIMIT && toml) ui.code.replaceChildren(highlightToml(text));
+  else if (text.length <= HIGHLIGHT_LIMIT && markdown) ui.code.replaceChildren(highlightMarkdown(text));
   else ui.code.textContent = text;
   const items = rust ? outline(text) : [];
   ui.jump.hidden = items.length === 0;

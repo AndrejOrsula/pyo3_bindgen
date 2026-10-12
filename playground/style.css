@@ -1381,6 +1381,16 @@ kbd {
 .tok-number { color: var(--tok-number); }
 .tok-macro { color: var(--tok-macro); }
 .tok-attr { color: var(--tok-attr); }
+.tok-key,
+.tok-table { color: var(--tok-type); }
+.tok-boolean { color: var(--tok-keyword); }
+.tok-heading { color: var(--tok-keyword); font-weight: 700; }
+.tok-list { color: var(--tok-number); }
+.tok-emphasis { color: var(--tok-string); font-style: italic; }
+.tok-strong { color: var(--tok-string); font-weight: 700; }
+.tok-link { color: var(--tok-fn); text-decoration: underline; text-underline-offset: 2px; }
+.tok-inline,
+.tok-fenced { color: var(--tok-string); }
 
 /* Footer */
 .foot {
