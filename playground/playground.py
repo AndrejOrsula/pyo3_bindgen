@@ -32,8 +32,9 @@ RUST_KEYWORDS = frozenset(
 REQUIREMENT = re.compile(
     r"[A-Za-z0-9][A-Za-z0-9._-]*(\[[A-Za-z0-9._, -]+\])?(\s*[=<>!~]=?\s*[A-Za-z0-9.*+!_-]+)?"
 )
-# Modules created from pasted code, which a new paste may replace.
-PASTED = set()
+# Module objects registered during the latest pasted-source attempt. A name
+# alone is not ownership: another operation may have replaced its cache entry.
+PASTED = {}
 REPOSITORY = "https://github.com/AndrejOrsula/pyo3_bindgen"
 # The public commit whose generator this page runs, when its sources were
 # unmodified; the starter crate's README can then pin it.
@@ -72,9 +73,25 @@ def check_options(options):
 
 def shadows_module(name):
     """Whether `name` is a module that Python could import other than pasted code."""
-    if name in PASTED:
+    if name in sys.modules:
+        cached = sys.modules[name]
+        if name not in PASTED or cached is None or PASTED[name] is not cached:
+            PASTED.pop(name, None)
+            return True
+        # importlib.util.find_spec() returns this cached module's __spec__, even
+        # when a different module has become available on the import path.
+        for finder in sys.meta_path:
+            find_spec = getattr(finder, "find_spec", None)
+            if find_spec is None:
+                continue
+            try:
+                if find_spec(name, None, None) is not None:
+                    return True
+            except (ImportError, ValueError):
+                continue
         return False
-    if name in sys.modules or name in sys.stdlib_module_names:
+    PASTED.pop(name, None)
+    if name in sys.stdlib_module_names:
         return True
     try:
         return importlib.util.find_spec(name) is not None
@@ -156,10 +173,15 @@ def generate_source(source, module, options):
         )
     options = dict(options)
     check_options(options)
-    # Executing the code again replaces the previous version of the module.
+    # Replace only the exact cache entry owned by the previous paste.
     sys.modules.pop(module, None)
-    PASTED.add(module)
-    code, report, analysis = engine.generate_source(source, module, options)
+    try:
+        code, report, analysis = engine.generate_source(source, module, options)
+    finally:
+        if module not in sys.modules:
+            PASTED.pop(module, None)
+        else:
+            PASTED[module] = sys.modules[module]
     return result(code, report, analysis, [module], source, options)
 
 
