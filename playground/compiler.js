@@ -5,6 +5,7 @@ const PHASE_TIMEOUTS = {
   linking: 240_000,
 };
 const MAX_SOURCE_BYTES = 16 * 1024 * 1024;
+const IDLE_TIMEOUT = 300_000;
 
 function countUtf8Bytes(text, limit) {
   const encoder = new TextEncoder();
@@ -36,6 +37,7 @@ export class BrowserCompiler {
     this.manifestUrl = new URL(manifestUrl, import.meta.url);
     this.worker = null;
     this.active = null;
+    this.idleTimer = null;
     this.nextId = 1;
     this.disposed = false;
   }
@@ -65,6 +67,7 @@ export class BrowserCompiler {
         : new BrowserCompilerError('Could not inspect crate sources', { cause: error }));
     }
 
+    this.clearIdleTimer();
     const id = this.nextId++;
     const worker = this.worker ?? new Worker(new URL('./compiler-worker.js', import.meta.url), { type: 'module' });
     this.worker = worker;
@@ -96,6 +99,7 @@ export class BrowserCompiler {
             return;
           }
           this.finish(active);
+          this.armIdleTimer(worker);
           resolve({
             wasm: new Uint8Array(data.wasm),
             moduleName: String(data.moduleName),
@@ -135,6 +139,8 @@ export class BrowserCompiler {
       this.fail(this.active, new BrowserCompilerError('Compilation cancelled', {
         diagnostics: this.active.diagnostics ?? '', cancelled: true,
       }), true);
+    } else {
+      this.stopWorker();
     }
   }
 
@@ -157,10 +163,30 @@ export class BrowserCompiler {
     if (active.settled) return;
     this.finish(active);
     if (terminate) this.stopWorker();
+    else this.armIdleTimer(active.worker);
     active.reject(error);
   }
 
+  armIdleTimer(worker) {
+    this.clearIdleTimer();
+    const idle = { worker, timer: null };
+    idle.timer = setTimeout(() => {
+      if (this.idleTimer !== idle || this.worker !== worker || this.active !== null) return;
+      this.idleTimer = null;
+      worker.terminate();
+      this.worker = null;
+    }, IDLE_TIMEOUT);
+    this.idleTimer = idle;
+  }
+
+  clearIdleTimer() {
+    const idle = this.idleTimer;
+    this.idleTimer = null;
+    if (idle) clearTimeout(idle.timer);
+  }
+
   stopWorker() {
+    this.clearIdleTimer();
     this.worker?.terminate();
     this.worker = null;
   }

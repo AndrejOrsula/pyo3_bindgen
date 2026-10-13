@@ -6,7 +6,6 @@
 let pyodide;
 let playground;
 let rustLoadAttempts = 0;
-const loadedRustModules = new Set();
 const MAX_RUST_LOAD_ATTEMPTS = 8;
 const MAX_RUST_OUTPUT_CHARS = 64 * 1024;
 const MAX_RUST_ERROR_CHARS = 2048;
@@ -107,9 +106,6 @@ const commands = {
     if (!(wasm instanceof Uint8Array)) {
       return { success: false, stdout: '', stderr: '', truncated: false, error: 'Rust module bytes must be a Uint8Array' };
     }
-    if (loadedRustModules.has(moduleName)) {
-      return { success: false, stdout: '', stderr: '', truncated: false, error: 'Rust module name was already used' };
-    }
     if (rustLoadAttempts >= MAX_RUST_LOAD_ATTEMPTS) {
       return {
         success: false, stdout: '', stderr: '', truncated: false,
@@ -120,7 +116,6 @@ const commands = {
     // The extension's PyInit symbol fixes its import name at compile time.
     // Count before touching the filesystem or invoking the loader.
     rustLoadAttempts += 1;
-    loadedRustModules.add(moduleName);
     const path = `/rust-side-modules/${rustLoadAttempts}/${moduleName}.so`;
     const outputs = {
       stdout: { text: '', decoder: new TextDecoder('utf-8', { ignoreBOM: true }) },
@@ -161,6 +156,7 @@ const commands = {
 import importlib.util as _p3_util, sys as _p3_sys
 _p3_old_stdout, _p3_old_stderr = _p3_sys.stdout, _p3_sys.stderr
 try:
+    _p3_sys.modules.pop(${quotedName}, None)
     _p3_spec = _p3_util.spec_from_file_location(${quotedName}, ${quotedPath})
     if _p3_spec is None or _p3_spec.loader is None:
         raise ImportError("cannot load Rust side module")

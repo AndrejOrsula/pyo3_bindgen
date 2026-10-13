@@ -1008,14 +1008,14 @@ function updateCompilerCost() {
     return;
   }
   if (state.compilerStarted) {
-    ui.compilerCost.textContent = 'Compiler assets loaded for this page session; later runs may reuse cached assets. Compilation and execution stay in this browser.';
+    ui.compilerCost.textContent = 'VM pauses; released after five idle minutes. Same files may reuse last successful compile; edits reuse it while warm. Each run starts fresh module state. Runs locally; desktop-class memory needed.';
     return;
   }
   const bytes = Number(state.config.compiler_download_bytes);
   const size = Number.isFinite(bytes) && bytes > 0
     ? `about ${(bytes / (1024 * 1024)).toFixed(0)} MiB of compiler assets`
     : 'compiler assets';
-  ui.compilerCost.textContent = `First run downloads ${size} and boots a Linux compiler VM configured with 1 GiB RAM; keep extra desktop memory available for the browser. Compilation supports the bundled Rust standard library and PyO3; other Cargo dependencies are outside this browser flow.`;
+  ui.compilerCost.textContent = `First run downloads ${size} and starts a 1 GiB Linux VM. Identical files may reuse compiled code; edits reuse the warm VM. Pauses between runs; expires after five idle minutes. Rust standard library and PyO3 only; runs locally. Desktop-class memory needed.`;
 }
 
 function invalidateActiveRun(reason) {
@@ -1068,6 +1068,10 @@ async function compileAndRun() {
     browserCompiler ??= new BrowserCompiler(new URL(state.config.compiler, document.baseURI).href);
     const compilePromise = browserCompiler.compile(snapshot.files, (progress) => {
       if (epoch !== runEpoch || !state.runBusy) return;
+      if (!state.compilerStarted && (progress.phase === 'compiling' || progress.phase === 'cached')) {
+        state.compilerStarted = true;
+        updateCompilerCost();
+      }
       ui.runProgress.textContent = progress.text;
     });
     compiled = await Promise.race([
@@ -1081,8 +1085,6 @@ async function compileAndRun() {
     ]);
     clearTimeout(runTimeout);
     if (!isCurrentRun(snapshot, epoch)) return;
-    state.compilerStarted = true;
-    updateCompilerCost();
     if (compiled.diagnostics) {
       ui.compileOutput.textContent = compiled.diagnostics;
       ui.compileOutputSection.hidden = false;

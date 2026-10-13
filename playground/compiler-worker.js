@@ -1,6 +1,7 @@
 const MAX_DIAGNOSTICS = 65_536;
 const MAX_SOURCE_BYTES = 16 * 1024 * 1024;
 const MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
+const MAX_CACHED_WASM_BYTES = 16 * 1024 * 1024;
 const MAX_ASSET_CHUNK_BYTES = 16 * 1024 * 1024;
 const MAX_RUNTIME_TAR_BYTES = 512 * 1024 * 1024;
 const EXPECTED = {
@@ -18,11 +19,14 @@ const modulePrefix = [...crypto.getRandomValues(new Uint8Array(8))]
   .map((byte) => byte.toString(16).padStart(2, '0')).join('');
 let emulator = null;
 let emulatorReady = false;
+let emulatorRunning = false;
 let serialTail = '';
 let serialCapture = null;
 let serialCaptureLength = 0;
 let serialWaiters = [];
 let manifestPromise = null;
+let manifestIdentity = null;
+let successfulModule = null;
 let linkerPromise = null;
 let wasiClassesPromise = null;
 let v86ObjectUrl = null;
@@ -129,6 +133,33 @@ async function getManifest(manifestUrl) {
     })();
   }
   return manifestPromise;
+}
+
+async function fingerprintFiles(files, manifestUrl) {
+  if (!files || typeof files !== 'object' || Array.isArray(files)) {
+    throw new Error('Expected a crate files map');
+  }
+  const encoder = new TextEncoder();
+  let total = 0;
+  const rows = [];
+  for (const [path, text] of Object.entries(files)) {
+    if (!safeRelativePath(path) || typeof text !== 'string') throw new Error(`Invalid crate file ${path}`);
+    const size = countUtf8Bytes(text, MAX_SOURCE_BYTES - total, 'Crate sources');
+    total += size;
+    if (total > MAX_SOURCE_BYTES) throw new Error('Crate sources exceed 16 MiB');
+    const bytes = encoder.encode(text);
+    if (bytes.byteLength !== size) throw new Error(`Could not encode crate file ${path}`);
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    const hash = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+    rows.push([path, size, hash]);
+  }
+  if (!Object.prototype.hasOwnProperty.call(files, 'src/main.rs') || typeof files['src/main.rs'] !== 'string') {
+    throw new Error('Crate has no src/main.rs');
+  }
+  rows.sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
+  const identity = new TextEncoder().encode(JSON.stringify([manifestUrl, rows]));
+  const digest = await crypto.subtle.digest('SHA-256', identity);
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 async function streamChunks(chunks, base, id, label, onChunk) {
@@ -312,10 +343,14 @@ function appendSerial(byte) {
 function waitForMarker(marker, timeoutMs, { line = false } = {}) {
   if (markerMatched(serialTail, marker, line)) return Promise.resolve();
   return new Promise((resolve, reject) => {
-    const waiter = { marker, line, resolve: () => { clearTimeout(timer); resolve(); } };
-    const timer = setTimeout(() => {
+    const waiter = {
+      marker, line, timer: null,
+      resolve: () => { clearTimeout(waiter.timer); resolve(); },
+      reject: (error) => { clearTimeout(waiter.timer); reject(error); },
+    };
+    waiter.timer = setTimeout(() => {
       serialWaiters = serialWaiters.filter((item) => item !== waiter);
-      reject(new Error(`Linux guest marker ${JSON.stringify(marker)} timed out; serial tail: ${serialTail.slice(-1024)}`));
+      waiter.reject(new Error(`Linux guest marker ${JSON.stringify(marker)} timed out; serial tail: ${serialTail.slice(-1024)}`));
     }, timeoutMs);
     serialWaiters.push(waiter);
   });
@@ -327,13 +362,24 @@ async function destroyEmulator() {
     const current = emulator;
     emulator = null;
     emulatorReady = false;
+    emulatorRunning = false;
+    current.remove_listener?.('serial0-output-byte', appendSerial);
     try { await current.destroy(); } catch (error) { destroyError = error; }
   }
+  for (const waiter of serialWaiters) waiter.reject(new Error('Linux compiler stopped'));
+  serialWaiters = [];
   if (v86ObjectUrl) {
     URL.revokeObjectURL(v86ObjectUrl);
     v86ObjectUrl = null;
   }
   if (destroyError) throw new Error('Could not release the Linux compiler memory', { cause: destroyError });
+}
+
+async function pauseEmulator() {
+  if (emulator && emulatorRunning) {
+    await emulator.stop();
+    emulatorRunning = false;
+  }
 }
 
 async function runCommand(script, fileName, timeoutMs, protocolMarkers = []) {
@@ -371,7 +417,15 @@ async function runCommand(script, fileName, timeoutMs, protocolMarkers = []) {
 }
 
 async function startEmulator(manifest, base, id) {
-  if (emulatorReady) return;
+  if (emulatorReady) {
+    if (!emulator) throw new Error('Warm Linux compiler is unavailable');
+    if (!emulatorRunning) {
+      progress(id, 'booting', 'Resuming Linux compiler…');
+      await emulator.run();
+      emulatorRunning = true;
+    }
+    return;
+  }
   progress(id, 'downloading', 'Loading Linux compiler assets…');
   const v86ModuleUrl = sameOriginUrl(manifest.v86.module, base, 'v86 module');
   const { V86 } = await import(v86ModuleUrl.href);
@@ -412,10 +466,10 @@ async function startEmulator(manifest, base, id) {
   serialTail = '';
   serialWaiters = [];
   emulator = new V86(options);
+  emulatorRunning = true;
   emulator.add_listener('serial0-output-byte', appendSerial);
   progress(id, 'booting', 'Starting Linux compiler…');
   await waitForMarker(job.readyMarker, 180_000);
-  emulatorReady = true;
   progress(id, 'booting', 'Linux compiler is ready');
 
   const shellReady = await runCommand('echo __BINDGEN_SHELL_READY__', 'shell-ready.sh', 60_000, ['__BINDGEN_SHELL_READY__']);
@@ -442,6 +496,7 @@ async function startEmulator(manifest, base, id) {
       || !result.output.includes('rustc 1.93.0 (254b59607 2026-01-19)')) {
     throw new Error(`Guest compiler setup failed:\n${result.output}`);
   }
+  emulatorReady = true;
 }
 
 function shimSource(moduleName) {
@@ -455,8 +510,6 @@ async function guestCompile(files, manifest, base, id, moduleName) {
   const shimFile = `${moduleName}-shim.rs`;
   const scriptFile = `${moduleName}-compile.sh`;
   const archiveFile = `${moduleName}.a`;
-  await emulator.create_file(`/${sourceFile}`, source);
-  await emulator.create_file(`/${shimFile}`, shim);
   const pyo3 = manifest.dependencies.pyo3_rlib;
   const guestScript = [
     `rm -rf /tmp/jobs/${moduleName}`,
@@ -467,25 +520,68 @@ async function guestCompile(files, manifest, base, id, moduleName) {
     `rm -f /mnt/${archiveFile}`,
     `cd /tmp/jobs/${moduleName}`,
     `if /tmp/lib/ld-linux.so.2 --library-path /tmp/lib:/tmp/rust/lib /tmp/rust/bin/rustc --color never --edition=2024 --crate-name ${moduleName} --crate-type staticlib --emit=link --target wasm32-unknown-emscripten --cfg Py_3_14 -C relocation-model=pic -C panic=unwind -L dependency=/tmp/deps --extern pyo3=/tmp/deps/${pyo3} src/main.rs -o /mnt/${archiveFile}; then compile_status=0; else compile_status=$?; fi`,
-    `rm -rf /tmp/jobs/${moduleName}`,
-    `rm -f /mnt/${sourceFile} /mnt/${shimFile} /mnt/${scriptFile}`,
+    'cleanup_status=0',
+    `rm -rf /tmp/jobs/${moduleName} || cleanup_status=1`,
+    `test ! -e /tmp/jobs/${moduleName} || cleanup_status=1`,
+    `rm -f /mnt/${sourceFile} /mnt/${shimFile} /mnt/${scriptFile} || cleanup_status=1`,
+    `test ! -e /mnt/${sourceFile} && test ! -e /mnt/${shimFile} && test ! -e /mnt/${scriptFile} || cleanup_status=1`,
+    'if test "$cleanup_status" -ne 0; then echo __GUEST_JOB_CLEANUP_FAILED__; compile_status=70; fi',
     `test "$compile_status" -eq 0`,
     '',
   ].join('\n');
-  progress(id, 'compiling', 'Compiling edited Rust in Linux…');
-  const result = await runCommand(guestScript, scriptFile, 300_000);
+  let result = null;
+  let archiveBytes = null;
+  let primaryError = null;
+  try {
+    await emulator.create_file(`/${sourceFile}`, source);
+    await emulator.create_file(`/${shimFile}`, shim);
+    progress(id, 'compiling', 'Compiling edited Rust in Linux…');
+    result = await runCommand(guestScript, scriptFile, 300_000, ['__GUEST_JOB_CLEANUP_FAILED__']);
+    if (result.output.includes('__GUEST_JOB_CLEANUP_FAILED__')) {
+      throw new Error(`Could not verify guest compiler source cleanup: ${clamp(result.output)}`);
+    }
+    if (result.exitCode === 0) {
+      const archive = await emulator.read_file(`/${archiveFile}`);
+      if (!(archive instanceof Uint8Array) || archive.byteLength < 1 || archive.byteLength > MAX_ARCHIVE_BYTES) {
+        throw new Error('Guest Rust compiler returned an invalid static library');
+      }
+      archiveBytes = archive.slice();
+    }
+  } catch (error) {
+    primaryError = error;
+  }
+  const cleanupFile = `${moduleName}-cleanup.sh`;
+  const marker = '__GUEST_JOB_CLEANUP_VERIFIED__';
+  let cleanup = null;
+  let cleanupError = null;
+  try {
+    cleanup = await runCommand([
+      `rm -rf /tmp/jobs/${moduleName}`,
+      `rm -f /mnt/${sourceFile} /mnt/${shimFile} /mnt/${scriptFile} /mnt/${archiveFile} /mnt/${cleanupFile}`,
+      `test ! -e /tmp/jobs/${moduleName}`,
+      `test ! -e /mnt/${sourceFile} && test ! -e /mnt/${shimFile} && test ! -e /mnt/${scriptFile}`,
+      `test ! -e /mnt/${archiveFile} && test ! -e /mnt/${cleanupFile}`,
+      `echo ${marker}`,
+    ].join(' && '), cleanupFile, 60_000, [marker]);
+  } catch (error) {
+    cleanupError = error;
+  }
+  if (cleanupError || cleanup?.exitCode !== 0 || !cleanup.output.includes(marker)) {
+    const detail = primaryError?.message || (result?.exitCode ? result.output : '');
+    throw new Error(`Could not verify guest compiler job cleanup${detail ? `: ${clamp(detail)}` : ''}`, {
+      cause: cleanupError || primaryError,
+    });
+  }
+  if (primaryError) throw primaryError;
   if (result.exitCode !== 0) {
     return { ok: false, diagnostics: clamp(result.output) };
   }
-  const archive = await emulator.read_file(`/${archiveFile}`);
-  if (!(archive instanceof Uint8Array) || archive.byteLength < 1 || archive.byteLength > MAX_ARCHIVE_BYTES) {
-    throw new Error('Guest Rust compiler returned an invalid static library');
-  }
-  return { ok: true, archive: archive.slice(), diagnostics: clamp(result.output) };
+  return { ok: true, archive: archiveBytes, diagnostics: clamp(result.output) };
 }
 
-async function getWasiClasses(manifest, base) {
+async function getWasiClasses(manifest, base, id) {
   if (!wasiClassesPromise) {
+    progress(id, 'linking', 'Loading browser linker support…');
     wasiClassesPromise = import(sameOriginUrl(manifest.wasi_module, base, 'WASI module').href)
       .then(({ ConsoleStdout, Directory, File, OpenFile, PreopenDirectory, WASI, WASIProcExit }) => {
         if (![ConsoleStdout, Directory, File, OpenFile, PreopenDirectory, WASI, WASIProcExit].every(Boolean)) {
@@ -499,6 +595,7 @@ async function getWasiClasses(manifest, base) {
 
 async function loadLinker(manifest, base, id) {
   if (!linkerPromise) {
+    progress(id, 'downloading', 'Loading browser linker…');
     linkerPromise = (async () => {
       if (typeof DecompressionStream !== 'function') throw new Error('This browser has no gzip decompression support');
       let next = 0;
@@ -543,8 +640,7 @@ async function loadLinker(manifest, base, id) {
 }
 
 async function linkArchive(archive, moduleName, manifest, base, id) {
-  progress(id, 'downloading', 'Loading browser linker…');
-  const [module, classes] = await Promise.all([loadLinker(manifest, base, id), getWasiClasses(manifest, base)]);
+  const [module, classes] = await Promise.all([loadLinker(manifest, base, id), getWasiClasses(manifest, base, id)]);
   const { ConsoleStdout, Directory, File, OpenFile, PreopenDirectory, WASI, WASIProcExit } = classes;
   const root = new Directory([
     ['workspace', new Directory([[`${moduleName}.a`, new File(archive)]])],
@@ -602,22 +698,52 @@ async function compile(request) {
   const diagnostics = '';
   try {
     if (!Number.isSafeInteger(id) || !manifestUrl) throw new Error('Invalid compiler request');
-    progress(id, 'downloading', 'Loading compiler manifest…');
+    const url = new URL(manifestUrl);
+    if (!['http:', 'https:'].includes(url.protocol) || url.origin !== self.location.origin) {
+      throw new Error('Compiler manifest must be served from this page origin');
+    }
+    const canonicalManifestUrl = url.href;
+    const fingerprint = await fingerprintFiles(files, canonicalManifestUrl);
+    if (manifestIdentity !== null && manifestIdentity !== canonicalManifestUrl) {
+      throw new Error('Compiler worker is bound to a different manifest');
+    }
+    manifestIdentity ??= canonicalManifestUrl;
+    if (successfulModule?.fingerprint === fingerprint) {
+      progress(id, 'cached', 'Reusing the compiled Rust program…');
+      const wasm = successfulModule.wasm.slice();
+      send(id, {
+        type: 'result', moduleName: successfulModule.moduleName, wasm: wasm.buffer,
+        diagnostics: successfulModule.diagnostics, cached: true,
+      }, [wasm.buffer]);
+      return;
+    }
+    if (!manifestPromise) progress(id, 'loading', 'Loading compiler manifest…');
     const { value: manifest, base } = await getManifest(manifestUrl);
     await startEmulator(manifest, base, id);
     const moduleName = `pyo3_bindgen_run_${modulePrefix}_${nextModule++}`;
     const built = await guestCompile(files, manifest, base, id, moduleName);
+    await pauseEmulator();
     if (!built.ok) {
       fail(id, 'Rust compilation failed', built.diagnostics, false);
       return;
     }
-    await destroyEmulator();
     const wasm = await linkArchive(built.archive, moduleName, manifest, base, id);
+    if (wasm.byteLength <= MAX_CACHED_WASM_BYTES) {
+      successfulModule = {
+        fingerprint, moduleName, wasm: wasm.slice(), diagnostics: built.diagnostics,
+      };
+    } else {
+      successfulModule = null;
+    }
     send(id, {
       type: 'result', moduleName, wasm: wasm.buffer,
       diagnostics: built.diagnostics,
     }, [wasm.buffer]);
   } catch (error) {
+    try {
+      if (emulatorReady) await pauseEmulator();
+      else await destroyEmulator();
+    } catch { /* preserve the original compile error */ }
     const text = error?.stack || String(error);
     fail(id, error?.message || 'Browser compilation failed', clamp(`${diagnostics}${text}`), true);
   }
