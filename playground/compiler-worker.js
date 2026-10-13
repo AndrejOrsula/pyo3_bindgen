@@ -695,7 +695,6 @@ async function linkArchive(archive, moduleName, manifest, base, id) {
 
 async function compile(request) {
   const { id, files, manifestUrl } = request;
-  const diagnostics = '';
   try {
     if (!Number.isSafeInteger(id) || !manifestUrl) throw new Error('Invalid compiler request');
     const url = new URL(manifestUrl);
@@ -713,7 +712,7 @@ async function compile(request) {
       const wasm = successfulModule.wasm.slice();
       send(id, {
         type: 'result', moduleName: successfulModule.moduleName, wasm: wasm.buffer,
-        diagnostics: successfulModule.diagnostics, cached: true,
+        diagnostics: successfulModule.diagnostics,
       }, [wasm.buffer]);
       return;
     }
@@ -745,7 +744,7 @@ async function compile(request) {
       else await destroyEmulator();
     } catch { /* preserve the original compile error */ }
     const text = error?.stack || String(error);
-    fail(id, error?.message || 'Browser compilation failed', clamp(`${diagnostics}${text}`), true);
+    fail(id, error?.message || 'Browser compilation failed', clamp(text), true);
   }
 }
 

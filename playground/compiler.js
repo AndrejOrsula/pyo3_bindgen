@@ -78,9 +78,7 @@ export class BrowserCompiler {
       const armTimeout = (phase) => {
         clearTimeout(active.timer);
         active.timer = setTimeout(() => {
-          this.fail(active, new BrowserCompilerError(`Compiler ${phase} timed out`, {
-            diagnostics: active.diagnostics ?? '',
-          }), true);
+          this.fail(active, new BrowserCompilerError(`Compiler ${phase} timed out`), true);
         }, PHASE_TIMEOUTS[phase] ?? 300_000);
       };
       active.armTimeout = armTimeout;
@@ -116,9 +114,7 @@ export class BrowserCompiler {
         }
       };
       const onError = (event) => {
-        this.fail(active, new BrowserCompilerError(event.message || 'Compiler worker failed', {
-          diagnostics: active.diagnostics ?? '',
-        }), true);
+        this.fail(active, new BrowserCompilerError(event.message || 'Compiler worker failed'), true);
       };
       active.onMessage = onMessage;
       active.onError = onError;
@@ -137,7 +133,7 @@ export class BrowserCompiler {
   cancel() {
     if (this.active) {
       this.fail(this.active, new BrowserCompilerError('Compilation cancelled', {
-        diagnostics: this.active.diagnostics ?? '', cancelled: true,
+        cancelled: true,
       }), true);
     } else {
       this.stopWorker();
