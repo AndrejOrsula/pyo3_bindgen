@@ -3,7 +3,7 @@
   "generator": {
     "version": "0.6.0",
     "pyo3": "0.29.2",
-    "source_sha256": "ee5a86b3246b3231f3616aa6c44f3da3b93323a4edb89d74b19a299d5379d519"
+    "source_sha256": "b44fca4725ac8201e147b8e21f4ade7734779ba420a377a8582e762f261d3652"
   },
   "python": "3.14.2",
   "examples": [

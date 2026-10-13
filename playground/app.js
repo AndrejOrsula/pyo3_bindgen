@@ -10,6 +10,8 @@ const HIGHLIGHT_LIMIT = 400_000;
 // Links longer than this leave the pasted code out; most chat and mail clients
 // keep links of this length intact.
 const LINK_CODE_LIMIT = 16_000;
+const LINK_SOURCE_BYTE_LIMIT = 1_048_576;
+const LINK_SOURCE_LINE_LIMIT = 10_000;
 // The editor colours pasted code up to this length.
 const EDITOR_HIGHLIGHT_LIMIT = 200_000;
 // Live generation waits for a pause in typing.
@@ -1880,16 +1882,73 @@ async function transform(bytes, stream) {
   return new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
 }
 
+function sourceLineCount(text) {
+  let lines = 1;
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '\r') {
+      lines += 1;
+      if (text[index + 1] === '\n') index += 1;
+    } else if (text[index] === '\n') {
+      lines += 1;
+    }
+  }
+  return lines;
+}
+
+function encodeShareSource(text) {
+  const bytes = new TextEncoder().encode(text);
+  if (bytes.length > LINK_SOURCE_BYTE_LIMIT || sourceLineCount(text) > LINK_SOURCE_LINE_LIMIT) {
+    throw new Error('Source exceeds the shared-link size limits');
+  }
+  return bytes;
+}
+
+async function readBounded(stream) {
+  const reader = stream.getReader();
+  const chunks = [];
+  let size = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (size + value.byteLength > LINK_SOURCE_BYTE_LIMIT) {
+        await reader.cancel();
+        throw new Error('Shared source exceeds the decoded size limit');
+      }
+      chunks.push(value);
+      size += value.byteLength;
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const bytes = new Uint8Array(size);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
+}
+
 // Pasted code travels compressed in `z`; links from before compression use `code`.
 async function encodeCode(text) {
-  return toBase64Url(await transform(new TextEncoder().encode(text), new CompressionStream('deflate-raw')));
+  const bytes = encodeShareSource(text);
+  return toBase64Url(await transform(bytes, new CompressionStream('deflate-raw')));
 }
 
 async function decodeCode(params) {
+  const encoded = params.has('z') ? params.get('z') : params.get('code');
+  if (encoded.length > LINK_CODE_LIMIT) throw new Error('Shared source exceeds the encoded size limit');
+  let bytes;
   if (params.has('z')) {
-    return new TextDecoder('utf-8', { fatal: true }).decode(await transform(fromBase64Url(params.get('z')), new DecompressionStream('deflate-raw')));
+    bytes = await readBounded(new Blob([fromBase64Url(encoded)]).stream().pipeThrough(new DecompressionStream('deflate-raw')));
+  } else {
+    bytes = fromBase64Url(encoded);
+    if (bytes.byteLength > LINK_SOURCE_BYTE_LIMIT) throw new Error('Shared source exceeds the decoded size limit');
   }
-  return new TextDecoder('utf-8', { fatal: true }).decode(fromBase64Url(params.get('code')));
+  const source = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  if (sourceLineCount(source) > LINK_SOURCE_LINE_LIMIT) throw new Error('Shared source exceeds the line limit');
+  return source;
 }
 
 async function saveToHash(mode, modules, input) {
@@ -1901,7 +1960,16 @@ async function saveToHash(mode, modules, input) {
     if (input.example) {
       params.set('example', input.example);
     } else {
-      const code = await encodeCode(input.source);
+      let code;
+      try {
+        code = await encodeCode(input.source);
+      } catch (error) {
+        if (!isCurrent()) return;
+        if (error.message !== 'Source exceeds the shared-link size limits') throw error;
+        showNote('This code is too long to keep in the page link, so the link does not include it.');
+        history.replaceState(null, '', location.pathname + location.search);
+        return;
+      }
       if (!isCurrent()) return;
       if (code.length > LINK_CODE_LIMIT) {
         showNote('This code is too long to keep in the page link, so the link does not include it.');
