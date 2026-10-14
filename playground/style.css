@@ -484,6 +484,11 @@ select {
   pointer-events: none;
 }
 
+.editor-colors code,
+.rust-colors code {
+  font: inherit;
+}
+
 .editor textarea {
   position: absolute;
   inset: 0;
