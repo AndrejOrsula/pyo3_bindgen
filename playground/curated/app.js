@@ -17,7 +17,7 @@ const errorBox = document.getElementById('load-error');
 function fail(message) {
   loading.hidden = true;
   examples.hidden = true;
-  errorBox.textContent = message;
+  errorBox.textContent = `The curated examples are unavailable right now. Reload the page to try again. ${message}`;
   errorBox.hidden = false;
 }
 

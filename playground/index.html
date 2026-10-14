@@ -5,8 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>pyo3_bindgen playground</title>
   <meta name="description" content="Generate Rust bindings to any Python module in your browser with pyo3_bindgen, then download them as a ready-to-run crate.">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0' stop-color='%233776ab'/%3E%3Cstop offset='1' stop-color='%23e8590c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='24' height='24' rx='6' fill='url(%23g)'/%3E%3Cpath d='M8 7l5 5-5 5M13 17h4' fill='none' stroke='%23fff' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="https://andrejorsula.github.io/img/favicon.svg">
   <script src="theme.js"></script>
+  <link rel="stylesheet" href="tokens.css">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
@@ -22,9 +23,10 @@
       <span class="brand-name">pyo3_bindgen</span>
       <span class="brand-tag">playground</span>
     </a>
+    <a class="demo-home" href="https://andrejorsula.github.io/">Andrej Orsula</a>
     <p class="tagline">Edit Python, compile Rust, and run it with the generated bindings.</p>
     <p class="status" id="status" role="status" data-state="loading">
-      <span class="dot" aria-hidden="true"></span><span id="status-text">Starting…</span>
+      <span class="dot" aria-hidden="true"></span><span id="status-text">Loading pyo3_bindgen playground…</span>
     </p>
   </header>
 
@@ -248,7 +250,7 @@
 
   <footer class="foot">
     <p class="about">Your Python and Rust source stay in this browser and are not sent to a server for generation or compilation. Python code and imported packages can make network requests. Shared links include Python inputs but exclude Rust edits; downloaded crates include your edited <code>src/main.rs</code>. First compilation downloads the browser compiler assets. Python packages install from PyPI or Pyodide.</p>
-    <p><a href="curated/">Precomputed reference</a> · <a id="compiler-notices" href="compiler/licenses/README.html" hidden>Compiler licenses and sources</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
+    <p><span class="demo-home"><a class="demo-home" href="https://andrejorsula.github.io/demos/">More demos</a> · </span><a href="curated/">Precomputed reference</a> · <a id="compiler-notices" href="compiler/licenses/README.html" hidden>Compiler licenses and sources</a> · <a href="https://github.com/AndrejOrsula/pyo3_bindgen" target="_blank" rel="noopener">GitHub</a> · <a href="https://docs.rs/pyo3_bindgen" target="_blank" rel="noopener">Docs</a> · <a href="https://crates.io/crates/pyo3_bindgen" target="_blank" rel="noopener">crates.io</a> · <span id="build-info"></span></p>
   </footer>
 </body>
 </html>

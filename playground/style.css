@@ -1,22 +1,20 @@
-/* Colors follow the tabi theme of the author's portfolio, which embeds this
-   page. theme.js sets data-theme before the page paints. */
+/* Demo kit v1 supplies page colors, typography, and the base radius scale. */
 :root {
-  color-scheme: light;
-  --bg: #ffffff;
-  --surface: #f6f8f9;
-  --surface-2: #eef2f4;
-  --border: #d9e0e4;
-  --control: #848d96;
-  --text: #222226;
-  --muted: #5b6370;
-  --primary: #087e96;
-  --primary-text: #ffffff;
-  --primary-soft: rgba(8, 126, 150, 0.1);
+  --bg: var(--demo-bg);
+  --surface: var(--demo-surface);
+  --surface-2: var(--demo-surface-2);
+  --border: var(--demo-border);
+  --control: var(--demo-border);
+  --text: var(--demo-text);
+  --muted: var(--demo-muted);
+  --primary: var(--demo-accent);
+  --primary-text: var(--demo-on-accent);
+  --primary-soft: color-mix(in srgb, var(--demo-accent) 12%, transparent);
   --danger: #b42318;
   --warning: #9a5b00;
   --ok: #18794e;
-  --code-bg: #fbfcfd;
-  --mark: rgba(8, 126, 150, 0.16);
+  --code-bg: var(--demo-bg);
+  --mark: color-mix(in srgb, var(--demo-accent) 18%, transparent);
   --tok-keyword: #8a3ffc;
   --tok-type: #087e96;
   --tok-string: #a3530b;
@@ -28,30 +26,18 @@
   --tok-builtin: #0e7c5a;
   --python: #3776ab;
   --rust: #b54708;
-  --radius: 10px;
-  --mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", Menlo, Consolas, monospace;
-  --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --radius: var(--demo-radius);
+  --control-radius: var(--demo-radius-control);
+  --mono: var(--demo-mono);
+  --sans: var(--demo-font);
 }
 
 :root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #1f1f1f;
-  --surface: #262729;
-  --surface-2: #2e3033;
-  --border: #3a3d41;
-  --control: #747b84;
-  --text: #d4d4d4;
-  --muted: #9aa1ab;
-  --primary: #91e0ee;
-  --primary-text: #10272c;
-  --primary-soft: rgba(145, 224, 238, 0.12);
   --python: #79b8ff;
   --rust: #ff9a62;
   --danger: #ff8a80;
   --warning: #f0b37e;
   --ok: #7ee2a8;
-  --code-bg: #1b1c1e;
-  --mark: rgba(145, 224, 238, 0.16);
   --tok-keyword: #c792ea;
   --tok-type: #91e0ee;
   --tok-string: #f0b37e;
@@ -61,6 +47,25 @@
   --tok-attr: #7f8791;
   --tok-fn: #82aaff;
   --tok-builtin: #7ee2a8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --python: #79b8ff;
+    --rust: #ff9a62;
+    --danger: #ff8a80;
+    --warning: #f0b37e;
+    --ok: #7ee2a8;
+    --tok-keyword: #c792ea;
+    --tok-type: #91e0ee;
+    --tok-string: #f0b37e;
+    --tok-comment: #7f8791;
+    --tok-number: #f78c6c;
+    --tok-macro: #82aaff;
+    --tok-attr: #7f8791;
+    --tok-fn: #82aaff;
+    --tok-builtin: #7ee2a8;
+  }
 }
 
 *,
@@ -87,6 +92,18 @@ body {
 
 a {
   color: var(--primary);
+}
+
+.demo-home {
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.demo-home:hover {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 [hidden] {
@@ -329,22 +346,18 @@ a {
 }
 
 .tabs [role="tab"][aria-selected="true"] {
-  color: var(--primary);
+  border-radius: var(--control-radius) var(--control-radius) 0 0;
+  background: var(--primary);
+  color: var(--primary-text);
   border-bottom-color: var(--primary);
-}
-
-.pane.input > .tabs [role="tab"][aria-selected="true"] {
-  color: var(--python);
-  border-bottom-color: var(--python);
-}
-
-.output-head .tabs [role="tab"][aria-selected="true"] {
-  color: var(--rust);
-  border-bottom-color: var(--rust);
 }
 
 .tabs [role="tab"]:hover {
   color: var(--text);
+}
+
+.tabs [role="tab"][aria-selected="true"]:hover {
+  color: var(--primary-text);
 }
 
 .panel {
@@ -389,7 +402,7 @@ select {
   width: 100%;
   padding: 0.5rem 0.65rem;
   border: 1px solid var(--control);
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   background: var(--surface);
   color: var(--text);
   font: 0.9rem/1.5 var(--mono);
@@ -412,7 +425,7 @@ select {
   overflow: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--control);
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   background: var(--code-bg);
   font: 400 0.875rem/1.55 var(--mono);
   /* The source's length must not stretch the pane, and the columns fill
@@ -661,7 +674,7 @@ input[type="checkbox"] {
 button.primary,
 button.secondary {
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--control-radius);
   font: 600 0.9rem var(--sans);
   cursor: pointer;
   white-space: nowrap;
@@ -671,11 +684,6 @@ button.primary {
   border: 1px solid var(--primary);
   background: var(--primary);
   color: var(--primary-text);
-}
-
-#generate {
-  border-color: var(--python);
-  background: var(--python);
 }
 
 button.secondary {
@@ -815,8 +823,8 @@ kbd {
 
 .files [role="tab"][aria-selected="true"] {
   border-color: var(--primary);
-  background: var(--primary-soft);
-  color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-text);
 }
 
 .files [role="tab"]:focus-visible {
@@ -983,7 +991,7 @@ kbd {
   margin: 0.25rem 0 0;
   padding: 0.55rem;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   background: var(--code-bg);
   font: 0.8rem/1.5 var(--mono);
   white-space: pre-wrap;
@@ -1266,7 +1274,7 @@ kbd {
 .rust-type {
   padding: 0.05rem 0.35rem;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--control-radius);
   background: var(--primary-soft);
   color: var(--tok-type);
   font: 0.82rem var(--mono);
@@ -1373,14 +1381,6 @@ kbd {
 
 .api-columns span:last-child {
   color: var(--rust);
-}
-
-:root[data-theme="dark"] .api-columns span:first-child {
-  color: #79b8ff;
-}
-
-:root[data-theme="dark"] .api-columns span:last-child {
-  color: #ff9a62;
 }
 
 .api-module + .api-module {
@@ -1546,20 +1546,21 @@ kbd {
 
 /* Embedded in a page, such as the portfolio, which explains the playground
    itself: the frame keeps room for the panes. */
-.embedded body {
+html[data-embedded] body {
   height: max(100%, 38rem);
 }
 
-.embedded .tagline,
-.embedded .foot .about {
+html[data-embedded] .demo-home,
+html[data-embedded] .tagline,
+html[data-embedded] .foot .about {
   display: none;
 }
 
-.embedded .bar {
+html[data-embedded] .bar {
   padding-block: 0.55rem;
 }
 
-.embedded .foot {
+html[data-embedded] .foot {
   padding-block: 0.4rem 0.5rem;
 }
 
@@ -1574,7 +1575,7 @@ kbd {
 /* Constrained screens: stack the panes and let the page scroll. */
 @media (max-width: 850px) {
   body,
-  .embedded body {
+  html[data-embedded] body {
     height: auto;
     min-height: 100%;
   }

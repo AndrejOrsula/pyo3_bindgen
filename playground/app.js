@@ -205,7 +205,7 @@ function crashed(instance, text) {
   markStale(Boolean(state.result));
   setStatus('error', 'Python stopped');
   showRetry(true);
-  showMessage(`Python stopped unexpectedly: ${text} Retry to start Python again. Packages installed earlier need installing again.`);
+  showMessage(`The pyo3_bindgen playground is unavailable right now. Python stopped unexpectedly: ${text} Retry to start Python again. Packages installed earlier need installing again.`);
   updateButtons();
   notifyHost('wasm-demo-error', { ...(state.config?.build ? { build: state.config.build } : {}), message: text });
 }
@@ -1858,7 +1858,7 @@ async function cancel() {
     }
   } catch (error) {
     setStatus('error', 'Python failed to start');
-    showMessage(`Python could not restart: ${error.message} Retry to try loading Pyodide, the generator, and Python glue again.`);
+    showMessage(`The pyo3_bindgen playground is unavailable right now. Python could not restart: ${error.message} Retry to load Pyodide, the generator, and Python glue again.`);
     showRetry(true);
     updateButtons();
     notifyHost('wasm-demo-error', { ...(state.config?.build ? { build: state.config.build } : {}), message: error.message });
@@ -2178,7 +2178,7 @@ async function start() {
   updateExampleGuide();
   ui.retry.disabled = true;
   showMessage('');
-  setStatus('loading', 'Preparing Python…');
+  setStatus('loading', 'Loading pyo3_bindgen playground…');
   try {
     if (!state.config) await fetchConfig();
     await restoreInputsOnce();
@@ -2227,8 +2227,8 @@ async function start() {
     else setStep('python', true);
     setStatus('error', state.config ? 'Python failed to start' : 'Failed to load');
     showMessage(state.config
-      ? `Python could not start: ${error.message} Retry to try loading Pyodide, the generator, and Python glue again.`
-      : `The playground could not load its configuration (${error.message}). Retry to fetch it again.`);
+      ? `The pyo3_bindgen playground is unavailable right now. Python could not start: ${error.message} Retry to load Pyodide, the generator, and Python glue again.`
+      : `The pyo3_bindgen playground is unavailable right now. The playground could not load its configuration (${error.message}). Retry to fetch it again.`);
     showRetry(true);
     updateButtons();
     notifyHost('wasm-demo-error', {

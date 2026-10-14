@@ -1,0 +1,69 @@
+/* Demo kit v1: the look that every demo on andrejorsula.github.io shares with
+   the portfolio. The rules live at /demo-kit/v1/ (index.html beside this file).
+   The values mirror sass/skins/pastel_ocean.scss and the tabi theme, and a
+   unit test keeps them equal. v1 never changes incompatibly; a breaking change
+   becomes /demo-kit/v2/. */
+
+@font-face {
+    font-family: 'Inter Demo';
+    src: url('/fonts/Inter4.woff2') format('woff2');
+    font-weight: 100 900;
+    font-display: swap;
+}
+
+:root {
+    color-scheme: light;
+    --demo-bg: #ffffff;
+    --demo-surface: #f0f0f0;
+    --demo-surface-2: #e7e7e7;
+    --demo-border: #d7d7d7;
+    --demo-text: #222226;
+    --demo-text-strong: #313333;
+    --demo-muted: #5b5b65;
+    --demo-accent: #5369c1;
+    --demo-on-accent: #ffffff;
+    --demo-font: 'Inter Demo', Inter, Helvetica, Arial, sans-serif;
+    --demo-mono: 'Cascadia Code', ui-monospace, monospace;
+    --demo-radius: 8px;
+    --demo-radius-control: 6px;
+}
+
+:root[data-theme='dark'] {
+    color-scheme: dark;
+    --demo-bg: #1f1f1f;
+    --demo-surface: #2f2f2f;
+    --demo-surface-2: #3c3c3c;
+    --demo-border: #4a4a4a;
+    --demo-text: #d4d4d4;
+    --demo-text-strong: #eceeef;
+    --demo-muted: #b0b0b0;
+    --demo-accent: #7c91d9;
+    --demo-on-accent: #1f1f1f;
+}
+
+@media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) {
+        color-scheme: dark;
+        --demo-bg: #1f1f1f;
+        --demo-surface: #2f2f2f;
+        --demo-surface-2: #3c3c3c;
+        --demo-border: #4a4a4a;
+        --demo-text: #d4d4d4;
+        --demo-text-strong: #eceeef;
+        --demo-muted: #b0b0b0;
+        --demo-accent: #7c91d9;
+        --demo-on-accent: #1f1f1f;
+    }
+}
+
+/* Painted before any WebAssembly starts, so a dark page never flashes white. */
+html {
+    background: var(--demo-bg);
+    color: var(--demo-text);
+    font-family: var(--demo-font);
+}
+
+/* The link back to the portfolio shows only when the demo is the whole page. */
+:root[data-embedded] .demo-home {
+    display: none;
+}
