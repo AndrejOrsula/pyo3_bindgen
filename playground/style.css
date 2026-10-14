@@ -106,6 +106,11 @@ a {
   text-underline-offset: 0.2em;
 }
 
+/* The demo kit's scheme toggle sits beside the portfolio link. */
+.bar .demo-theme-toggle {
+  margin-left: -0.5rem;
+}
+
 [hidden] {
   display: none !important;
 }
