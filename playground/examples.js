@@ -34,15 +34,15 @@ println!("greeting: {}", greetings.join(" | "));`,
     concepts: ['Classes', 'Inheritance', 'Methods'],
     options: { call_builders: false, traverse_submodules: false },
     starter: {
-      body: `use shapes::CircleMethods;
+      body: `use shapes::ShapeMethods;
 let circle = shapes::Circle::new(py, 2.0)?;
-let description = circle.describe(py)?;
+let description = ShapeMethods::describe(&circle, py)?;
 assert_eq!(description, "Circle with area 12.57");
 println!("shapes: {description}");`,
-      experimentBody: `use shapes::RectangleMethods;
+      experimentBody: `use shapes::ShapeMethods;
 let rectangle = shapes::Rectangle::new(py, 3.0, 4.0)?;
 let area = rectangle.area(py)?;
-let description = rectangle.describe(py)?;
+let description = ShapeMethods::describe(&rectangle, py)?;
 assert_eq!(area, 12.0);
 assert_eq!(description, "Rectangle with area 12.00");
 println!("shapes: {description}");`,
