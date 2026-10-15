@@ -107,7 +107,7 @@ function parseModule(lines, from, to, indent, module, modules) {
       const child = newModule(`${module.path}.${match[1]}`, item.line, item.docs);
       modules.push(child);
       parseModule(lines, item.body[0], item.body[1], indent + 4, child, modules);
-    } else if ((match = /^pub struct (?:r#)?(\w+)\(u64\);$/.exec(header))) {
+    } else if ((match = /^pub struct (?:r#)?(\w+)\(\s*(?:::core::primitive::)?u64\s*,?\s*\);$/.exec(header))) {
       module.flags.push({ name: match[1], line: item.line, doc: item.docs[0] ?? '', flags: true });
     } else if ((match = /^pub struct (?:r#)?(\w+)(<[^{;]*>)?/.exec(header))) {
       if (match[2]) module.builders.set(match[1], item.line);
