@@ -7,7 +7,7 @@ const MAX_RUNTIME_TAR_BYTES = 512 * 1024 * 1024;
 const EXPECTED = {
   schema_version: 1,
   rust_version: '1.93.0',
-  pyo3_version: '0.29.2',
+  pyo3_version: '0.30.1',
   pyodide_version: '314.0.7',
   target: 'wasm32-unknown-emscripten',
   memory_bytes: 1_073_741_824,

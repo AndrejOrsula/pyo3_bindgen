@@ -82,7 +82,10 @@ tool variables), all inherited `KBUILD_*`, `KCONFIG_*`, and `CONFIG_*` variables
 compiler include/library search overrides, tool selectors (`BISON`, `FLEX`,
 `YACC`, `PERL`, `PYTHON`), Python/Perl import overrides, and archive-tool option
 variables. The task-local `LD_LIBRARY_PATH` contains only the pinned build-tool
-library directory. `HOME` is left unchanged. Explicit command-line assignments
+library directory. The environment cleanup removes any inherited loader path,
+then restores this pinned directory before invoking build tools; Make and its
+recipe children therefore resolve the pinned `libsigsegv2` used by task-local
+GNU m4. `HOME` is left unchanged. Explicit command-line assignments
 select the BusyBox target compiler and Linux/BusyBox architecture.
 
 The recipe's full upstream builds are `make olddefconfig && make EXTRAVERSION=-pyo3-browser-v1 -jN`

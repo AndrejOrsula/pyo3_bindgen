@@ -79,6 +79,7 @@ code, pre { font-family: var(--mono); }
 .brand-name { color: var(--demo-accent); font: 700 1.1rem/1 var(--mono); }
 .brand-tag { color: var(--demo-muted); font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
 .portfolio-home { color: var(--demo-muted); font-size: 0.85rem; }
+/* The demo kit's scheme toggle closes the header at its right edge, as in the other demos. */
 .bar .demo-theme-toggle { margin-left: -0.5rem; }
 .tagline { margin: 0; color: var(--demo-muted); font-size: 0.9rem; }
 .back-link { margin-left: auto; font-weight: 650; }
@@ -155,9 +156,7 @@ h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.12; letter
   .bar { align-items: flex-start; }
   .tagline { width: 100%; order: 2; }
   .back-link { margin-left: auto; font-size: 0.85rem; }
-  /* The toggle no longer fits beside the portfolio link; it leads the back link instead. */
-  .bar .demo-theme-toggle { margin-left: auto; }
-  :root[data-theme]:not([data-embedded]) .bar .demo-theme-toggle + .tagline + .back-link { margin-left: 0; align-self: center; }
+  .bar .demo-theme-toggle { align-self: center; }
   .result { grid-template-columns: minmax(0, 1fr); }
   .summary { padding: 0.85rem; }
 }

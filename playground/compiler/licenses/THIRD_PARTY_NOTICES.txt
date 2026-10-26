@@ -5,7 +5,7 @@ the exact source archives and license files listed in SHA256SUMS.
 
 Rust 1.93.0 is distributed under MIT OR Apache-2.0. Its bundled
 COPYRIGHT and full component notices are preserved in this directory.
-PyO3 0.29.2 and every locked Rust dependency retain their license
+PyO3 0.30.1 and every locked Rust dependency retain their license
 files. v86, SeaBIOS, the browser WASI shim, Linux, BusyBox, and LLD
 retain their upstream notices. Debian runtime library notices and
 corresponding sources retain Debian metadata and patches.

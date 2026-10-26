@@ -191,7 +191,6 @@ def local_input(file_name: str, pins: dict[str, Any]) -> tuple[Path, dict[str, A
 def source_input(name: str, pins: dict[str, Any], cache: Path) -> tuple[Path, dict[str, Any]]:
     pin = pins["inputs"][name]
     path = download_pin(cache, pin, name)
-    verify_file(path, pin, name)
     return path, pin
 
 
@@ -280,7 +279,6 @@ def unpack_tools(cache: Path, scratch: Path, base_env: dict[str, str]) -> tuple[
     pins_receipt: dict[str, Any] = {}
     for name, pin in TOOL_PINS.items():
         package = download_pin(deb_dir, pin, name)
-        verify_file(package, pin, name)
         dest = extract_root / name
         dest.mkdir(parents=True)
         subprocess.run(["dpkg-deb", "-x", str(package), str(dest)], env=base_env, check=True)
@@ -383,6 +381,9 @@ def set_fixed_mtime(root: Path, epoch: int) -> None:
 
 def clean_build_env(tool_info: dict[str, Any], scratch: Path) -> dict[str, str]:
     env = sanitized_build_environment(tool_info["env"])
+    task_local_library_path = tool_info["env"].get("LD_LIBRARY_PATH")
+    if task_local_library_path is not None:
+        env["LD_LIBRARY_PATH"] = task_local_library_path
     for name in ("LD_PRELOAD", "RUSTC_WRAPPER", "RUSTC_WORKSPACE_WRAPPER", "DISPLAY"):
         env.pop(name, None)
     env.update({

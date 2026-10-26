@@ -369,60 +369,60 @@
   ],
   "cargo_notices": [
     {
-      "crate": "pyo3-0.29.2",
+      "crate": "pyo3-0.30.1",
       "file": "LICENSE-APACHE",
       "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
       "bytes": 9807,
-      "destination": "notices/cargo-pyo3-0.29.2-LICENSE-APACHE"
+      "destination": "notices/cargo-pyo3-0.30.1-LICENSE-APACHE"
     },
     {
-      "crate": "pyo3-0.29.2",
+      "crate": "pyo3-0.30.1",
       "file": "LICENSE-MIT",
       "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
       "bytes": 1107,
-      "destination": "notices/cargo-pyo3-0.29.2-LICENSE-MIT"
+      "destination": "notices/cargo-pyo3-0.30.1-LICENSE-MIT"
     },
     {
-      "crate": "pyo3-ffi-0.29.2",
+      "crate": "pyo3-ffi-0.30.1",
       "file": "LICENSE-APACHE",
       "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
       "bytes": 9807,
-      "destination": "notices/cargo-pyo3-ffi-0.29.2-LICENSE-APACHE"
+      "destination": "notices/cargo-pyo3-ffi-0.30.1-LICENSE-APACHE"
     },
     {
-      "crate": "pyo3-ffi-0.29.2",
+      "crate": "pyo3-ffi-0.30.1",
       "file": "LICENSE-MIT",
       "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
       "bytes": 1107,
-      "destination": "notices/cargo-pyo3-ffi-0.29.2-LICENSE-MIT"
+      "destination": "notices/cargo-pyo3-ffi-0.30.1-LICENSE-MIT"
     },
     {
-      "crate": "pyo3-build-config-0.29.2",
+      "crate": "pyo3-build-config-0.30.1",
       "file": "LICENSE-APACHE",
       "sha256": "32c76dbe0e73d79100d5ece77c158399f2e2541bc5c78548a4ba45c1cb53c5c9",
       "bytes": 9807,
-      "destination": "notices/cargo-pyo3-build-config-0.29.2-LICENSE-APACHE"
+      "destination": "notices/cargo-pyo3-build-config-0.30.1-LICENSE-APACHE"
     },
     {
-      "crate": "pyo3-build-config-0.29.2",
+      "crate": "pyo3-build-config-0.30.1",
       "file": "LICENSE-MIT",
       "sha256": "afcbe3b2e6b37172b5a9ca869ee4c0b8cdc09316e5d4384864154482c33e5af6",
       "bytes": 1107,
-      "destination": "notices/cargo-pyo3-build-config-0.29.2-LICENSE-MIT"
+      "destination": "notices/cargo-pyo3-build-config-0.30.1-LICENSE-MIT"
     },
     {
-      "crate": "libc-0.2.190",
+      "crate": "libc-0.2.191",
       "file": "LICENSE-APACHE",
       "sha256": "62c7a1e35f56406896d7aa7ca52d0cc0d272ac022b5d2796e7d6905db8a3636a",
       "bytes": 9723,
-      "destination": "notices/cargo-libc-0.2.190-LICENSE-APACHE"
+      "destination": "notices/cargo-libc-0.2.191-LICENSE-APACHE"
     },
     {
-      "crate": "libc-0.2.190",
+      "crate": "libc-0.2.191",
       "file": "LICENSE-MIT",
       "sha256": "123a331b5dbf04c30097fa43b8f858bc85df671fe776de498d01f3d6b7c1f69e",
       "bytes": 1066,
-      "destination": "notices/cargo-libc-0.2.190-LICENSE-MIT"
+      "destination": "notices/cargo-libc-0.2.191-LICENSE-MIT"
     },
     {
       "crate": "once_cell-1.21.4",
@@ -439,18 +439,18 @@
       "destination": "notices/cargo-once_cell-1.21.4-LICENSE-MIT"
     },
     {
-      "crate": "portable-atomic-1.13.1",
+      "crate": "portable-atomic-1.15.0",
       "file": "LICENSE-APACHE",
       "sha256": "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594",
       "bytes": 10174,
-      "destination": "notices/cargo-portable-atomic-1.13.1-LICENSE-APACHE"
+      "destination": "notices/cargo-portable-atomic-1.15.0-LICENSE-APACHE"
     },
     {
-      "crate": "portable-atomic-1.13.1",
+      "crate": "portable-atomic-1.15.0",
       "file": "LICENSE-MIT",
       "sha256": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
       "bytes": 1023,
-      "destination": "notices/cargo-portable-atomic-1.13.1-LICENSE-MIT"
+      "destination": "notices/cargo-portable-atomic-1.15.0-LICENSE-MIT"
     },
     {
       "crate": "target-lexicon-0.13.5",

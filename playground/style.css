@@ -106,7 +106,8 @@ a {
   text-underline-offset: 0.2em;
 }
 
-/* The demo kit's scheme toggle sits beside the portfolio link. */
+/* The demo kit's scheme toggle closes the header at its right edge, next to the
+   status, as in the other demos. */
 .bar .demo-theme-toggle {
   margin-left: -0.5rem;
 }

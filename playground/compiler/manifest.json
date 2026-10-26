@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "rust_version": "1.93.0",
-  "pyo3_version": "0.29.2",
+  "pyo3_version": "0.30.1",
   "pyodide_version": "314.0.7",
   "target": "wasm32-unknown-emscripten",
   "memory_bytes": 1073741824,
@@ -80,11 +80,11 @@
     "chunks": [
       {
         "path": "dependencies/part-000.bin",
-        "sha256": "b4e71ab1cecee104ec0be74a63b230f186d2b6b08dfc158d31cb92e39a61f2e9",
-        "bytes": 3867691
+        "sha256": "5aa1a436c35bf966b81f6750d1484c3f9d1dc5b9acc7e3b45e3f54a9179d9f0c",
+        "bytes": 3917548
       }
     ],
-    "pyo3_rlib": "libpyo3-ecb452fc68985bdd.rlib"
+    "pyo3_rlib": "libpyo3-521e4f4ddfe82145.rlib"
   },
   "linker": {
     "chunks": [
@@ -116,5 +116,5 @@
     "libgcc_s1": "56b95a550b342418f6c4765d5c9b08df2c7167134767e44f1f1bc82ced363ece",
     "zlib1g": "3ca84a1245347652b7e1f8694db222851f7f1e7060515b21e1439b0cf84f96e1"
   },
-  "download_bytes": 179722711
+  "download_bytes": 179772568
 }

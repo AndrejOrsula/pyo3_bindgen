@@ -60,7 +60,7 @@
     }
   },
   "recipe": {
-    "prepare_vm_sha256": "dc465c88edb89c4c3f8900f015637c7dbaaab31f439fb0f0e2323d2f3fced3b5",
+    "prepare_vm_sha256": "014702f7f8d5060165953c1fbab4acc04ec17bb8434cafe603ab8dd87a849a3a",
     "zig_cc_sha256": "1d5805377c8758e93d26866c006783e0d0044f3c739536db707dccc79fd9ee65"
   },
   "reproducible_metadata": {

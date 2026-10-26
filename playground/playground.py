@@ -508,7 +508,7 @@ def crate_files(code, report, modules, source, options, main_body=None):
     python = report.get("python") or {}
     # The interpreter reports its version followed by build details.
     python_version = (python.get("version") or "").split(" ")[0]
-    pyo3_version = generator.get("pyo3_version") or "0.29.2"
+    pyo3_version = generator.get("pyo3_version") or "0.30.1"
     first = modules[0]
     changed = changed_options(options)
 

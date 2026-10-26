@@ -1,10 +1,10 @@
 {
-  "build": "9f585e4fd872636453c38f0b9689fc3981f6972c",
+  "build": "f61b6c07e6127dd1b41fe17b39a312a8ca29b27a",
   "generator": "0.6.0",
   "generator_revision": "",
   "pyodide": "314.0.7",
   "pyodide_url": "https://cdn.jsdelivr.net/pyodide/v314.0.7/full/",
   "compiler": "compiler/manifest.json",
-  "compiler_download_bytes": 179722711,
-  "wheel": "wheels/5e5778a9f4a1fed87187e278de5bb5665af9765767073876035cd4e9af6ccd28/pyo3_bindgen_playground-0.0.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl"
+  "compiler_download_bytes": 179772568,
+  "wheel": "wheels/714354eafdb21b2700445fa16e383947814859597ff5e9e2402bfc308f38eaab/pyo3_bindgen_playground-0.0.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl"
 }
